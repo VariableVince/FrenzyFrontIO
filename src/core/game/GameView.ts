@@ -333,10 +333,10 @@ export class GameView implements GameMap {
   }
   units(...types: UnitType[]): UnitView[] {
     if (types.length == 0) {
-      return Array.from(this._units.values());
+      return Array.from(this._units.values()).filter((u) => u.isActive());
     }
-    return Array.from(this._units.values()).filter((u) =>
-      types.includes(u.type())
+    return Array.from(this._units.values()).filter(
+      (u) => u.isActive() && types.includes(u.type())
     );
   }
   unit(id: number): UnitView {
