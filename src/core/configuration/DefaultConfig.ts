@@ -330,20 +330,21 @@ export class DefaultConfig implements Config {
 
   startManpower(playerInfo: PlayerInfo): number {
     if (playerInfo.playerType == PlayerType.Bot) {
-      return 10000;
+      return 10_000;
     }
     if (playerInfo.playerType == PlayerType.FakeHuman) {
-      // start troops * strength * difficulty
       switch (this._gameConfig.difficulty) {
         case Difficulty.Easy:
+          return 2_500 * (playerInfo?.nation?.strength ?? 1);
         case Difficulty.Medium:
-          return 10000 * (playerInfo?.nation?.strength ?? 1);
+          return 5_000 * (playerInfo?.nation?.strength ?? 1);
         case Difficulty.Hard:
+          return 15_000 * (playerInfo?.nation?.strength ?? 1);
         case Difficulty.Impossible:
-          return 20000 * (playerInfo?.nation?.strength ?? 1);
+          return 20_000 * (playerInfo?.nation?.strength ?? 1);
       }
     }
-    return 25000;
+    return 25_000;
   }
 
   maxPopulation(player: Player | PlayerView): number {
@@ -371,16 +372,16 @@ export class DefaultConfig implements Config {
     let difficultyMultiplier = 1;
     switch (this._gameConfig.difficulty) {
       case Difficulty.Easy:
-        difficultyMultiplier = 0.5;
+        difficultyMultiplier = 0.3;
         break;
       case Difficulty.Medium:
-        difficultyMultiplier = 0.8;
+        difficultyMultiplier = 0.6;
         break;
       case Difficulty.Hard:
-        difficultyMultiplier = 1.5;
+        difficultyMultiplier = 1;
         break;
       case Difficulty.Impossible:
-        difficultyMultiplier = 1.7;
+        difficultyMultiplier = 1.2;
         break;
     }
     if (player.type() == PlayerType.FakeHuman) {
