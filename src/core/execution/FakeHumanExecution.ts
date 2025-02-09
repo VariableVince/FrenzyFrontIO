@@ -146,9 +146,9 @@ export class FakeHumanExecution implements Execution {
   private shouldAttack(other: Player): boolean {
     if (this.player.isAlliedWith(other)) {
       if (this.shouldDiscourageAttack(other)) {
-        return this.random.chance(100);
+        return this.random.chance(200);
       }
-      return this.random.chance(20);
+      return this.random.chance(50);
     } else {
       if (this.shouldDiscourageAttack(other)) {
         return this.random.chance(4);
