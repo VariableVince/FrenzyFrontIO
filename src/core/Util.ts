@@ -16,7 +16,7 @@ import { andFN, GameMap, manhattanDistFN, TileRef } from "./game/GameMap";
 export function manhattanDistWrapped(
   c1: Cell,
   c2: Cell,
-  width: number,
+  width: number
 ): number {
   // Calculate x distance
   let dx = Math.abs(c1.x - c2.x);
@@ -36,7 +36,7 @@ export function within(value: number, min: number, max: number): number {
 
 export function distSort(
   gm: GameMap,
-  target: TileRef,
+  target: TileRef
 ): (a: TileRef, b: TileRef) => number {
   return (a: TileRef, b: TileRef) => {
     return gm.manhattanDist(a, target) - gm.manhattanDist(b, target);
@@ -45,7 +45,7 @@ export function distSort(
 
 export function distSortUnit(
   gm: GameMap,
-  target: Unit | TileRef,
+  target: Unit | TileRef
 ): (a: Unit, b: Unit) => number {
   const targetRef = typeof target === "number" ? target : target.tile();
 
@@ -61,7 +61,7 @@ export function distSortUnit(
 export function sourceDstOceanShore(
   gm: Game,
   src: Player,
-  tile: TileRef,
+  tile: TileRef
 ): [TileRef | null, TileRef | null] {
   const dst = gm.owner(tile);
   let srcTile = closestOceanShoreFromPlayer(gm, src, tile);
@@ -88,10 +88,10 @@ export function targetTransportTile(gm: Game, tile: TileRef): TileRef | null {
 export function closestOceanShoreFromPlayer(
   gm: GameMap,
   player: Player,
-  target: TileRef,
+  target: TileRef
 ): TileRef | null {
   const shoreTiles = Array.from(player.borderTiles()).filter((t) =>
-    gm.isOceanShore(t),
+    gm.isOceanShore(t)
   );
   if (shoreTiles.length == 0) {
     return null;
@@ -101,12 +101,12 @@ export function closestOceanShoreFromPlayer(
     const closestDistance = manhattanDistWrapped(
       gm.cell(target),
       gm.cell(closest),
-      gm.width(),
+      gm.width()
     );
     const currentDistance = manhattanDistWrapped(
       gm.cell(target),
       gm.cell(current),
-      gm.width(),
+      gm.width()
     );
     return currentDistance < closestDistance ? current : closest;
   });
@@ -115,13 +115,13 @@ export function closestOceanShoreFromPlayer(
 function closestOceanShoreTN(
   gm: GameMap,
   tile: TileRef,
-  searchDist: number,
+  searchDist: number
 ): TileRef {
   const tn = Array.from(
     gm.bfs(
       tile,
-      andFN((_, t) => !gm.hasOwner(t), manhattanDistFN(tile, searchDist)),
-    ),
+      andFN((_, t) => !gm.hasOwner(t), manhattanDistFN(tile, searchDist))
+    )
   )
     .filter((t) => gm.isOceanShore(t))
     .sort((a, b) => gm.manhattanDist(tile, a) - gm.manhattanDist(tile, b));
@@ -143,7 +143,7 @@ export function simpleHash(str: string): number {
 
 export function calculateBoundingBox(
   gm: GameMap,
-  borderTiles: ReadonlySet<TileRef>,
+  borderTiles: ReadonlySet<TileRef>
 ): { min: Cell; max: Cell } {
   let minX = Infinity,
     minY = Infinity,
@@ -163,18 +163,18 @@ export function calculateBoundingBox(
 
 export function calculateBoundingBoxCenter(
   gm: GameMap,
-  borderTiles: ReadonlySet<TileRef>,
+  borderTiles: ReadonlySet<TileRef>
 ): Cell {
   const { min, max } = calculateBoundingBox(gm, borderTiles);
   return new Cell(
     min.x + Math.floor((max.x - min.x) / 2),
-    min.y + Math.floor((max.y - min.y) / 2),
+    min.y + Math.floor((max.y - min.y) / 2)
   );
 }
 
 export function inscribed(
   outer: { min: Cell; max: Cell },
-  inner: { min: Cell; max: Cell },
+  inner: { min: Cell; max: Cell }
 ): boolean {
   return (
     outer.min.x <= inner.min.x &&
@@ -208,7 +208,7 @@ export function getMode(list: Set<number>): number {
 export function sanitize(name: string): string {
   return Array.from(name)
     .join("")
-    .replace(/[^\p{L}\p{N}\s\p{Emoji}\p{Emoji_Component}]/gu, "");
+    .replace(/[^\p{L}\p{N}\s\p{Emoji}\p{Emoji_Component}\[\]]/gu, "");
 }
 
 export function processName(name: string): string {
@@ -238,7 +238,7 @@ export function processName(name: string): string {
   // Add CSS for the emoji images
   const withEmojiStyles = styledHTML.replace(
     /<img/g,
-    '<img style="height: 1.2em; width: 1.2em; vertical-align: -0.2em; margin: 0 0.05em 0 0.1em;"',
+    '<img style="height: 1.2em; width: 1.2em; vertical-align: -0.2em; margin: 0 0.05em 0 0.1em;"'
   );
 
   // Sanitize the final HTML, allowing styles and specific attributes
@@ -262,7 +262,7 @@ export function CreateGameRecord(
   turns: Turn[],
   start: number,
   end: number,
-  winner: ClientID | null,
+  winner: ClientID | null
 ): GameRecord {
   const record: GameRecord = {
     id: id,
@@ -289,7 +289,7 @@ export function CreateGameRecord(
   }
   record.players = players;
   record.durationSeconds = Math.floor(
-    (record.endTimestampMS - record.startTimestampMS) / 1000,
+    (record.endTimestampMS - record.startTimestampMS) / 1000
   );
   record.num_turns = turns.length;
   record.winner = winner;
@@ -303,7 +303,7 @@ export function assertNever(x: never): never {
 export function generateID(): GameID {
   const nanoid = customAlphabet(
     "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    8,
+    8
   );
   return nanoid();
 }

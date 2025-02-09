@@ -96,7 +96,7 @@ const GameConfigSchema = z.object({
 const SafeString = z
   .string()
   // Remove common dangerous characters and patterns
-  .regex(/^[a-zA-Z0-9\s.,!?@#$%&*()-_+=[\]{}|;:"'\/]+$/)
+  .regex(/^[a-zA-Z0-9\s.,!?@#$%&*()-_+=\[\]{}|;:"'\/]+$/)
   // Reasonable max length to prevent DOS
   .max(1000);
 
@@ -106,7 +106,7 @@ const EmojiSchema = z.string().refine(
   },
   {
     message: "Must contain at least one emoji character",
-  },
+  }
 );
 const ID = z
   .string()

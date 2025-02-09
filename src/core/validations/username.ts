@@ -13,7 +13,7 @@ const matcher = new RegExpMatcher({
 export const MIN_USERNAME_LENGTH = 3;
 export const MAX_USERNAME_LENGTH = 20;
 
-const validPattern = /^[a-zA-Z0-9_ ]+$/;
+const validPattern = /^[a-zA-Z0-9_\[\] ]+$/;
 
 const shadowNames = [
   "NicePeopleOnly",
