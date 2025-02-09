@@ -63,6 +63,7 @@ export interface ServerConfig {
 }
 
 export interface Config {
+  spawnImmunityDuration(): Tick;
   serverConfig(): ServerConfig;
   gameConfig(): GameConfig;
   theme(): Theme;
@@ -79,14 +80,14 @@ export interface Config {
     attckTroops: number,
     attacker: Player,
     defender: Player | TerraNullius,
-    numAdjacentTilesWithEnemy: number,
+    numAdjacentTilesWithEnemy: number
   ): number;
   attackLogic(
     gm: Game,
     attackTroops: number,
     attacker: Player,
     defender: Player | TerraNullius,
-    tileToConquer: TileRef,
+    tileToConquer: TileRef
   ): {
     attackerTroopLoss: number;
     defenderTroopLoss: number;

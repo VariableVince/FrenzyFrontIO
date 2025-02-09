@@ -331,26 +331,6 @@ export class RadialMenu implements Layer {
       });
     }
     this.activateMenuElement(Slot.Close, "#DC2626", xIcon, () => {});
-    // const canSendEmojiToPlayer =
-    //   this.g.hasOwner(tile) &&
-    //   this.g.ownerID(tile) != myPlayer.smallID() &&
-    //   actions.interaction?.canSendEmoji;
-    // const canSendEmojiToAllPlayers =
-    //   this.g.ownerID(tile) == myPlayer.smallID() &&
-    //   actions.canSendEmojiAllPlayers;
-    // if (canSendEmojiToPlayer || canSendEmojiToAllPlayers) {
-    //   this.activateMenuElement(Slot.Emoji, "#00a6a4", emojiIcon, () => {
-    //     const target =
-    //       this.g.owner(tile) == myPlayer
-    //         ? AllPlayers
-    //         : (this.g.owner(tile) as PlayerView);
-    //     this.emojiTable.onEmojiClicked = (emoji: string) => {
-    //       this.emojiTable.hideTable();
-    //       this.eventBus.emit(new SendEmojiIntentEvent(target, emoji));
-    //     };
-    //     this.emojiTable.showTable();
-    //   });
-    // }
 
     if (actions.canBoat) {
       this.activateMenuElement(Slot.Boat, "#3f6ab1", boatIcon, () => {
@@ -370,31 +350,6 @@ export class RadialMenu implements Layer {
     if (!this.g.hasOwner(tile)) {
       return;
     }
-    const other = this.g.owner(tile) as PlayerView;
-
-    // if (actions?.interaction.canDonate) {
-    //   this.activateMenuElement(Slot.Target, "#53ac75", donateIcon, () => {
-    //     this.eventBus.emit(new SendDonateIntentEvent(myPlayer, other, null));
-    //   });
-    // }
-
-    // if (actions?.interaction.canTarget) {
-    //   this.activateMenuElement(Slot.Target, "#c74848", targetIcon, () => {
-    //     this.eventBus.emit(new SendTargetPlayerIntentEvent(other.id()));
-    //   });
-    // }
-
-    // if (actions?.interaction.canSendAllianceRequest) {
-    //   this.activateMenuElement(Slot.Alliance, "#53ac75", allianceIcon, () => {
-    //     this.eventBus.emit(new SendAllianceRequestIntentEvent(myPlayer, other));
-    //   });
-    // }
-
-    // if (actions?.interaction.canBreakAlliance) {
-    //   this.activateMenuElement(Slot.Alliance, "#c74848", traitorIcon, () => {
-    //     this.eventBus.emit(new SendBreakAllianceIntentEvent(myPlayer, other));
-    //   });
-    // }
   }
 
   private onPointerUp(event: MouseUpEvent) {

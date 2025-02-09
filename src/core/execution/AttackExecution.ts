@@ -42,7 +42,7 @@ export class AttackExecution implements Execution {
     private _ownerID: PlayerID,
     private _targetID: PlayerID | null,
     private sourceTile: TileRef | null,
-    private removeTroops: boolean = true,
+    private removeTroops: boolean = true
   ) {}
 
   public targetID(): PlayerID {
@@ -67,6 +67,17 @@ export class AttackExecution implements Execution {
 
     if (this._owner == this.target) {
       throw new Error(`Player ${this._owner} cannot attack itself`);
+    }
+
+    if (
+      this.target.isPlayer() &&
+      this.mg.config().numSpawnPhaseTurns() +
+        this.mg.config().spawnImmunityDuration() >
+        this.mg.ticks()
+    ) {
+      console.warn("cannot attack player during immunity phase");
+      this.active = false;
+      return;
     }
 
     if (this.troops == null) {
@@ -117,7 +128,7 @@ export class AttackExecution implements Execution {
       mg.displayMessage(
         `You are being attacked by ${this._owner.displayName()}`,
         MessageType.ERROR,
-        this._targetID,
+        this._targetID
       );
     }
     if (this.sourceTile != null) {
@@ -165,7 +176,7 @@ export class AttackExecution implements Execution {
         this.troops,
         this._owner,
         this.target,
-        this.border.size + this.random.nextInt(0, 5),
+        this.border.size + this.random.nextInt(0, 5)
       );
     // consolex.log(`num tiles per tick: ${numTilesPerTick}`)
     // consolex.log(`num execs: ${this.mg.executions().length}`)
@@ -201,7 +212,7 @@ export class AttackExecution implements Execution {
           this.troops,
           this._owner,
           this.target,
-          tileToConquer,
+          tileToConquer
         );
       numTilesPerTick -= tilesPerTickUsed;
       this.troops -= attackerTroopLoss;
@@ -242,8 +253,8 @@ export class AttackExecution implements Execution {
         new TileContainer(
           neighbor,
           dist / 100 + this.random.nextInt(0, 2) - numOwnedByMe + mag,
-          this.mg.ticks(),
-        ),
+          this.mg.ticks()
+        )
       );
     }
   }
@@ -252,9 +263,11 @@ export class AttackExecution implements Execution {
     if (this.target.isPlayer() && this.target.numTilesOwned() < 100) {
       const gold = this.target.gold();
       this.mg.displayMessage(
-        `Conquered ${this.target.displayName()} received ${renderNumber(gold)} gold`,
+        `Conquered ${this.target.displayName()} received ${renderNumber(
+          gold
+        )} gold`,
         MessageType.SUCCESS,
-        this._owner.id(),
+        this._owner.id()
       );
       this.target.removeGold(gold);
       this._owner.addGold(gold);
@@ -293,6 +306,6 @@ class TileContainer {
   constructor(
     public readonly tile: TileRef,
     public readonly priority: number,
-    public readonly tick: number,
+    public readonly tick: number
   ) {}
 }

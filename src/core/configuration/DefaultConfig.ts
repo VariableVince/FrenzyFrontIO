@@ -36,6 +36,9 @@ export class DefaultConfig implements Config {
     private _serverConfig: ServerConfig,
     private _gameConfig: GameConfig
   ) {}
+  spawnImmunityDuration(): Tick {
+    return 5 * 10;
+  }
 
   gameConfig(): GameConfig {
     return this._gameConfig;

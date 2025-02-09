@@ -756,6 +756,15 @@ export class PlayerImpl implements Player {
   }
 
   public canAttack(tile: TileRef): boolean {
+    if (
+      this.mg.hasOwner(tile) &&
+      this.mg.config().numSpawnPhaseTurns() +
+        this.mg.config().spawnImmunityDuration() >
+        this.mg.ticks()
+    ) {
+      return false;
+    }
+
     if (this.mg.owner(tile) == this) {
       return false;
     }
