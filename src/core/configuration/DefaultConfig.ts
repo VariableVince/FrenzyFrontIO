@@ -375,7 +375,7 @@ export class DefaultConfig implements Config {
         difficultyMultiplier = 0.3;
         break;
       case Difficulty.Medium:
-        difficultyMultiplier = 0.6;
+        difficultyMultiplier = 0.5;
         break;
       case Difficulty.Hard:
         difficultyMultiplier = 1;
