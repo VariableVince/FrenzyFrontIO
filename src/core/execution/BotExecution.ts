@@ -27,6 +27,7 @@ export class BotExecution implements Execution {
 
   init(mg: Game, ticks: number) {
     this.mg = mg;
+    this.bot.setTargetTroopRatio(0.7);
     // this.neighborsTerra = this.bot.neighbors().filter(n => n == this.gs.terraNullius()).length > 0
   }
 
@@ -103,8 +104,8 @@ export class BotExecution implements Execution {
         this.bot.id(),
         toAttack.isPlayer() ? toAttack.id() : null,
         null,
-        null,
-      ),
+        null
+      )
     );
   }
 
