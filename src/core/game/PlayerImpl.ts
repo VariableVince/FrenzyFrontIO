@@ -569,6 +569,10 @@ export class PlayerImpl implements Player {
     }
     switch (unitType) {
       case UnitType.MIRV:
+        if (!this.mg.hasOwner(targetTile)) {
+          return false;
+        }
+        return this.nukeSpawn(targetTile);
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
         return this.nukeSpawn(targetTile);
