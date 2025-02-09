@@ -60,6 +60,11 @@ export class PublicLobby extends LitElement {
     const lobby = this.lobbies[0];
     const timeRemaining = Math.max(0, Math.floor(lobby.msUntilStart / 1000));
 
+    // Format time to show minutes and seconds
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
     return html`
       <button
         @click=${() => this.lobbyClicked(lobby)}
@@ -68,12 +73,20 @@ export class PublicLobby extends LitElement {
           : "bg-gradient-to-r from-blue-600 to-blue-500"} text-white font-medium rounded-xl transition-opacity duration-200 hover:opacity-90"
       >
         <div class="text-lg md:text-2xl font-semibold mb-2">Next Game</div>
-        <div
-          class="flex flex-col gap-1 md:gap-2 text-blue-100 text-s md:text-lg"
-        >
-          <div>Starts in: ${timeRemaining}s</div>
-          <div>Players: ${lobby.numClients}</div>
-          <div>ID: ${lobby.id}</div>
+        <div class="flex items-center justify-center gap-4">
+          <div class="flex flex-col items-start">
+            <div class="text-md font-medium text-blue-100">
+              ${lobby.numClients}
+              ${lobby.numClients === 1 ? "Player" : "Players"} waiting
+            </div>
+          </div>
+          <div class="flex items-center">
+            <div
+              class="min-w-20 text-sm font-medium px-2 py-1 bg-white/10 rounded-xl text-blue-100 text-center"
+            >
+              ${timeDisplay}
+            </div>
+          </div>
         </div>
       </button>
     `;
