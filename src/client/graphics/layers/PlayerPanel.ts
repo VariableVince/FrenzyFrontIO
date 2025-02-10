@@ -182,7 +182,7 @@ export class PlayerPanel extends LitElement implements Layer {
             <div class="flex flex-col gap-1">
               <div class="text-white text-opacity-80 text-sm px-2">Traitor</div>
               <div class="bg-opacity-50 bg-gray-700 rounded p-2 text-white">
-                ${other.isTraitor()}
+                ${other.isTraitor() ? "yes" : "no"}
               </div>
             </div>
 
