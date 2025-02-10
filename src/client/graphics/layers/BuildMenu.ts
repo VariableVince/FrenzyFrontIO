@@ -205,7 +205,10 @@ export class BuildMenu extends LitElement {
 
   render() {
     return html`
-      <div class="build-menu ${this._hidden ? "hidden" : ""}">
+      <div
+        class="build-menu ${this._hidden ? "hidden" : ""}"
+        @contextmenu=${(e) => e.preventDefault()}
+      >
         ${buildTable.map(
           (row) => html`
             <div class="build-row">

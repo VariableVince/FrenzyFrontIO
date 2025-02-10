@@ -232,7 +232,10 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
       : "opacity-0 invisible pointer-events-none";
 
     return html`
-      <div class="flex w-full  z-50 flex flex-col">
+      <div
+        class="flex w-full  z-50 flex flex-col"
+        @contextmenu=${(e) => e.preventDefault()}
+      >
         <div
           class="bg-opacity-70 bg-gray-900 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-300  text-white text-lg md:text-base ${containerClasses}"
         >

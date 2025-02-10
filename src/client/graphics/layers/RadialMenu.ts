@@ -132,7 +132,10 @@ export class RadialMenu implements Layer {
       .style("position", "fixed")
       .style("display", "none")
       .style("z-index", "9999")
-      .style("touch-action", "none");
+      .style("touch-action", "none")
+      .on("contextmenu", (e) => {
+        e.preventDefault();
+      });
 
     const svg = this.menuElement
       .append("svg")
