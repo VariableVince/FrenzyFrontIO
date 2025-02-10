@@ -4,3 +4,4 @@ out/
 TODO.txt
 resources/images/.DS_Store
 resources/.DS_Store
+.env

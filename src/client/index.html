@@ -1,226 +1,169 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OpenFront (ALPHA)</title>
 
-    <!-- Preload critical assets -->
-    <link
-      rel="preload"
-      href="../../resources/images/OpenFrontLogo.svg"
-      as="image"
-    />
-    <link
-      rel="preload"
-      href="../../resources/images/DiscordIcon.svg"
-      as="image"
-    />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenFront (ALPHA)</title>
 
-    <!-- Critical CSS to prevent FOUC -->
-    <style>
-      .preload * {
-        -webkit-transition: none !important;
-        -moz-transition: none !important;
-        -ms-transition: none !important;
-        -o-transition: none !important;
-        transition: none !important;
-      }
+  <!-- Preload critical assets -->
+  <link rel="preload" href="../../resources/images/OpenFrontLogo.svg" as="image" />
+  <link rel="preload" href="../../resources/images/DiscordIcon.svg" as="image" />
 
-      html {
-        visibility: visible;
-        opacity: 1;
-      }
+  <!-- Critical CSS to prevent FOUC -->
+  <style>
+    .preload * {
+      -webkit-transition: none !important;
+      -moz-transition: none !important;
+      -ms-transition: none !important;
+      -o-transition: none !important;
+      transition: none !important;
+    }
 
-      html.preload {
-        visibility: hidden;
-        opacity: 0;
-      }
+    html {
+      visibility: visible;
+      opacity: 1;
+    }
 
-      body::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        z-index: -1;
-      }
+    html.preload {
+      visibility: hidden;
+      opacity: 0;
+    }
 
-      /* Critical styles to prevent layout shift */
-      .container {
-        opacity: 1;
-        transition: opacity 0.3s ease-in-out;
-      }
-    </style>
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: -1;
+    }
 
-    <!-- Immediate execution to prevent FOUC -->
-    <script>
-      document.documentElement.className = "preload";
-    </script>
+    /* Critical styles to prevent layout shift */
+    .container {
+      opacity: 1;
+      transition: opacity 0.3s ease-in-out;
+    }
+  </style>
 
-    <!-- Analytics -->
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=AW-16702609763"
-    ></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-      gtag("config", "AW-16702609763");
-    </script>
-    <script
-      async
-      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7035513310742290"
-      crossorigin="anonymous"
-    ></script>
-  </head>
+  <!-- Immediate execution to prevent FOUC -->
+  <script>
+    document.documentElement.className = "preload";
+  </script>
 
-  <body
-    class="h-full overflow-hidden select-none font-sans min-h-screen bg-opacity-0 bg-cover bg-center bg-fixed transition-opacity duration-300 ease-in-out"
-  >
-    <!-- Main container with responsive padding -->
-    <!-- Logo section remains the same -->
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-      <div class="flex justify-center">
-        <img
-          src="../../resources/images/OpenFrontLogo.png"
-          alt="OpenFront.io"
-        />
-      </div>
-      <div
-        class="flex justify-center text-sm font-bold mt-[-10px] pb-6 md:pb-12"
-      >
-        v0.15.0
-      </div>
+  <!-- Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16702609763"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+    gtag("js", new Date());
+    gtag("config", "AW-16702609763");
+  </script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7035513310742290"
+    crossorigin="anonymous"></script>
+</head>
 
-      <div
-        class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto p-2 pb-4"
-      >
-        <username-input class="w-full"></username-input>
-      </div>
-
-      <div class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto p-2">
-        <public-lobby class="w-full"></public-lobby>
-      </div>
-
-      <div
-        class="pt-4 flex gap-4 sm:gap-6 lg:gap-8 max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto"
-      >
-        <button
-          id="host-lobby-button"
-          class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300"
-        >
-          Create Lobby
-        </button>
-        <button
-          id="join-private-lobby-button"
-          class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300"
-        >
-          Join Lobby
-        </button>
-      </div>
-
-      <div
-        class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto mt-4 sm:mt-6 lg:mt-8"
-      >
-        <button
-          id="single-player"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 lg:p-5 font-bold text-lg sm:text-xl lg:text-2xl rounded-lg border-none cursor-pointer transition-colors duration-300"
-        >
-          Single Player
-        </button>
-      </div>
-
-      <!-- Links section -->
-      <div class="flex justify-center mt-4">
-        <a
-          href="https://discord.gg/k22YrnAzGp"
-          id="discord-link"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center justify-center px-6 py-2 bg-blue-200 hover:bg-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 ease-in-out mx-2"
-        >
-          <img
-            src="../../resources/images/DiscordIcon.svg"
-            alt="Discord"
-            class="w-12 h-12"
-          />
-        </a>
-        <a
-          href="https://youtu.be/jvHEvbko3uw?si=znspkP84P76B1w5I"
-          id="yt-link"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex items-center justify-center px-2 py-0 bg-blue-200 hover:bg-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 ease-in-out mx-2"
-        >
-          <img
-            src="../../resources/images/QuestionMarkIcon.svg"
-            alt="Question Mark"
-            class="mt-4 w-20 h-20"
-          />
-        </a>
-      </div>
+<body
+  class="h-full overflow-hidden select-none font-sans min-h-screen bg-opacity-0 bg-cover bg-center bg-fixed transition-opacity duration-300 ease-in-out">
+  <!-- Main container with responsive padding -->
+  <!-- Logo section remains the same -->
+  <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div class="flex justify-center">
+      <img src="../../resources/images/OpenFrontLogo.png" alt="OpenFront.io" />
+    </div>
+    <div class="flex justify-center text-sm font-bold mt-[-10px] pb-6 md:pb-12">
+      v0.15.0
     </div>
 
-    <!-- Game components -->
-    <div id="customMenu" class="mt-4 sm:mt-6 lg:mt-8">
-      <ul></ul>
-    </div>
-    <div id="app"></div>
-    <div id="radialMenu" class="radial-menu"></div>
-
-    <!-- Game modals and overlays -->
-    <single-player-modal></single-player-modal>
-    <host-lobby-modal></host-lobby-modal>
-    <join-private-lobby-modal></join-private-lobby-modal>
-    <emoji-table></emoji-table>
-    <leader-board></leader-board>
-    <build-menu></build-menu>
-    <win-modal></win-modal>
-    <top-bar></top-bar>
-    <player-panel></player-panel>
-
-    <div class="fixed right-0 top-0 z-50 flex flex-col w-32 sm:w-32 lg:w-48">
-      <options-menu></options-menu>
-      <player-info-overlay></player-info-overlay>
+    <div class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto p-2 pb-4">
+      <username-input class="w-full"></username-input>
     </div>
 
-    <div
-      class="bottom-0 w-full flex-col-reverse sm:flex-row z-50"
-      style="position: fixed; pointer-events: none"
-    >
-      <div
-        class="w-full sm:w-2/3 sm:fixed sm:right-0 sm:bottom-0 sm:flex justify-end"
-        style="pointer-events: auto"
-      >
-        <events-display></events-display>
-      </div>
-      <div class="w-full sm:w-1/3" style="pointer-events: auto">
-        <control-panel></control-panel>
-      </div>
+    <div class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto p-2">
+      <public-lobby class="w-full"></public-lobby>
     </div>
 
-    <!-- Scripts -->
-    <script>
-      // Remove preload class after everything is loaded
-      window.addEventListener("load", function () {
-        requestAnimationFrame(() => {
-          document.documentElement.classList.remove("preload");
-        });
+    <div class="pt-4 flex gap-4 sm:gap-6 lg:gap-8 max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
+      <button id="host-lobby-button"
+        class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300">
+        Create Lobby
+      </button>
+      <button id="join-private-lobby-button"
+        class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300">
+        Join Lobby
+      </button>
+    </div>
+
+    <div class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto mt-4 sm:mt-6 lg:mt-8">
+      <button id="single-player"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 lg:p-5 font-bold text-lg sm:text-xl lg:text-2xl rounded-lg border-none cursor-pointer transition-colors duration-300">
+        Single Player
+      </button>
+    </div>
+
+    <!-- Links section -->
+    <div class="flex justify-center mt-4">
+      <a href="https://discord.gg/k22YrnAzGp" id="discord-link" target="_blank" rel="noopener noreferrer"
+        class="flex items-center justify-center px-6 py-2 bg-blue-200 hover:bg-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 ease-in-out mx-2">
+        <img src="../../resources/images/DiscordIcon.svg" alt="Discord" class="w-12 h-12" />
+      </a>
+      <a href="https://youtu.be/jvHEvbko3uw?si=znspkP84P76B1w5I" id="yt-link" target="_blank" rel="noopener noreferrer"
+        class="flex items-center justify-center px-2 py-0 bg-blue-200 hover:bg-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 ease-in-out mx-2">
+        <img src="../../resources/images/QuestionMarkIcon.svg" alt="Question Mark" class="mt-4 w-20 h-20" />
+      </a>
+    </div>
+  </div>
+
+  <!-- Game components -->
+  <div id="customMenu" class="mt-4 sm:mt-6 lg:mt-8">
+    <ul></ul>
+  </div>
+  <div id="app"></div>
+  <div id="radialMenu" class="radial-menu"></div>
+
+  <!-- Game modals and overlays -->
+  <single-player-modal></single-player-modal>
+  <host-lobby-modal></host-lobby-modal>
+  <join-private-lobby-modal></join-private-lobby-modal>
+  <emoji-table></emoji-table>
+  <leader-board></leader-board>
+  <build-menu></build-menu>
+  <win-modal></win-modal>
+  <top-bar></top-bar>
+  <player-panel></player-panel>
+
+  <div class="fixed right-0 top-0 z-50 flex flex-col w-32 sm:w-32 lg:w-48">
+    <options-menu></options-menu>
+    <player-info-overlay></player-info-overlay>
+  </div>
+
+  <div class="bottom-0 w-full flex-col-reverse sm:flex-row z-50" style="position: fixed; pointer-events: none">
+    <div class="w-full sm:w-2/3 sm:fixed sm:right-0 sm:bottom-0 sm:flex justify-end" style="pointer-events: auto">
+      <events-display></events-display>
+    </div>
+    <div class="w-full md:w-fit" style="pointer-events: auto">
+      <control-panel></control-panel>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Remove preload class after everything is loaded
+    window.addEventListener("load", function () {
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove("preload");
       });
-    </script>
+    });
+  </script>
 
-    <!-- Analytics -->
-    <script
-      defer
-      src="https://static.cloudflareinsights.com/beacon.min.js"
-      data-cf-beacon='{"token": "03d93e6fefb349c28ee69b408fa25a13"}'
-    ></script>
-  </body>
+  <!-- Analytics -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+    data-cf-beacon='{"token": "03d93e6fefb349c28ee69b408fa25a13"}'></script>
+</body>
+
 </html>
