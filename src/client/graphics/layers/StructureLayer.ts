@@ -3,10 +3,10 @@ import { Theme } from "../../../core/configuration/Config";
 import { Layer } from "./Layer";
 import { EventBus } from "../../../core/EventBus";
 
-import anchorIcon from "../../../../resources/images/AnchorIcon.svg";
-import missileSiloIcon from "../../../../resources/images/MissileSiloUnit.svg";
-import shieldIcon from "../../../../resources/images/ShieldIcon.svg";
-import cityIcon from "../../../../resources/images/CityIcon.svg";
+import anchorIcon from "../../../../resources/images/AnchorIcon.png";
+import missileSiloIcon from "../../../../resources/images/MissileSiloUnit.png";
+import shieldIcon from "../../../../resources/images/ShieldIcon.png";
+import cityIcon from "../../../../resources/images/CityIcon.png";
 import { GameView, UnitView } from "../../../core/game/GameView";
 import { Cell, UnitType } from "../../../core/game/Game";
 import { GameUpdateType } from "../../../core/game/GameUpdates";
