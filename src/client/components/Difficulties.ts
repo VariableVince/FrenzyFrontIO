@@ -6,7 +6,6 @@ export enum DifficultyDescription {
   Medium = "Balanced",
   Hard = "Intense",
   Impossible = "Challenging",
-  Insane = "Extreme",
 }
 
 @customElement("difficulty-display")
@@ -133,10 +132,6 @@ export class DifficultyDisplay extends LitElement {
       case "Impossible":
         return html`
           <div class="difficulty-skull big active">${burningSkull}</div>
-        `;
-      case "Insane":
-        return html`
-          <div class="difficulty-skull big active">${kingSkull}</div>
         `;
       default:
         return html`<div class="difficulty-skull big active">
