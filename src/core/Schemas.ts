@@ -139,6 +139,7 @@ export const AttackIntentSchema = BaseIntentSchema.extend({
 });
 
 export const SpawnIntentSchema = BaseIntentSchema.extend({
+  flag: z.string().nullable(),
   type: z.literal("spawn"),
   playerID: ID,
   name: SafeString,

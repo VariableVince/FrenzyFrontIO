@@ -127,6 +127,9 @@ export class PlayerView {
   smallID(): number {
     return this.data.smallID;
   }
+  flag(): string {
+    return this.data.flag;
+  }
   name(): string {
     return this.data.name;
   }
@@ -196,7 +199,7 @@ export class PlayerView {
     return this.data.outgoingEmojis;
   }
   info(): PlayerInfo {
-    return new PlayerInfo(this.name(), this.type(), this.clientID(), this.id());
+    return new PlayerInfo(this.flag(), this.name(), this.type(), this.clientID(), this.id());
   }
 }
 

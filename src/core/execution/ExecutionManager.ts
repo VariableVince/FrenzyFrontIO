@@ -64,6 +64,7 @@ export class Executor {
       case "spawn":
         return new SpawnExecution(
           new PlayerInfo(
+            intent.flag,
             // Players see their original name, others see a sanitized version
             intent.clientID == this.clientID
               ? sanitize(intent.name)
@@ -131,6 +132,7 @@ export class Executor {
         new FakeHumanExecution(
           this.gameID,
           new PlayerInfo(
+            nation.flag || "",
             nation.name,
             PlayerType.FakeHuman,
             null,

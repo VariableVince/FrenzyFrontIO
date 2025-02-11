@@ -4,354 +4,266 @@
     "height": 1000,
     "nations": [
         {
-            "coordinates": [
-                375,
-                272
-            ],
+            "coordinates": [375, 272],
+            "flag": "US",
             "name": "USA 🇺🇸",
             "strength": 3
         },
         {
-            "coordinates": [
-                372,
-                136
-            ],
+            "coordinates": [372, 136],
+            "flag": "CA",
             "name": "Canada 🇨🇦",
             "strength": 2
         },
         {
-            "coordinates": [
-                375,
-                374
-            ],
+            "coordinates": [375, 374],
+            "flag": "MX",
             "name": "Mexico 🇲🇽",
             "strength": 1
         },
         {
-            "coordinates": [
-                500,
-                378
-            ],
+            "coordinates": [500, 378],
+            "flag": "CU",
             "name": "Cuba 🇨🇺",
             "strength": 1
         },
         {
-            "coordinates": [
-                524,
-                474
-            ],
+            "coordinates": [524, 474],
+            "flag": "CO",
             "name": "Colombia 🇨🇴",
             "strength": 1
         },
         {
-            "coordinates": [
-                593,
-                473
-            ],
+            "coordinates": [593, 473],
+            "flag": "VE",
             "name": "Venezuela 🇻🇪",
             "strength": 1
         },
         {
-            "coordinates": [
-                596,
-                705
-            ],
+            "coordinates": [596, 705],
+            "flag": "AR",
             "name": "Argentina 🇦🇷",
             "strength": 1
         },
         {
-            "coordinates": [
-                637,
-                567
-            ],
+            "coordinates": [637, 567],
+            "flag": "BR",
             "name": "Brazil 🇧🇷",
             "strength": 1
         },
         {
-            "coordinates": [
-                1280,
-                975
-            ],
+            "coordinates": [1280, 975],
+            "flag": "AQ",
             "name": "Antartica 🇦🇶",
             "strength": 3
         },
         {
-            "coordinates": [
-                709,
-                57
-            ],
+            "coordinates": [709, 57],
+            "flag": "GL",
             "name": "Greenland 🇬🇱",
             "strength": 2
         },
         {
-            "coordinates": [
-                831,
-                112
-            ],
+            "coordinates": [831, 112],
+            "flag": "IS",
             "name": "Iceland 🇮🇸",
             "strength": 1
         },
         {
-            "coordinates": [
-                925,
-                186
-            ],
+            "coordinates": [925, 186],
+            "flag": "GB",
             "name": "England 🇬🇧",
             "strength": 3
         },
         {
-            "coordinates": [
-                887,
-                183
-            ],
+            "coordinates": [887, 183],
+            "flag": "IE",
             "name": "Ireland 🇮🇪",
             "strength": 1
         },
         {
-            "coordinates": [
-                908,
-                264
-            ],
+            "coordinates": [908, 264],
+            "flag": "ES",
             "name": "Spain 🇪🇸",
             "strength": 1
         },
         {
-            "coordinates": [
-                1004,
-                250
-            ],
+            "coordinates": [1004, 250],
+            "flag": "IT",
             "name": "Italy 🇮🇹",
             "strength": 1
         },
         {
-            "coordinates": [
-                958,
-                220
-            ],
+            "coordinates": [958, 220],
+            "flag": "FR",
             "name": "France 🇫🇷",
             "strength": 2
         },
         {
-            "coordinates": [
-                997,
-                205
-            ],
+            "coordinates": [997, 205],
+            "flag": "DE",
             "name": "Germany 🇩🇪",
             "strength": 1
         },
         {
-            "coordinates": [
-                1064,
-                101
-            ],
+            "coordinates": [1064, 101],
+            "flag": "SE",
             "name": "Sweden 🇸🇪",
             "strength": 1
         },
         {
-            "coordinates": [
-                1046,
-                193
-            ],
+            "coordinates": [1046, 193],
+            "flag": "PL",
             "name": "Poland 🇵🇱",
             "strength": 1
         },
         {
-            "coordinates": [
-                1061,
-                188
-            ],
+            "coordinates": [1061, 188],
+            "flag": "BY",
             "name": "Belarus 🇧🇾",
             "strength": 1
         },
         {
-            "coordinates": [
-                1073,
-                243
-            ],
+            "coordinates": [1073, 243],
+            "flag": "RO",
             "name": "Romania 🇷🇴",
             "strength": 1
         },
         {
-            "coordinates": [
-                1161,
-                274
-            ],
+            "coordinates": [1161, 274],
+            "flag": "TR",
             "name": "Turkiye 🇹🇷",
             "strength": 1
         },
         {
-            "coordinates": [
-                969,
-                133
-            ],
+            "coordinates": [969, 133],
+            "flag": "NO",
             "name": "Norway 🇳🇴",
             "strength": 1
         },
         {
-            "coordinates": [
-                1062,
-                133
-            ],
+            "coordinates": [1062, 133],
+            "flag": "FI",
             "name": "Finland 🇫🇮",
             "strength": 1
         },
         {
-            "coordinates": [
-                1099,
-                211
-            ],
+            "coordinates": [1099, 211],
+            "flag": "UA",
             "name": "Ukraine 🇺🇦",
             "strength": 1
         },
         {
-            "coordinates": [
-                1344,
-                136
-            ],
+            "coordinates": [1344, 136],
+            "flag": "RU",
             "name": "Russia 🇷🇺",
             "strength": 3
         },
         {
-            "coordinates": [
-                1537,
-                186
-            ],
+            "coordinates": [1537, 186],
+            "flag": "MN",
             "name": "Mongolia 🇲🇳",
             "strength": 1
         },
         {
-            "coordinates": [
-                1524,
-                328
-            ],
+            "coordinates": [1524, 328],
+            "flag": "CN",
             "name": "China 🇨🇳",
             "strength": 3
         },
         {
-            "coordinates": [
-                1368,
-                373
-            ],
+            "coordinates": [1368, 373],
+            "flag": "IN",
             "name": "India 🇮🇳",
             "strength": 2
         },
         {
-            "coordinates": [
-                1276,
-                239
-            ],
+            "coordinates": [1276, 239],
+            "flag": "KZ",
             "name": "Kazakhstan 🇰🇿",
             "strength": 1
         },
         {
-            "coordinates": [
-                1238,
-                309
-            ],
+            "coordinates": [1238, 309],
+            "flag": "IR",
             "name": "Iran 🇮🇷",
             "strength": 1
         },
         {
-            "coordinates": [
-                1178,
-                351
-            ],
+            "coordinates": [1178, 351],
+            "flag": "SA",
             "name": "Saudi Arabia 🇸🇦",
             "strength": 1
         },
         {
-            "coordinates": [
-                1679,
-                657
-            ],
+            "coordinates": [1679, 657],
+            "flag": "AU",
             "name": "Australia 🇦🇺",
             "strength": 2
         },
         {
-            "coordinates": [
-                1890,
-                775
-            ],
+            "coordinates": [1890, 775],
+            "flag": "NZ",
             "name": "New Zealand 🇳🇿",
             "strength": 0.5
         },
         {
-            "coordinates": [
-                918,
-                342
-            ],
+            "coordinates": [918, 342],
+            "flag": "DZ",
             "name": "Algeria 🇩🇿",
             "strength": 1
         },
         {
-            "coordinates": [
-                1030,
-                332
-            ],
+            "coordinates": [1030, 332],
+            "flag": "LY",
             "name": "Libya 🇱🇾",
             "strength": 1
         },
         {
-            "coordinates": [
-                1092,
-                335
-            ],
+            "coordinates": [1092, 335],
+            "flag": "EG",
             "name": "Egypt 🇪🇬",
             "strength": 1
         },
         {
-            "coordinates": [
-                963,
-                410
-            ],
+            "coordinates": [963, 410],
+            "flag": "NE",
             "name": "Niger 🇳🇪",
             "strength": 1
         },
         {
-            "coordinates": [
-                1112,
-                406
-            ],
+            "coordinates": [1112, 406],
+            "flag": "SD",
             "name": "Sudan 🇸🇩",
             "strength": 1
         },
         {
-            "coordinates": [
-                1074,
-                508
-            ],
+            "coordinates": [1074, 508],
+            "flag": "CD",
             "name": "DRC 🇨🇩",
             "strength": 1
         },
         {
-            "coordinates": [
-                1154,
-                443
-            ],
+            "coordinates": [1154, 443],
+            "flag": "ET",
             "name": "Ethiopia 🇪🇹",
             "strength": 1
         },
         {
-            "coordinates": [
-                1075,
-                707
-            ],
+            "coordinates": [1075, 707],
+            "flag": "ZA",
             "name": "South Africa 🇿🇦",
             "strength": 1
         },
         {
-            "coordinates": [
-                1194,
-                627
-            ],
+            "coordinates": [1194, 627],
+            "flag": "MG",
             "name": "Madagascar 🇲🇬",
             "strength": 0.5
         },
         {
-            "coordinates": [
-                1052,
-                420
-            ],
+            "coordinates": [1052, 420],
+            "flag": "TD",
             "name": "Chad 🇹🇩",
             "strength": 1
         }

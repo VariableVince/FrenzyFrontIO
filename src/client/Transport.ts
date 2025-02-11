@@ -340,6 +340,7 @@ export class Transport {
       type: "spawn",
       clientID: this.lobbyConfig.clientID,
       playerID: this.lobbyConfig.playerID,
+      flag: this.lobbyConfig.flag(),
       name: this.lobbyConfig.playerName(),
       playerType: PlayerType.Human,
       x: event.cell.x,

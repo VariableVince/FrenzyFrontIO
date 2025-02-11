@@ -9,7 +9,8 @@
                 647
             ],
             "name": "Bulgaria",
-            "strength": 1
+            "strength": 1,
+            "flag": "BG"
         },
         {
             "coordinates": [
@@ -17,7 +18,8 @@
                 929
             ],
             "name": "Turkiye",
-            "strength": 2
+            "strength": 2,
+            "flag": "TR"
         },
         {
             "coordinates": [
@@ -25,7 +27,8 @@
                 237
             ],
             "name": "Romania",
-            "strength": 1
+            "strength": 1,
+            "flag": "RO"
         },
         {
             "coordinates": [
@@ -33,7 +36,8 @@
                 188
             ],
             "name": "Maldova",
-            "strength": 1
+            "strength": 1,
+            "flag": "MD"
         },
         {
             "coordinates": [
@@ -41,7 +45,8 @@
                 120
             ],
             "name": "Ukraine",
-            "strength": 1
+            "strength": 1,
+            "flag": "UA"
         },
         {
             "coordinates": [
@@ -49,7 +54,8 @@
                 354
             ],
             "name": "Russia",
-            "strength": 3
+            "strength": 3,
+            "flag": "RU"
         },
         {
             "coordinates": [
@@ -57,7 +63,8 @@
                 722
             ],
             "name": "Georgia",
-            "strength": 1
+            "strength": 1,
+            "flag": "GE"
         },
         {
             "coordinates": [
@@ -65,7 +72,8 @@
                 943
             ],
             "name": "Armenia",
-            "strength": 1
+            "strength": 1,
+            "flag": "AM"
         }
     ]
 }

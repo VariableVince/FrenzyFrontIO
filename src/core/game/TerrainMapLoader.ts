@@ -17,6 +17,7 @@ export interface NationMap {
 
 export interface Nation {
   coordinates: [number, number];
+  flag: string;
   name: string;
   strength: number;
 }

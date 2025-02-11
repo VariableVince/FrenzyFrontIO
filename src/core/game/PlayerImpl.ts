@@ -64,6 +64,7 @@ export class PlayerImpl implements Player {
   public _units: UnitImpl[] = [];
   public _tiles: Set<TileRef> = new Set();
 
+  private _flag: string;
   private _name: string;
   private _displayName: string;
 
@@ -86,6 +87,7 @@ export class PlayerImpl implements Player {
     private readonly playerInfo: PlayerInfo,
     startPopulation: number
   ) {
+    this._flag = playerInfo.flag;
     this._name = playerInfo.name;
     this._targetTroopRatio = 1;
     this._troops = startPopulation * this._targetTroopRatio;
@@ -100,6 +102,7 @@ export class PlayerImpl implements Player {
     return {
       type: GameUpdateType.Player,
       clientID: this.clientID(),
+      flag: this.flag(),
       name: this.name(),
       displayName: this.displayName(),
       id: this.id(),
@@ -137,6 +140,10 @@ export class PlayerImpl implements Player {
 
   smallID(): number {
     return this._smallID;
+  }
+
+  flag(): string {
+    return this._flag;
   }
 
   name(): string {

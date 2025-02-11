@@ -86,6 +86,7 @@ export enum Relation {
 
 export class Nation {
   constructor(
+    public readonly flag: string,
     public readonly name: string,
     public readonly cell: Cell,
     public readonly strength: number
@@ -168,6 +169,7 @@ export interface MutableAlliance extends Alliance {
 
 export class PlayerInfo {
   constructor(
+    public readonly flag: string,
     public readonly name: string,
     public readonly playerType: PlayerType,
     // null if bot.

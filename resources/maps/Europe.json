@@ -4,252 +4,190 @@
     "height": 1000,
     "nations": [
         {
-            "coordinates": [
-                171,
-                171
-            ],
+            "coordinates": [171, 171],
             "name": "Iceland 🇮🇸",
-            "strength": 1
+            "strength": 1,
+            "flag": "IS"
         },
         {
-            "coordinates": [
-                477,
-                473
-            ],
+            "coordinates": [477, 473],
             "name": "Ireland 🇮🇪",
-            "strength": 1
+            "strength": 1,
+            "flag": "IE"
         },
         {
-            "coordinates": [
-                650,
-                500
-            ],
+            "coordinates": [650, 500],
             "name": "England 🇬🇧",
-            "strength": 3
+            "strength": 3,
+            "flag": "GB"
         },
         {
-            "coordinates": [
-                560,
-                800
-            ],
+            "coordinates": [560, 800],
             "name": "Spain 🇪🇸",
-            "strength": 2
+            "strength": 2,
+            "flag": "ES"
         },
         {
-            "coordinates": [
-                726,
-                616
-            ],
+            "coordinates": [726, 616],
             "name": "France 🇫🇷",
-            "strength": 2
+            "strength": 2,
+            "flag": "FR"
         },
         {
-            "coordinates": [
-                1050,
-                745
-            ],
+            "coordinates": [1050, 745],
             "name": "Italy 🇮🇹",
-            "strength": 1
+            "strength": 1,
+            "flag": "IT"
         },
         {
-            "coordinates": [
-                872,
-                634
-            ],
+            "coordinates": [872, 634],
             "name": "Switzerland 🇨🇭",
-            "strength": 1
+            "strength": 1,
+            "flag": "CH"
         },
         {
-            "coordinates": [
-                960,
-                271
-            ],
+            "coordinates": [960, 271],
             "name": "Norway 🇳🇴",
-            "strength": 1
+            "strength": 1,
+            "flag": "NO"
         },
         {
-            "coordinates": [
-                1095,
-                336
-            ],
+            "coordinates": [1095, 336],
             "name": "Sweden 🇸🇪",
-            "strength": 1
+            "strength": 1,
+            "flag": "SE"
         },
         {
-            "coordinates": [
-                1403,
-                235
-            ],
+            "coordinates": [1403, 235],
             "name": "Finland 🇫🇮",
-            "strength": 1
+            "strength": 1,
+            "flag": "FI"
         },
         {
-            "coordinates": [
-                775,
-                541
-            ],
+            "coordinates": [775, 541],
             "name": "Belgium 🇧🇪",
-            "strength": 1
+            "strength": 1,
+            "flag": "BE"
         },
         {
-            "coordinates": [
-                868,
-                487
-            ],
+            "coordinates": [868, 487],
             "name": "Netherlands 🇳🇱",
-            "strength": 1
+            "strength": 1,
+            "flag": "NL"
         },
         {
-            "coordinates": [
-                1000,
-                480
-            ],
+            "coordinates": [1000, 480],
             "name": "Germany 🇩🇪",
-            "strength": 1
+            "strength": 1,
+            "flag": "DE"
         },
         {
-            "coordinates": [
-                1017,
-                628
-            ],
+            "coordinates": [1017, 628],
             "name": "Austria 🇦🇹",
-            "strength": 1
+            "strength": 1,
+            "flag": "AT"
         },
         {
-            "coordinates": [
-                1120,
-                477
-            ],
+            "coordinates": [1120, 477],
             "name": "Poland 🇵🇱",
-            "strength": 1
+            "strength": 1,
+            "flag": "PL"
         },
         {
-            "coordinates": [
-                1060,
-                530
-            ],
+            "coordinates": [1060, 530],
             "name": "Czechia 🇨🇿",
-            "strength": 1
+            "strength": 1,
+            "flag": "CZ"
         },
         {
-            "coordinates": [
-                1540,
-                602
-            ],
+            "coordinates": [1540, 602],
             "name": "Ukraine 🇺🇦",
-            "strength": 1
+            "strength": 1,
+            "flag": "UA"
         },
         {
-            "coordinates": [
-                1500,
-                440
-            ],
+            "coordinates": [1500, 440],
             "name": "Belarus 🇧🇾",
-            "strength": 1
+            "strength": 1,
+            "flag": "BY"
         },
         {
-            "coordinates": [
-                1400,
-                670
-            ],
+            "coordinates": [1400, 670],
             "name": "Romania 🇷🇴",
-            "strength": 1
+            "strength": 1,
+            "flag": "RO"
         },
         {
-            "coordinates": [
-                1580,
-                834
-            ],
+            "coordinates": [1580, 834],
             "name": "Turkiye 🇹🇷",
-            "strength": 1
+            "strength": 1,
+            "flag": "TR"
         },
         {
-            "coordinates": [
-                525,
-                955
-            ],
+            "coordinates": [525, 955],
             "name": "Morocco 🇲🇦",
-            "strength": 1
+            "strength": 1,
+            "flag": "MA"
         },
         {
-            "coordinates": [
-                1674,
-                449
-            ],
+            "coordinates": [1674, 449],
             "name": "Russia 🇷🇺",
-            "strength": 3
+            "strength": 3,
+            "flag": "RU"
         },
         {
-            "coordinates": [
-                1750,
-                950
-            ],
+            "coordinates": [1750, 950],
             "name": "Syria 🇸🇾",
-            "strength": 1
+            "strength": 1,
+            "flag": "SY"
         },
         {
-            "coordinates": [
-                1930,
-                950
-            ],
+            "coordinates": [1930, 950],
             "name": "Iraq 🇮🇶",
-            "strength": 1
+            "strength": 1,
+            "flag": "IQ"
         },
         {
-            "coordinates": [
-                1900,
-                720
-            ],
+            "coordinates": [1900, 720],
             "name": "Georgia 🇬🇪",
-            "strength": 1
+            "strength": 1,
+            "flag": "GE"
         },
         {
-            "coordinates": [
-                950,
-                930
-            ],
+            "coordinates": [950, 930],
             "name": "Tunisia 🇹🇳",
-            "strength": 1
+            "strength": 1,
+            "flag": "TN"
         },
         {
-            "coordinates": [
-                740,
-                940
-            ],
+            "coordinates": [740, 940],
             "name": "Algeria 🇩🇿",
-            "strength": 1
+            "strength": 1,
+            "flag": "DZ"
         },
         {
-            "coordinates": [
-                460,
-                830
-            ],
+            "coordinates": [460, 830],
             "name": "Portugal 🇵🇹",
-            "strength": 1
+            "strength": 1,
+            "flag": "PT"
         },
         {
-            "coordinates": [
-                1300,
-                830
-            ],
+            "coordinates": [1300, 830],
             "name": "Greece 🇬🇷",
-            "strength": 1
+            "strength": 1,
+            "flag": "GR"
         },
         {
-            "coordinates": [
-                1270,
-                700
-            ],
+            "coordinates": [1270, 700],
             "name": "Serbia 🇷🇸",
-            "strength": 1
+            "strength": 1,
+            "flag": "RS"
         },
         {
-            "coordinates": [
-                1200,
-                630
-            ],
+            "coordinates": [1200, 630],
             "name": "Hungary 🇭🇺",
-            "strength": 1
+            "strength": 1,
+            "flag": "HU"
         }
     ]
 }

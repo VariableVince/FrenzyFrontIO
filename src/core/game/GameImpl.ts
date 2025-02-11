@@ -78,6 +78,7 @@ export class GameImpl implements Game {
     this.nations_ = nationMap.nations.map(
       (n) =>
         new Nation(
+          n.flag || "",
           n.name,
           new Cell(n.coordinates[0], n.coordinates[1]),
           n.strength

@@ -48,6 +48,7 @@ import { GameView, PlayerView } from "../core/game/GameView";
 import { GameUpdateViewData } from "../core/game/GameUpdates";
 
 export interface LobbyConfig {
+  flag: () => string;
   playerName: () => string;
   clientID: ClientID;
   playerID: PlayerID;
