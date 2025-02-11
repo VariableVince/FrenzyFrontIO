@@ -70,6 +70,12 @@ export interface UnitUpdate {
   constructionType?: UnitType;
 }
 
+export interface AttackUpdate {
+  attackerID: number;
+  targetID: number;
+  troops: number;
+}
+
 export interface PlayerUpdate {
   type: GameUpdateType.Player;
   nameViewData?: NameViewData;
@@ -90,6 +96,8 @@ export interface PlayerUpdate {
   isTraitor: boolean;
   targets: number[];
   outgoingEmojis: EmojiMessage[];
+  outgoingAttacks: AttackUpdate[];
+  incomingAttacks: AttackUpdate[];
 }
 
 export interface AllianceRequestUpdate {

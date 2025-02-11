@@ -7,7 +7,7 @@ import {
   PlayerProfile,
   Unit,
 } from "./Game";
-import { PlayerUpdate } from "./GameUpdates";
+import { AttackUpdate, PlayerUpdate } from "./GameUpdates";
 import { UnitUpdate } from "./GameUpdates";
 import { NameViewData } from "./Game";
 import { GameUpdateType } from "./GameUpdates";
@@ -104,6 +104,14 @@ export class PlayerView {
       this.game.x(tile),
       this.game.y(tile)
     );
+  }
+
+  outgoingAttacks(): AttackUpdate[] {
+    return this.data.outgoingAttacks;
+  }
+
+  incomingAttacks(): AttackUpdate[] {
+    return this.data.incomingAttacks;
   }
 
   units(...types: UnitType[]): UnitView[] {

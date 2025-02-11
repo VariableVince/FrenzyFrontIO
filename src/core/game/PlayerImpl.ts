@@ -19,7 +19,7 @@ import {
   PlayerProfile,
   Attack,
 } from "./Game";
-import { PlayerUpdate } from "./GameUpdates";
+import { AttackUpdate, PlayerUpdate } from "./GameUpdates";
 import { GameUpdateType } from "./GameUpdates";
 import { ClientID } from "../Schemas";
 import {
@@ -116,6 +116,22 @@ export class PlayerImpl implements Player {
       isTraitor: this.isTraitor(),
       targets: this.targets().map((p) => p.smallID()),
       outgoingEmojis: this.outgoingEmojis(),
+      outgoingAttacks: this._outgoingAttacks.map(
+        (a) =>
+          ({
+            attackerID: a.attacker().smallID(),
+            targetID: a.target().smallID(),
+            troops: a.troops(),
+          } as AttackUpdate)
+      ),
+      incomingAttacks: this._incomingAttacks.map(
+        (a) =>
+          ({
+            attackerID: a.attacker().smallID(),
+            targetID: a.target().smallID(),
+            troops: a.troops(),
+          } as AttackUpdate)
+      ),
     };
   }
 
