@@ -26,6 +26,8 @@ export class ConstructionExecution implements Execution {
 
   private ticksUntilComplete: Tick;
 
+  private cost: number;
+
   constructor(
     private ownerId: PlayerID,
     private tile: TileRef,
@@ -56,6 +58,8 @@ export class ConstructionExecution implements Execution {
         0,
         spawnTile
       );
+      this.cost = this.mg.unitInfo(this.constructionType).cost(this.player);
+      this.player.removeGold(this.cost);
       this.construction.setConstructionType(this.constructionType);
       this.ticksUntilComplete = info.constructionDuration;
       return;
@@ -69,6 +73,8 @@ export class ConstructionExecution implements Execution {
     if (this.ticksUntilComplete == 0) {
       this.player = this.construction.owner();
       this.construction.delete(false);
+      // refund the cost so player has the gold to build the unit
+      this.player.addGold(this.cost);
       this.completeConstruction();
       this.active = false;
       return;

@@ -123,7 +123,8 @@ export class TerritoryLayer implements Layer {
       this.alternativeView = e.alternateView;
     });
     this.eventBus.on(DragEvent, (e) => {
-      this.lastDragTime = Date.now();
+      // TODO: consider re-enabling this on mobile or low end devices for smoother dragging.
+      // this.lastDragTime = Date.now();
     });
     this.redraw();
   }

@@ -19,7 +19,7 @@ export const pastelTheme = new (class implements Theme {
     colord({ r: 125, g: 255, b: 75 }), // Warmer tint
     colord({ r: 115, g: 250, b: 68 }), // Cooler tint
   ];
-  private water = colord({ r: 75, g: 142, b: 190 });
+  private water = colord({ r: 70, g: 132, b: 180 });
   private shorelineWater = colord({ r: 100, g: 143, b: 255 });
 
   private territoryColors: Colord[] = [
@@ -167,11 +167,11 @@ export const pastelTheme = new (class implements Theme {
         if (gm.isShoreline(tile) && gm.isWater(tile)) {
           return this.shorelineWater;
         }
-        if (gm.magnitude(tile) < 7) {
+        if (gm.magnitude(tile) < 10) {
           return colord({
-            r: Math.max(w.r - 7 + mag, 0),
-            g: Math.max(w.g - 7 + mag, 0),
-            b: Math.max(w.b - 7 + mag, 0),
+            r: Math.max(w.r - 10 + mag, 0),
+            g: Math.max(w.g - 10 + mag, 0),
+            b: Math.max(w.b - 10 + mag, 0),
           });
         }
         return this.water;
