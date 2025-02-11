@@ -15,6 +15,7 @@ import warshipIcon from "../../../../resources/images/BattleshipIconWhite.svg";
 import missileSiloIcon from "../../../../resources/images/MissileSiloIconWhite.svg";
 import goldCoinIcon from "../../../../resources/images/GoldCoinIcon.svg";
 import portIcon from "../../../../resources/images/PortIcon.svg";
+import mirvIcon from "../../../../resources/images/MIRVIcon.svg";
 import cityIcon from "../../../../resources/images/CityIconWhite.svg";
 import shieldIcon from "../../../../resources/images/ShieldIconWhite.svg";
 import { renderNumber } from "../../Utils";
@@ -28,7 +29,8 @@ interface BuildItemDisplay {
 const buildTable: BuildItemDisplay[][] = [
   [
     { unitType: UnitType.AtomBomb, icon: atomBombIcon },
-    { unitType: UnitType.MIRV, icon: hydrogenBombIcon },
+    { unitType: UnitType.MIRV, icon: mirvIcon },
+    { unitType: UnitType.HydrogenBomb, icon: hydrogenBombIcon },
     { unitType: UnitType.Warship, icon: warshipIcon },
     { unitType: UnitType.Port, icon: portIcon },
     { unitType: UnitType.MissileSilo, icon: missileSiloIcon },
