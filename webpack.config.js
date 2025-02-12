@@ -15,6 +15,7 @@ export default (env, argv) => {
 		output: {
 			filename: 'bundle.js',
 			path: path.resolve(__dirname, 'out'),
+			clean: true
 		},
 		module: {
 			rules: [
