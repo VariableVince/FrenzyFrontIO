@@ -11,7 +11,7 @@
     "tunnel": "npm run build-prod && npm run start:server",
     "test": "jest",
     "format": "prettier --write .",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx,css,md}": [
