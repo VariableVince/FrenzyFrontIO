@@ -12,6 +12,9 @@ export class HostLobbyModal extends LitElement {
   @state() private isModalOpen = false;
   @state() private selectedMap: GameMapType = GameMapType.World;
   @state() private selectedDifficulty: Difficulty = Difficulty.Medium;
+  @state() private disableNPCs = false;
+  @state() private disableBots = false;
+  @state() private creativeMode = false;
   @state() private lobbyId = "";
   @state() private copySuccess = false;
   @state() private players: string[] = [];
@@ -368,6 +371,30 @@ export class HostLobbyModal extends LitElement {
                 )}
               </div>
             </div>
+            <div>
+              <input
+                type="checkbox"
+                id="disable-bots"
+                @change=${this.handleDisableBotsChange}
+              />
+              <label for="disable-bots">Disable Bots</label>
+            </div>
+            <div>
+              <input
+                type="checkbox"
+                id="disable-npcs"
+                @change=${this.handleDisableNPCsChange}
+              />
+              <label for="disable-npcs">Disable NPCs</label>
+            </div>
+            <div>
+              <input
+                type="checkbox"
+                id="creative-mode"
+                @change=${this.handleCreativeModeChange}
+              />
+              <label for="creative-mode">Creative mode</label>
+            </div>
           </div>
           <button
             @click=${this.startGame}
@@ -399,6 +426,9 @@ export class HostLobbyModal extends LitElement {
               },
               map: this.selectedMap,
               difficulty: this.selectedDifficulty,
+              disableBots: this.disableBots,
+              disableNPCs: this.disableNPCs,
+              creativeMode: this.creativeMode,
             },
             bubbles: true,
             composed: true,
@@ -427,6 +457,24 @@ export class HostLobbyModal extends LitElement {
     this.putGameConfig();
   }
 
+  private async handleDisableBotsChange(e: Event) {
+    this.disableBots = Boolean((e.target as HTMLInputElement).checked);
+    consolex.log(`updating disable bots to ${this.disableBots}`);
+    this.putGameConfig();
+  }
+
+  private async handleDisableNPCsChange(e: Event) {
+    this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
+    consolex.log(`updating disable npcs to ${this.disableNPCs}`);
+    this.putGameConfig();
+  }
+
+  private async handleCreativeModeChange(e: Event) {
+    this.creativeMode = Boolean((e.target as HTMLInputElement).checked);
+    consolex.log(`updating creative mode to ${this.creativeMode}`);
+    this.putGameConfig();
+  }
+
   private async putGameConfig() {
     const response = await fetch(`/private_lobby/${this.lobbyId}`, {
       method: "PUT",
@@ -436,6 +484,9 @@ export class HostLobbyModal extends LitElement {
       body: JSON.stringify({
         gameMap: this.selectedMap,
         difficulty: this.selectedDifficulty,
+        disableBots: this.disableBots,
+        disableNPCs: this.disableNPCs,
+        creativeMode: this.creativeMode,
       }),
     });
   }
