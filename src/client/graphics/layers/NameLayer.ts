@@ -166,7 +166,7 @@ export class NameLayer implements Layer {
       const flagImg = document.createElement("img");
       flagImg.classList.add("player-flag");
       flagImg.style.marginBottom = "-10%";
-      flagImg.style.marginTop = "-20%";
+      flagImg.style.marginTop = "-17%";
       flagImg.style.opacity = "0.8";
       flagImg.src = "/flags/" + sanitize(player.flag()) + ".svg";
       flagImg.style.zIndex = "1";
