@@ -54,6 +54,13 @@ export class PublicLobby extends LitElement {
     }
   }
 
+  public stop() {
+    if (this.lobbiesInterval !== null) {
+      clearInterval(this.lobbiesInterval);
+      this.lobbiesInterval = null;
+    }
+  }
+
   render() {
     if (this.lobbies.length === 0) return html``;
 
