@@ -475,24 +475,6 @@ export class HostLobbyModal extends LitElement {
     this.putGameConfig();
   }
 
-  private async handleDisableBotsChange(e: Event) {
-    this.disableBots = Boolean((e.target as HTMLInputElement).checked);
-    consolex.log(`updating disable bots to ${this.disableBots}`);
-    this.putGameConfig();
-  }
-
-  private async handleDisableNPCsChange(e: Event) {
-    this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
-    consolex.log(`updating disable npcs to ${this.disableNPCs}`);
-    this.putGameConfig();
-  }
-
-  private async handleCreativeModeChange(e: Event) {
-    this.creativeMode = Boolean((e.target as HTMLInputElement).checked);
-    consolex.log(`updating creative mode to ${this.creativeMode}`);
-    this.putGameConfig();
-  }
-
   private async putGameConfig() {
     const response = await fetch(`/private_lobby/${this.lobbyId}`, {
       method: "PUT",

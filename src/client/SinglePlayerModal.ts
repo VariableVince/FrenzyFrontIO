@@ -333,15 +333,6 @@ export class SinglePlayerModal extends LitElement {
   private handleCreativeModeChange(e: Event) {
     this.creativeMode = Boolean((e.target as HTMLInputElement).checked);
   }
-  private handleDisableBotsChange(e: Event) {
-    this.disableBots = Boolean((e.target as HTMLInputElement).checked);
-  }
-  private handleDisableNPCsChange(e: Event) {
-    this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
-  }
-  private handleCreativeModeChange(e: Event) {
-    this.creativeMode = Boolean((e.target as HTMLInputElement).checked);
-  }
   private startGame() {
     consolex.log(
       `Starting single player game with map: ${GameMapType[this.selectedMap]}`
