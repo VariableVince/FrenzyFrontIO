@@ -100,7 +100,10 @@ export class DefaultConfig implements Config {
         };
       case UnitType.Warship:
         return {
-          cost: (p: Player) => this.creativeMode() ? 0 : (p.units(UnitType.Warship).length + 1) * 250_000,
+          cost: (p: Player) =>
+            this.creativeMode()
+              ? 0
+              : (p.units(UnitType.Warship).length + 1) * 250_000,
           territoryBound: false,
           maxHealth: 1000,
         };
@@ -113,27 +116,28 @@ export class DefaultConfig implements Config {
       case UnitType.Port:
         return {
           cost: (p: Player) =>
-            this.creativeMode() ? 0 :
-            Math.min(
-              1_000_000,
-              Math.pow(2, p.units(UnitType.Port).length) * 250_000
-            ),
+            this.creativeMode()
+              ? 0
+              : Math.min(
+                  1_000_000,
+                  Math.pow(2, p.units(UnitType.Port).length) * 250_000
+                ),
           territoryBound: true,
           constructionDuration: this.creativeMode() ? 0 : 2 * 10,
         };
       case UnitType.AtomBomb:
         return {
-          cost: () => this.creativeMode() ? 0 : 750_000,
+          cost: () => (this.creativeMode() ? 0 : 750_000),
           territoryBound: false,
         };
       case UnitType.HydrogenBomb:
         return {
-          cost: () => this.creativeMode() ? 0 : 5_000_000,
+          cost: () => (this.creativeMode() ? 0 : 5_000_000),
           territoryBound: false,
         };
       case UnitType.MIRV:
         return {
-          cost: () => this.creativeMode() ? 0 : 10_000_000,
+          cost: () => (this.creativeMode() ? 0 : 10_000_000),
           territoryBound: false,
         };
       case UnitType.MIRVWarhead:
@@ -148,29 +152,31 @@ export class DefaultConfig implements Config {
         };
       case UnitType.MissileSilo:
         return {
-          cost: () => this.creativeMode() ? 0 : 1_000_000,
+          cost: () => (this.creativeMode() ? 0 : 1_000_000),
           territoryBound: true,
           constructionDuration: this.creativeMode() ? 0 : 10 * 10,
         };
       case UnitType.DefensePost:
         return {
           cost: (p: Player) =>
-            this.creativeMode() ? 0 :
-            Math.min(
-              250_000,
-              (p.units(UnitType.DefensePost).length + 1) * 50_000
-            ),
+            this.creativeMode()
+              ? 0
+              : Math.min(
+                  250_000,
+                  (p.units(UnitType.DefensePost).length + 1) * 50_000
+                ),
           territoryBound: true,
           constructionDuration: this.creativeMode() ? 0 : 5 * 10,
         };
       case UnitType.City:
         return {
           cost: (p: Player) =>
-            this.creativeMode() ? 0 :
-            Math.min(
-              1_000_000,
-              Math.pow(2, p.units(UnitType.City).length) * 125_000
-            ),
+            this.creativeMode()
+              ? 0
+              : Math.min(
+                  1_000_000,
+                  Math.pow(2, p.units(UnitType.City).length) * 125_000
+                ),
           territoryBound: true,
           constructionDuration: this.creativeMode() ? 0 : 2 * 10,
         };
@@ -289,7 +295,7 @@ export class DefaultConfig implements Config {
     if (defender.isPlayer()) {
       return {
         attackerTroopLoss:
-          within(defender.troops() / (2.5 * attackTroops), 0.1, 10) * mag,
+          within(defender.troops() / (attackTroops * 0.5), 0.25, 4) * mag * 0.5,
         defenderTroopLoss: defender.troops() / defender.numTilesOwned(),
         tilesPerTickUsed:
           within(defender.troops() / (5 * attackTroops), 0.2, 1.5) * speed,
@@ -357,9 +363,10 @@ export class DefaultConfig implements Config {
   }
 
   maxPopulation(player: Player | PlayerView): number {
-    let maxPop = this.creativeMode() ? 999_999_999_999 :
-      2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
-      player.units(UnitType.City).length * this.cityPopulationIncrease();
+    let maxPop = this.creativeMode()
+      ? 999_999_999_999
+      : 2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
+        player.units(UnitType.City).length * this.cityPopulationIncrease();
 
     if (player.type() == PlayerType.Bot) {
       return maxPop / 2;

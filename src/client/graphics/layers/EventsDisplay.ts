@@ -94,14 +94,6 @@ export class EventsDisplay extends LitElement implements Layer {
       return;
     }
 
-    myPlayer.incomingAttacks().forEach((a) => {
-      console.log(
-        `got type: ${(
-          this.game.playerBySmallID(a.attackerID) as PlayerView
-        ).type()}`
-      );
-    });
-
     // Update attacks
     this.incomingAttacks = myPlayer.incomingAttacks().filter((a) => {
       const t = (this.game.playerBySmallID(a.attackerID) as PlayerView).type();
