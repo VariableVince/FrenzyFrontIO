@@ -10,7 +10,13 @@
     "dev": "cross-env GAME_ENV=dev concurrently \"npm run start:client\" \"npm run start:server-dev\"",
     "tunnel": "npm run build-prod && npm run start:server",
     "test": "jest",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx,css,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -37,7 +43,9 @@
     "html-inline-script-webpack-plugin": "^3.2.1",
     "html-loader": "^5.1.0",
     "html-webpack-plugin": "^5.6.0",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
+    "lint-staged": "^15.4.3",
     "mocha": "^10.7.0",
     "mrmime": "^2.0.0",
     "postcss": "^8.5.1",
