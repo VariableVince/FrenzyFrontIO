@@ -13,7 +13,7 @@ const matcher = new RegExpMatcher({
 export const MIN_USERNAME_LENGTH = 3;
 export const MAX_USERNAME_LENGTH = 27;
 
-const validPattern = /^[a-zA-Z0-9_\[\] 🐈🍀]+$/;
+const validPattern = /^[a-zA-Z0-9_\[\] 🐈🍀]+$/u;
 
 const shadowNames = [
   "NicePeopleOnly",
@@ -71,7 +71,7 @@ export function validateUsername(username: string): {
 
 export function sanitizeUsername(str: string): string {
   const sanitized = str
-    .replace(/[^a-zA-Z0-9_\[\] 🐈🍀]/g, "")
+    .replace(/[^a-zA-Z0-9_\[\] 🐈🍀]/gu, "")
     .slice(0, MAX_USERNAME_LENGTH);
   return sanitized.padEnd(MIN_USERNAME_LENGTH, "x");
 }
