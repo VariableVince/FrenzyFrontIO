@@ -3,12 +3,15 @@ import { customElement, property, state } from "lit/decorators.js";
 import { Difficulty, GameMapType, GameType } from "../core/game/Game";
 import { Lobby } from "../core/Schemas";
 import { consolex } from "../core/Consolex";
+import "./components/Difficulties";
+import { DifficultyDescription } from "./components/Difficulties";
+import "./components/Maps";
 
 @customElement("host-lobby-modal")
 export class HostLobbyModal extends LitElement {
   @state() private isModalOpen = false;
   @state() private selectedMap: GameMapType = GameMapType.World;
-  @state() private selectedDiffculty: Difficulty = Difficulty.Medium;
+  @state() private selectedDifficulty: Difficulty = Difficulty.Medium;
   @state() private disableNPCs = false;
   @state() private disableBots = false;
   @state() private creativeMode = false;
@@ -28,16 +31,57 @@ export class HostLobbyModal extends LitElement {
       width: 100%;
       height: 100%;
       background-color: rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .modal-content {
-      background-color: white;
-      margin: 15% auto;
+      background-color: rgb(35 35 35 / 0.8);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      color: white;
       padding: 20px;
       border-radius: 8px;
       width: 80%;
-      max-width: 500px;
+      max-width: 1280px;
+      max-height: 80vh;
+      overflow-y: auto;
       text-align: center;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      position: relative;
+    }
+
+    /* Add custom scrollbar styles */
+    .modal-content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .modal-content::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .title {
+      font-size: 28px;
+      color: #fff;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 0 0 20px;
     }
 
     .close {
@@ -50,55 +94,183 @@ export class HostLobbyModal extends LitElement {
 
     .close:hover,
     .close:focus {
-      color: black;
+      color: white;
       text-decoration: none;
       cursor: pointer;
     }
 
-    button {
-      padding: 10px 20px;
+    .start-game-button {
+      width: 100%;
+      max-width: 300px;
+      padding: 15px 20px;
       font-size: 16px;
       cursor: pointer;
       background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       transition: background-color 0.3s;
       display: inline-block;
-      margin-top: 20px;
+      margin: 0 0 20px 0;
     }
 
-    button:hover {
+    .start-game-button:not(:disabled):hover {
       background-color: #0056b3;
     }
 
-    select {
-      padding: 8px;
-      font-size: 16px;
-      margin-top: 10px;
-      width: 200px;
+    .start-game-button:disabled {
+      background: linear-gradient(to right, #4a4a4a, #3d3d3d);
+      opacity: 0.7;
+      cursor: not-allowed;
     }
 
-    .lobby-id-container {
+    .options-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      margin: 24px 0;
+    }
+
+    .options-section {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px 24px 24px 24px;
+      border-radius: 12px;
+    }
+
+    .option-title {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .option-cards {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .option-card {
+      width: 100%;
+      min-width: 100px;
+      max-width: 120px;
+      padding: 4px 4px 0 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(30, 30, 30, 0.95);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .option-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(40, 40, 40, 0.95);
+    }
+
+    .option-card.selected {
+      border-color: #4a9eff;
+      background: rgba(74, 158, 255, 0.1);
+    }
+
+    .option-card-title {
+      font-size: 14px;
+      color: #aaa;
+      text-align: center;
+      margin: 0 0 4px 0;
+    }
+
+    .option-image {
+      width: 100%;
+      aspect-ratio: 4/2;
+      color: #aaa;
+      transition: transform 0.2s ease-in-out;
+      border-radius: 8px;
+      background-color: rgba(255, 255, 255, 0.1);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* HostLobbyModal css */
+    .clipboard-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .copy-success {
+      position: relative;
+      transform: translateY(-10px);
+      color: green;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .copy-success-icon {
+      width: 18px;
+      height: 18px;
+      color: #4caf50;
+    }
+
+    .lobby-id-box {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
+      margin: 8px 0px 0px 0px;
     }
 
-    .clipboard-icon {
+    .lobby-id-button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       cursor: pointer;
-      transition: opacity 0.3s;
+      transition: all 0.2s ease-in-out;
     }
 
-    .clipboard-icon:hover {
-      opacity: 0.7;
+    .lobby-id-button:hover {
+      background: rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
     }
 
-    .copy-success {
-      color: green;
+    .lobby-id {
       font-size: 14px;
-      margin-top: 5px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .players-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      padding: 0 16px;
+    }
+
+    .player-tag {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
   `;
 
@@ -106,97 +278,133 @@ export class HostLobbyModal extends LitElement {
     return html`
       <div
         class="modal-overlay"
-        style="display: ${this.isModalOpen ? "block" : "none"}"
+        style="display: ${this.isModalOpen ? "flex" : "none"}"
       >
         <div class="modal-content">
           <span class="close" @click=${this.close}>&times;</span>
-          <h2>Private Lobby</h2>
-          <div class="lobby-id-container">
-            <h3>Lobby ID: ${this.lobbyId}</h3>
-            <svg
+
+          <div class="title">Private Lobby</div>
+          <div class="lobby-id-box">
+            <button
+              class="lobby-id-button"
               @click=${this.copyToClipboard}
-              class="clipboard-icon"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+              ?disabled=${this.copySuccess}
             >
-              <path
-                d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
-              ></path>
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-            </svg>
-          </div>
-          ${this.copySuccess
-            ? html`<p class="copy-success">Copied to clipboard!</p>`
-            : ""}
-          <div>
-            <label for="map-select">Map: </label>
-            <select id="map-select" @change=${this.handleMapChange}>
-              ${Object.entries(GameMapType)
-                .filter(([key]) => isNaN(Number(key)))
-                .map(
-                  ([key, value]) => html`
-                    <option
-                      value=${value}
-                      ?selected=${this.selectedMap === value}
+              <span class="lobby-id">${this.lobbyId}</span>
+              ${this.copySuccess
+                ? html`<span class="copy-success-icon">✓</span>`
+                : html`
+                    <svg
+                      class="clipboard-icon"
+                      stroke="currentColor"
+                      fill="currentColor"
+                      stroke-width="0"
+                      viewBox="0 0 512 512"
+                      height="18px"
+                      width="18px"
+                      xmlns="http://www.w3.org/2000/svg"
                     >
-                      ${key}
-                    </option>
-                  `,
+                      <path
+                        d="M296 48H176.5C154.4 48 136 65.4 136 87.5V96h-7.5C106.4 96 88 113.4 88 135.5v288c0 22.1 18.4 40.5 40.5 40.5h208c22.1 0 39.5-18.4 39.5-40.5V416h8.5c22.1 0 39.5-18.4 39.5-40.5V176L296 48zm0 44.6l83.4 83.4H296V92.6zm48 330.9c0 4.7-3.4 8.5-7.5 8.5h-208c-4.4 0-8.5-4.1-8.5-8.5v-288c0-4.1 3.8-7.5 8.5-7.5h7.5v255.5c0 22.1 10.4 32.5 32.5 32.5H344v7.5zm48-48c0 4.7-3.4 8.5-7.5 8.5h-208c-4.4 0-8.5-4.1-8.5-8.5v-288c0-4.1 3.8-7.5 8.5-7.5H264v128h128v167.5z"
+                      ></path>
+                    </svg>
+                  `}
+            </button>
+          </div>
+
+          <div class="options-layout">
+            <!-- Map Selection -->
+            <div class="options-section">
+              <div class="option-title">Map</div>
+              <div class="option-cards">
+                ${Object.entries(GameMapType)
+                  .filter(([key]) => isNaN(Number(key)))
+                  .map(
+                    ([key, value]) => html`
+                      <div @click=${() => this.handleMapSelection(value)}>
+                        <map-display
+                          .mapKey=${key}
+                          .selected=${this.selectedMap === value}
+                        ></map-display>
+                      </div>
+                    `
+                  )}
+              </div>
+            </div>
+
+            <!-- Difficulty Selection -->
+            <div class="options-section">
+              <div class="option-title">Difficulty</div>
+              <div class="option-cards">
+                ${Object.entries(Difficulty)
+                  .filter(([key]) => isNaN(Number(key)))
+                  .map(
+                    ([key, value]) => html`
+                      <div
+                        class="option-card ${this.selectedDifficulty === value
+                          ? "selected"
+                          : ""}"
+                        @click=${() => this.handleDifficultySelection(value)}
+                      >
+                        <difficulty-display
+                          .difficultyKey=${key}
+                        ></difficulty-display>
+                        <p class="option-card-title">
+                          ${DifficultyDescription[key]}
+                        </p>
+                      </div>
+                    `
+                  )}
+              </div>
+            </div>
+
+            <!-- Lobby Selection -->
+            <div class="options-section">
+              <div class="option-title">
+                ${this.players.length}
+                ${this.players.length === 1 ? "Player" : "Players"}
+              </div>
+
+              <div class="players-list">
+                ${this.players.map(
+                  (player) => html`<span class="player-tag">${player}</span>`
                 )}
-            </select>
+              </div>
+            </div>
+            <div>
+              <input
+                type="checkbox"
+                id="disable-bots"
+                @change=${this.handleDisableBotsChange}
+              />
+              <label for="disable-bots">Disable Bots</label>
+            </div>
+            <div>
+              <input
+                type="checkbox"
+                id="disable-npcs"
+                @change=${this.handleDisableNPCsChange}
+              />
+              <label for="disable-npcs">Disable NPCs</label>
+            </div>
+            <div>
+              <input
+                type="checkbox"
+                id="creative-mode"
+                @change=${this.handleCreativeModeChange}
+              />
+              <label for="creative-mode">Creative mode</label>
+            </div>
           </div>
-          <div>
-            <label for="map-select">Difficulty: </label>
-            <select id="map-select" @change=${this.handleDifficultyChange}>
-              ${Object.entries(Difficulty)
-                .filter(([key]) => isNaN(Number(key)))
-                .map(
-                  ([key, value]) => html`
-                    <option
-                      value=${value}
-                      ?selected=${this.selectedDiffculty === value}
-                    >
-                      ${key}
-                    </option>
-                  `,
-                )}
-            </select>
-          </div>
-          <div>
-            <input
-              type="checkbox"
-              id="disable-bots"
-              @change=${this.handleDisableBotsChange}
-            />
-            <label for="disable-bots">Disable Bots</label>
-          </div>
-          <div>
-            <input
-              type="checkbox"
-              id="disable-npcs"
-              @change=${this.handleDisableNPCsChange}
-            />
-            <label for="disable-npcs">Disable NPCs</label>
-          </div>
-          <div>
-            <input
-              type="checkbox"
-              id="creative-mode"
-              @change=${this.handleCreativeModeChange}
-            />
-            <label for="creative-mode">Creative mode</label>
-          </div>
-          <button @click=${this.startGame}>Start Game</button>
-          <div>
-            <p>Players: ${this.players.join(", ")}</p>
-            <p></p>
-          </div>
+          <button
+            @click=${this.startGame}
+            ?disabled=${this.players.length < 2}
+            class="start-game-button"
+          >
+            ${this.players.length === 1
+              ? "Waiting for players..."
+              : "Start Game"}
+          </button>
         </div>
       </div>
     `;
@@ -217,14 +425,14 @@ export class HostLobbyModal extends LitElement {
                 id: this.lobbyId,
               },
               map: this.selectedMap,
-              difficulty: this.selectedDiffculty,
+              difficulty: this.selectedDifficulty,
               disableBots: this.disableBots,
               disableNPCs: this.disableNPCs,
               creativeMode: this.creativeMode,
             },
             bubbles: true,
             composed: true,
-          }),
+          })
         );
       });
     this.isModalOpen = true;
@@ -240,19 +448,30 @@ export class HostLobbyModal extends LitElement {
     }
   }
 
-  private async handleMapChange(e: Event) {
-    this.selectedMap = String(
-      (e.target as HTMLSelectElement).value,
-    ) as GameMapType;
-    consolex.log(`updating map to ${this.selectedMap}`);
+  private async handleMapSelection(value: GameMapType) {
+    this.selectedMap = value;
+    this.putGameConfig();
+  }
+  private async handleDifficultySelection(value: Difficulty) {
+    this.selectedDifficulty = value;
     this.putGameConfig();
   }
 
-  private async handleDifficultyChange(e: Event) {
-    this.selectedDiffculty = String(
-      (e.target as HTMLSelectElement).value,
-    ) as Difficulty;
-    consolex.log(`updating difficulty to ${this.selectedDiffculty}`);
+  private async handleDisableBotsChange(e: Event) {
+    this.disableBots = Boolean((e.target as HTMLInputElement).checked);
+    consolex.log(`updating disable bots to ${this.disableBots}`);
+    this.putGameConfig();
+  }
+
+  private async handleDisableNPCsChange(e: Event) {
+    this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
+    consolex.log(`updating disable npcs to ${this.disableNPCs}`);
+    this.putGameConfig();
+  }
+
+  private async handleCreativeModeChange(e: Event) {
+    this.creativeMode = Boolean((e.target as HTMLInputElement).checked);
+    consolex.log(`updating creative mode to ${this.creativeMode}`);
     this.putGameConfig();
   }
 
@@ -282,7 +501,7 @@ export class HostLobbyModal extends LitElement {
       },
       body: JSON.stringify({
         gameMap: this.selectedMap,
-        difficulty: this.selectedDiffculty,
+        difficulty: this.selectedDifficulty,
         disableBots: this.disableBots,
         disableNPCs: this.disableNPCs,
         creativeMode: this.creativeMode,
@@ -292,7 +511,7 @@ export class HostLobbyModal extends LitElement {
 
   private async startGame() {
     consolex.log(
-      `Starting private game with map: ${GameMapType[this.selectedMap]}`,
+      `Starting private game with map: ${GameMapType[this.selectedMap]}`
     );
     this.close();
     const response = await fetch(`/start_private_lobby/${this.lobbyId}`, {
