@@ -27,7 +27,7 @@ export class MirvExecution implements Execution {
   private nuke: Unit;
 
   private mirvRange = 1500;
-  private warheadCount = 500;
+  private warheadCount = 350;
 
   private random: PseudoRandom;
 
@@ -94,10 +94,10 @@ export class MirvExecution implements Execution {
 
   private separate() {
     const dsts: TileRef[] = [this.dst];
-    let attempts = 10000;
+    let attempts = 1000;
     while (attempts > 0 && dsts.length < this.warheadCount) {
       attempts--;
-      const potential = this.randomLand(this.dst);
+      const potential = this.randomLand(this.dst, dsts);
       if (potential == null) {
         continue;
       }
@@ -135,9 +135,9 @@ export class MirvExecution implements Execution {
     this.nuke.delete(false);
   }
 
-  randomLand(ref: TileRef): TileRef | null {
+  randomLand(ref: TileRef, taken: TileRef[]): TileRef | null {
     let tries = 0;
-    while (tries < 25) {
+    while (tries < 100) {
       tries++;
       const x = this.random.nextInt(
         this.mg.x(ref) - this.mirvRange,
@@ -150,6 +150,7 @@ export class MirvExecution implements Execution {
       if (!this.mg.isValidCoord(x, y)) {
         continue;
       }
+      console.log(`got coord ${x}, ${y}`);
       const tile = this.mg.ref(x, y);
       if (!this.mg.isLand(tile)) {
         continue;
@@ -160,8 +161,14 @@ export class MirvExecution implements Execution {
       if (this.mg.owner(tile) != this.targetPlayer) {
         continue;
       }
+      for (const t of taken) {
+        if (this.mg.manhattanDist(tile, t) < 25) {
+          continue;
+        }
+      }
       return tile;
     }
+    console.log("could find place giving up");
     return null;
   }
 
