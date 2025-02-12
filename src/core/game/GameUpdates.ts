@@ -80,7 +80,7 @@ export interface PlayerUpdate {
   type: GameUpdateType.Player;
   nameViewData?: NameViewData;
   clientID: ClientID;
-  flag: string,
+  flag: string;
   name: string;
   displayName: string;
   id: PlayerID;

@@ -355,7 +355,7 @@ export class HostLobbyModal extends LitElement {
                           .selected=${this.selectedMap === value}
                         ></map-display>
                       </div>
-                    `
+                    `,
                   )}
               </div>
             </div>
@@ -381,7 +381,7 @@ export class HostLobbyModal extends LitElement {
                           ${DifficultyDescription[key]}
                         </p>
                       </div>
-                    `
+                    `,
                   )}
               </div>
             </div>
@@ -443,7 +443,7 @@ export class HostLobbyModal extends LitElement {
 
               <div class="players-list">
                 ${this.players.map(
-                  (player) => html`<span class="player-tag">${player}</span>`
+                  (player) => html`<span class="player-tag">${player}</span>`,
                 )}
               </div>
             </div>
@@ -484,7 +484,7 @@ export class HostLobbyModal extends LitElement {
             },
             bubbles: true,
             composed: true,
-          })
+          }),
         );
       });
     this.isModalOpen = true;
@@ -545,7 +545,7 @@ export class HostLobbyModal extends LitElement {
 
   private async startGame() {
     consolex.log(
-      `Starting private game with map: ${GameMapType[this.selectedMap]}`
+      `Starting private game with map: ${GameMapType[this.selectedMap]}`,
     );
     this.close();
     const response = await fetch(`/start_private_lobby/${this.lobbyId}`, {

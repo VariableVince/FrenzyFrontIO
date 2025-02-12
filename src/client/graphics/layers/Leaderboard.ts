@@ -80,7 +80,7 @@ export class Leaderboard extends LitElement implements Layer {
         name: myPlayer.displayName(),
         position: place,
         score: formatPercentage(
-          myPlayer.numTilesOwned() / this.game.numLandTiles()
+          myPlayer.numTilesOwned() / this.game.numLandTiles(),
         ),
         gold: renderNumber(myPlayer.gold()),
         isMyPlayer: true,
@@ -205,7 +205,7 @@ export class Leaderboard extends LitElement implements Layer {
                   <td>${player.score}</td>
                   <td>${player.gold}</td>
                 </tr>
-              `
+              `,
             )}
           </tbody>
         </table>

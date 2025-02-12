@@ -41,7 +41,7 @@ export class Executor {
   constructor(
     private mg: Game,
     private gameID: GameID,
-    private clientID: ClientID
+    private clientID: ClientID,
   ) {
     // Add one to avoid id collisions with bots.
     this.random = new PseudoRandom(simpleHash(gameID) + 1);
@@ -58,7 +58,7 @@ export class Executor {
           intent.troops,
           intent.attackerID,
           intent.targetID,
-          null
+          null,
         );
       }
       case "spawn":
@@ -71,16 +71,16 @@ export class Executor {
               : fixProfaneUsername(sanitize(intent.name)),
             intent.playerType,
             intent.clientID,
-            intent.playerID
+            intent.playerID,
           ),
-          this.mg.ref(intent.x, intent.y)
+          this.mg.ref(intent.x, intent.y),
         );
       case "boat":
         return new TransportShipExecution(
           intent.attackerID,
           intent.targetID,
           this.mg.ref(intent.x, intent.y),
-          intent.troops
+          intent.troops,
         );
       case "allianceRequest":
         return new AllianceRequestExecution(intent.requestor, intent.recipient);
@@ -88,7 +88,7 @@ export class Executor {
         return new AllianceRequestReplyExecution(
           intent.requestor,
           intent.recipient,
-          intent.accept
+          intent.accept,
         );
       case "breakAlliance":
         return new BreakAllianceExecution(intent.requestor, intent.recipient);
@@ -98,13 +98,13 @@ export class Executor {
         return new EmojiExecution(
           intent.sender,
           intent.recipient,
-          intent.emoji
+          intent.emoji,
         );
       case "donate":
         return new DonateExecution(
           intent.sender,
           intent.recipient,
-          intent.troops
+          intent.troops,
         );
       case "troop_ratio":
         return new SetTargetTroopRatioExecution(intent.player, intent.ratio);
@@ -112,7 +112,7 @@ export class Executor {
         return new ConstructionExecution(
           intent.player,
           this.mg.ref(intent.x, intent.y),
-          intent.unit
+          intent.unit,
         );
       default:
         throw new Error(`intent type ${intent} not found`);
@@ -137,9 +137,9 @@ export class Executor {
             PlayerType.FakeHuman,
             null,
             this.random.nextID(),
-            nation
-          )
-        )
+            nation,
+          ),
+        ),
       );
     }
     return execs;

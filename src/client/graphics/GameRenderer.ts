@@ -29,7 +29,7 @@ export function createRenderer(
   canvas: HTMLCanvasElement,
   game: GameView,
   eventBus: EventBus,
-  clientID: ClientID
+  clientID: ClientID,
 ): GameRenderer {
   const transformHandler = new TransformHandler(game, eventBus, canvas);
 
@@ -65,7 +65,7 @@ export function createRenderer(
   controlPanel.game = game;
 
   const eventsDisplay = document.querySelector(
-    "events-display"
+    "events-display",
   ) as EventsDisplay;
   if (!(eventsDisplay instanceof EventsDisplay)) {
     consolex.error("events display not found");
@@ -75,7 +75,7 @@ export function createRenderer(
   eventsDisplay.clientID = clientID;
 
   const playerInfo = document.querySelector(
-    "player-info-overlay"
+    "player-info-overlay",
   ) as PlayerInfoOverlay;
   if (!(playerInfo instanceof PlayerInfoOverlay)) {
     consolex.error("player info overlay not found");
@@ -129,7 +129,7 @@ export function createRenderer(
       buildMenu,
       uiState,
       playerInfo,
-      playerPanel
+      playerPanel,
     ),
     new SpawnTimer(game, transformHandler),
     leaderboard,
@@ -147,7 +147,7 @@ export function createRenderer(
     canvas,
     transformHandler,
     uiState,
-    layers
+    layers,
   );
 }
 
@@ -160,7 +160,7 @@ export class GameRenderer {
     private canvas: HTMLCanvasElement,
     public transformHandler: TransformHandler,
     public uiState: UIState,
-    private layers: Layer[]
+    private layers: Layer[],
   ) {
     this.context = canvas.getContext("2d");
   }
@@ -183,7 +183,7 @@ export class GameRenderer {
     this.transformHandler = new TransformHandler(
       this.game,
       this.eventBus,
-      this.canvas
+      this.canvas,
     );
 
     requestAnimationFrame(() => this.renderGame());
@@ -229,7 +229,7 @@ export class GameRenderer {
     const duration = performance.now() - start;
     if (duration > 50) {
       console.warn(
-        `tick ${this.game.ticks()} took ${duration}ms to render frame`
+        `tick ${this.game.ticks()} took ${duration}ms to render frame`,
       );
     }
   }

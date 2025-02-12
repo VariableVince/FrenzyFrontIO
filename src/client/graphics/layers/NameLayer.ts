@@ -26,7 +26,7 @@ class RenderInfo {
     public lastRenderCalc: number,
     public location: Cell,
     public fontSize: number,
-    public element: HTMLElement
+    public element: HTMLElement,
   ) {}
 }
 
@@ -50,7 +50,7 @@ export class NameLayer implements Layer {
     private game: GameView,
     private theme: Theme,
     private transformHandler: TransformHandler,
-    private clientID: ClientID
+    private clientID: ClientID,
   ) {
     this.traitorIconImage = new Image();
     this.traitorIconImage.src = traitorIcon;
@@ -101,7 +101,13 @@ export class NameLayer implements Layer {
         if (!this.seenPlayers.has(player)) {
           this.seenPlayers.add(player);
           this.renders.push(
-            new RenderInfo(player, 0, null, 0, this.createPlayerElement(player))
+            new RenderInfo(
+              player,
+              0,
+              null,
+              0,
+              this.createPlayerElement(player),
+            ),
           );
         }
       }
@@ -110,11 +116,11 @@ export class NameLayer implements Layer {
 
   public renderLayer(mainContex: CanvasRenderingContext2D) {
     const screenPosOld = this.transformHandler.worldToScreenCoordinates(
-      new Cell(0, 0)
+      new Cell(0, 0),
     );
     const screenPos = new Cell(
       screenPosOld.x - window.innerWidth / 2,
-      screenPosOld.y - window.innerHeight / 2
+      screenPosOld.y - window.innerHeight / 2,
     );
     this.container.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px) scale(${this.transformHandler.scale})`;
 
@@ -131,7 +137,7 @@ export class NameLayer implements Layer {
       0,
       0,
       mainContex.canvas.width,
-      mainContex.canvas.height
+      mainContex.canvas.height,
     );
   }
 
@@ -205,7 +211,7 @@ export class NameLayer implements Layer {
     const oldLocation = render.location;
     render.location = new Cell(
       render.player.nameLocation().x,
-      render.player.nameLocation().y
+      render.player.nameLocation().y,
     );
 
     // Calculate base size and scale
@@ -229,10 +235,10 @@ export class NameLayer implements Layer {
 
     // Update text sizes
     const nameDiv = render.element.querySelector(
-      ".player-name"
+      ".player-name",
     ) as HTMLDivElement;
     const troopsDiv = render.element.querySelector(
-      ".player-troops"
+      ".player-troops",
     ) as HTMLDivElement;
     nameDiv.style.fontSize = `${render.fontSize}px`;
     troopsDiv.style.fontSize = `${render.fontSize}px`;
@@ -240,7 +246,7 @@ export class NameLayer implements Layer {
 
     // Handle icons
     const iconsDiv = render.element.querySelector(
-      ".player-icons"
+      ".player-icons",
     ) as HTMLDivElement;
     const iconSize = Math.min(render.fontSize * 1.5, 48);
     const myPlayer = this.getPlayer();
@@ -250,7 +256,7 @@ export class NameLayer implements Layer {
     if (render.player === this.firstPlace) {
       if (!existingCrown) {
         iconsDiv.appendChild(
-          this.createIconElement(this.crownIconImage.src, iconSize, "crown")
+          this.createIconElement(this.crownIconImage.src, iconSize, "crown"),
         );
       }
     } else if (existingCrown) {
@@ -262,7 +268,11 @@ export class NameLayer implements Layer {
     if (render.player.isTraitor()) {
       if (!existingTraitor) {
         iconsDiv.appendChild(
-          this.createIconElement(this.traitorIconImage.src, iconSize, "traitor")
+          this.createIconElement(
+            this.traitorIconImage.src,
+            iconSize,
+            "traitor",
+          ),
         );
       }
     } else if (existingTraitor) {
@@ -277,8 +287,8 @@ export class NameLayer implements Layer {
           this.createIconElement(
             this.allianceIconImage.src,
             iconSize,
-            "alliance"
-          )
+            "alliance",
+          ),
         );
       }
     } else if (existingAlliance) {
@@ -293,7 +303,7 @@ export class NameLayer implements Layer {
     ) {
       if (!existingTarget) {
         iconsDiv.appendChild(
-          this.createIconElement(this.targetIconImage.src, iconSize, "target")
+          this.createIconElement(this.targetIconImage.src, iconSize, "target"),
         );
       }
     } else if (existingTarget) {
@@ -307,7 +317,7 @@ export class NameLayer implements Layer {
       .filter(
         (emoji) =>
           emoji.recipientID == AllPlayers ||
-          emoji.recipientID == myPlayer?.smallID()
+          emoji.recipientID == myPlayer?.smallID(),
       );
 
     if (emojis.length > 0) {
@@ -340,7 +350,7 @@ export class NameLayer implements Layer {
   private createIconElement(
     src: string,
     size: number,
-    id: string
+    id: string,
   ): HTMLImageElement {
     const icon = document.createElement("img");
     icon.src = src;

@@ -61,7 +61,8 @@ export function validateUsername(username: string): {
   if (!validPattern.test(username)) {
     return {
       isValid: false,
-      error: "Username can only contain letters, numbers, spaces, underscores, and [square brackets].",
+      error:
+        "Username can only contain letters, numbers, spaces, underscores, and [square brackets].",
     };
   }
 

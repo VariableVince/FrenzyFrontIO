@@ -35,7 +35,7 @@ export function createGame(
   gameMap: GameMap,
   miniGameMap: GameMap,
   nationMap: NationMap,
-  config: Config
+  config: Config,
 ): Game {
   return new GameImpl(gameMap, miniGameMap, nationMap, config);
 }
@@ -70,7 +70,7 @@ export class GameImpl implements Game {
     private _map: GameMap,
     private miniGameMap: GameMap,
     nationMap: NationMap,
-    private _config: Config
+    private _config: Config,
   ) {
     this._terraNullius = new TerraNulliusImpl();
     this._width = _map.width();
@@ -81,12 +81,12 @@ export class GameImpl implements Game {
           n.flag || "",
           n.name,
           new Cell(n.coordinates[0], n.coordinates[1]),
-          n.strength
-        )
+          n.strength,
+        ),
     );
     this.defenseGrid = new DefenseGrid(
       this._map,
-      this._config.defensePostRange()
+      this._config.defensePostRange(),
     );
   }
 
@@ -173,11 +173,11 @@ export class GameImpl implements Game {
       this,
       request.requestor() as PlayerImpl,
       request.recipient() as PlayerImpl,
-      this._ticks
+      this._ticks,
     );
     this.alliances_.push(alliance);
     (request.requestor() as PlayerImpl).pastOutgoingAllianceRequests.push(
-      request
+      request,
     );
     this.addUpdate({
       type: GameUpdateType.AllianceRequestReply,
@@ -189,7 +189,7 @@ export class GameImpl implements Game {
   rejectAllianceRequest(request: AllianceRequestImpl) {
     this.allianceRequests = this.allianceRequests.filter((ar) => ar != request);
     (request.requestor() as PlayerImpl).pastOutgoingAllianceRequests.push(
-      request
+      request,
     );
     this.addUpdate({
       type: GameUpdateType.AllianceRequestReply,
@@ -296,7 +296,7 @@ export class GameImpl implements Game {
   removeExecution(exec: Execution) {
     this.execs = this.execs.filter((execution) => execution !== exec);
     this.unInitExecs = this.unInitExecs.filter(
-      (execution) => execution !== exec
+      (execution) => execution !== exec,
     );
   }
 
@@ -448,7 +448,7 @@ export class GameImpl implements Game {
     }
     if (!breaker.isAlliedWith(other)) {
       throw new Error(
-        `${breaker} not allied with ${other}, cannot break alliance`
+        `${breaker} not allied with ${other}, cannot break alliance`,
       );
     }
     if (!other.isTraitor()) {
@@ -459,7 +459,7 @@ export class GameImpl implements Game {
     const alliances = other.alliances().filter((a) => breakerSet.has(a));
     if (alliances.length != 1) {
       throw new Error(
-        `must have exactly one alliance, have ${alliances.length}`
+        `must have exactly one alliance, have ${alliances.length}`,
       );
     }
     this.alliances_ = this.alliances_.filter((a) => a != alliances[0]);
@@ -478,7 +478,7 @@ export class GameImpl implements Game {
       .filter((a) => p1Set.has(a));
     if (alliances.length != 1) {
       throw new Error(
-        `cannot expire alliance: must have exactly one alliance, have ${alliances.length}`
+        `cannot expire alliance: must have exactly one alliance, have ${alliances.length}`,
       );
     }
     this.alliances_ = this.alliances_.filter((a) => a != alliances[0]);
@@ -506,7 +506,7 @@ export class GameImpl implements Game {
   displayMessage(
     message: string,
     type: MessageType,
-    playerID: PlayerID | null
+    playerID: PlayerID | null,
   ): void {
     let id = null;
     if (playerID != null) {
@@ -614,7 +614,7 @@ export class GameImpl implements Game {
   }
   bfs(
     tile: TileRef,
-    filter: (gm: GameMap, tile: TileRef) => boolean
+    filter: (gm: GameMap, tile: TileRef) => boolean,
   ): Set<TileRef> {
     return this._map.bfs(tile, filter);
   }

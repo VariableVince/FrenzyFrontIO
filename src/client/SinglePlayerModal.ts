@@ -251,7 +251,7 @@ export class SinglePlayerModal extends LitElement {
                           .selected=${this.selectedMap === value}
                         ></map-display>
                       </div>
-                    `
+                    `,
                   )}
               </div>
             </div>
@@ -277,7 +277,7 @@ export class SinglePlayerModal extends LitElement {
                           ${DifficultyDescription[key]}
                         </p>
                       </div>
-                    `
+                    `,
                   )}
               </div>
             </div>
@@ -363,7 +363,7 @@ export class SinglePlayerModal extends LitElement {
   }
   private startGame() {
     consolex.log(
-      `Starting single player game with map: ${GameMapType[this.selectedMap]}`
+      `Starting single player game with map: ${GameMapType[this.selectedMap]}`,
     );
     this.dispatchEvent(
       new CustomEvent("join-lobby", {
@@ -380,7 +380,7 @@ export class SinglePlayerModal extends LitElement {
         },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
     this.close();
   }

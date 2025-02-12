@@ -22,7 +22,7 @@ import { renderNumber, renderTroops } from "../../Utils";
 function euclideanDistWorld(
   coord: { x: number; y: number },
   tileRef: TileRef,
-  game: GameView
+  game: GameView,
 ): number {
   const x = game.x(tileRef);
   const y = game.y(tileRef);
@@ -71,7 +71,7 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
 
   init() {
     this.eventBus.on(MouseMoveEvent, (e: MouseMoveEvent) =>
-      this.onMouseEvent(e)
+      this.onMouseEvent(e),
     );
     this._isActive = true;
   }

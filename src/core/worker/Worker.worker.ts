@@ -35,7 +35,7 @@ ctx.addEventListener("message", async (e: MessageEvent<MainThreadMessage>) => {
           message.gameID,
           message.gameConfig,
           message.clientID,
-          gameUpdate
+          gameUpdate,
         ).then((gr) => {
           sendMessage({
             type: "initialized",
@@ -72,7 +72,7 @@ ctx.addEventListener("message", async (e: MessageEvent<MainThreadMessage>) => {
         const actions = (await gameRunner).playerActions(
           message.playerID,
           message.x,
-          message.y
+          message.y,
         );
         sendMessage({
           type: "player_actions_result",

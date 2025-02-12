@@ -64,13 +64,13 @@ export interface LobbyConfig {
 
 export function joinLobby(
   lobbyConfig: LobbyConfig,
-  onjoin: () => void
+  onjoin: () => void,
 ): () => void {
   const eventBus = new EventBus();
   initRemoteSender(eventBus);
 
   consolex.log(
-    `joinging lobby: gameID: ${lobbyConfig.gameID}, clientID: ${lobbyConfig.clientID}, persistentID: ${lobbyConfig.persistentID}`
+    `joinging lobby: gameID: ${lobbyConfig.gameID}, clientID: ${lobbyConfig.clientID}, persistentID: ${lobbyConfig.persistentID}`,
   );
 
   const serverConfig = getServerConfig();
@@ -91,7 +91,7 @@ export function joinLobby(
     lobbyConfig,
     gameConfig,
     eventBus,
-    serverConfig
+    serverConfig,
   );
 
   const onconnect = () => {
@@ -103,7 +103,7 @@ export function joinLobby(
       consolex.log("lobby: game started");
       onjoin();
       createClientGame(lobbyConfig, message.config, eventBus, transport).then(
-        (r) => r.start()
+        (r) => r.start(),
       );
     }
   };
@@ -118,7 +118,7 @@ export async function createClientGame(
   lobbyConfig: LobbyConfig,
   gameConfig: GameConfig,
   eventBus: EventBus,
-  transport: Transport
+  transport: Transport,
 ): Promise<ClientGameRunner> {
   const config = getConfig(gameConfig);
 
@@ -126,14 +126,14 @@ export async function createClientGame(
   const worker = new WorkerClient(
     lobbyConfig.gameID,
     gameConfig,
-    lobbyConfig.clientID
+    lobbyConfig.clientID,
   );
   await worker.initialize();
   const gameView = new GameView(
     worker,
     config,
     gameMap.gameMap,
-    lobbyConfig.clientID
+    lobbyConfig.clientID,
   );
 
   consolex.log("going to init path finder");
@@ -143,11 +143,11 @@ export async function createClientGame(
     canvas,
     gameView,
     eventBus,
-    lobbyConfig.clientID
+    lobbyConfig.clientID,
   );
 
   consolex.log(
-    `creating private game got difficulty: ${gameConfig.difficulty}`
+    `creating private game got difficulty: ${gameConfig.difficulty}`,
   );
 
   return new ClientGameRunner(
@@ -157,7 +157,7 @@ export async function createClientGame(
     new InputHandler(canvas, eventBus),
     transport,
     worker,
-    gameView
+    gameView,
   );
 }
 
@@ -175,7 +175,7 @@ export class ClientGameRunner {
     private input: InputHandler,
     private transport: Transport,
     private worker: WorkerClient,
-    private gameView: GameView
+    private gameView: GameView,
   ) {}
 
   public start() {
@@ -223,7 +223,7 @@ export class ClientGameRunner {
         }
         if (this.turnsSeen != message.turn.turnNumber) {
           consolex.error(
-            `got wrong turn have turns ${this.turnsSeen}, received turn ${message.turn.turnNumber}`
+            `got wrong turn have turns ${this.turnsSeen}, received turn ${message.turn.turnNumber}`,
           );
         } else {
           this.worker.sendTurn(message.turn);
@@ -246,7 +246,7 @@ export class ClientGameRunner {
     }
     const cell = this.renderer.transformHandler.screenToWorldCoordinates(
       event.x,
-      event.y
+      event.y,
     );
     if (!this.gameView.isValidCoord(cell.x, cell.y)) {
       return;
@@ -276,8 +276,8 @@ export class ClientGameRunner {
         this.eventBus.emit(
           new SendAttackIntentEvent(
             this.gameView.owner(tile).id(),
-            this.myPlayer.troops() * this.renderer.uiState.attackRatio
-          )
+            this.myPlayer.troops() * this.renderer.uiState.attackRatio,
+          ),
         );
       }
     });

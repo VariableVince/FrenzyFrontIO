@@ -89,7 +89,7 @@ export class Nation {
     public readonly flag: string,
     public readonly name: string,
     public readonly cell: Cell,
-    public readonly strength: number
+    public readonly strength: number,
   ) {}
 }
 
@@ -98,7 +98,10 @@ export class Cell {
 
   private strRepr: string;
 
-  constructor(public readonly x, public readonly y) {
+  constructor(
+    public readonly x,
+    public readonly y,
+  ) {
     this.strRepr = `Cell[${this.x},${this.y}]`;
   }
 
@@ -176,7 +179,7 @@ export class PlayerInfo {
     public readonly clientID: ClientID | null,
     // TODO: make player id the small id
     public readonly id: PlayerID,
-    public readonly nation?: Nation | null
+    public readonly nation?: Nation | null,
   ) {}
 }
 
@@ -302,7 +305,7 @@ export interface Player {
   createAttack(
     target: Player | TerraNullius,
     troops: number,
-    sourceTile: TileRef
+    sourceTile: TileRef,
   ): Attack;
   outgoingAttacks(): Attack[];
   incomingAttacks(): Attack[];
@@ -350,7 +353,7 @@ export interface Game extends GameMap {
   displayMessage(
     message: string,
     type: MessageType,
-    playerID: PlayerID | null
+    playerID: PlayerID | null,
   ): void;
 
   // Nations

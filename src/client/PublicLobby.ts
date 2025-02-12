@@ -20,7 +20,7 @@ export class PublicLobby extends LitElement {
     this.fetchAndUpdateLobbies();
     this.lobbiesInterval = window.setInterval(
       () => this.fetchAndUpdateLobbies(),
-      1000
+      1000,
     );
   }
 
@@ -111,7 +111,7 @@ export class PublicLobby extends LitElement {
           },
           bubbles: true,
           composed: true,
-        })
+        }),
       );
     } else {
       this.dispatchEvent(
@@ -119,7 +119,7 @@ export class PublicLobby extends LitElement {
           detail: { lobby: this.currLobby },
           bubbles: true,
           composed: true,
-        })
+        }),
       );
       this.currLobby = null;
     }

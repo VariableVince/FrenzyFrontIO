@@ -6,13 +6,16 @@ export class DefenseGrid {
   private grid: Set<Unit | UnitView>[][];
   private readonly cellSize = 100;
 
-  constructor(private gm: GameMap, private searchRange: number) {
+  constructor(
+    private gm: GameMap,
+    private searchRange: number,
+  ) {
     this.grid = Array(Math.ceil(gm.height() / this.cellSize))
       .fill(null)
       .map(() =>
         Array(Math.ceil(gm.width() / this.cellSize))
           .fill(null)
-          .map(() => new Set<Unit | UnitView>())
+          .map(() => new Set<Unit | UnitView>()),
       );
   }
 

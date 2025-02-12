@@ -200,7 +200,7 @@ export class BuildMenu extends LitElement {
 
   public onBuildSelected = (item: BuildItemDisplay) => {
     this.eventBus.emit(
-      new BuildUnitIntentEvent(item.unitType, this.clickedCell)
+      new BuildUnitIntentEvent(item.unitType, this.clickedCell),
     );
     this.hideMenu();
   };
@@ -235,7 +235,7 @@ export class BuildMenu extends LitElement {
                           ? this.game
                               .unitInfo(item.unitType)
                               .cost(this.myPlayer)
-                          : 0
+                          : 0,
                       )}
                       <img
                         src=${goldCoinIcon}
@@ -246,10 +246,10 @@ export class BuildMenu extends LitElement {
                       />
                     </span>
                   </button>
-                `
+                `,
               )}
             </div>
-          `
+          `,
         )}
       </div>
     `;

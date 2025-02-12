@@ -264,7 +264,7 @@ export class JoinPrivateLobbyModal extends LitElement {
                   <div class="players-list">
                     ${this.players.map(
                       (player) =>
-                        html`<span class="player-tag">${player}</span>`
+                        html`<span class="player-tag">${player}</span>`,
                     )}
                   </div>
                 </div>`
@@ -302,7 +302,7 @@ export class JoinPrivateLobbyModal extends LitElement {
         detail: { lobby: this.lobbyIdInput.value },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
   }
 
@@ -340,7 +340,7 @@ export class JoinPrivateLobbyModal extends LitElement {
               },
               bubbles: true,
               composed: true,
-            })
+            }),
           );
           this.playersInterval = setInterval(() => this.pollPlayers(), 1000);
         } else {

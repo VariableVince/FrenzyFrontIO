@@ -37,7 +37,10 @@ export class WarshipExecution implements Execution {
 
   private alreadySentShell = new Set<Unit>();
 
-  constructor(private playerID: PlayerID, private patrolCenterTile: TileRef) {}
+  constructor(
+    private playerID: PlayerID,
+    private patrolCenterTile: TileRef,
+  ) {}
 
   init(mg: Game, ticks: number): void {
     this.pathfinder = PathFinder.Mini(mg, 5000, false);
@@ -68,7 +71,7 @@ export class WarshipExecution implements Execution {
       const ships = this.mg
         .units(UnitType.TransportShip, UnitType.Warship, UnitType.TradeShip)
         .filter(
-          (u) => this.mg.manhattanDist(u.tile(), this.warship.tile()) < 130
+          (u) => this.mg.manhattanDist(u.tile(), this.warship.tile()) < 130,
         )
         .filter((u) => u.owner() != this.warship.owner())
         .filter((u) => u != this.warship)
@@ -80,7 +83,7 @@ export class WarshipExecution implements Execution {
         // Patrol unless we are hunting down a tradeship
         const result = this.pathfinder.nextTile(
           this.warship.tile(),
-          this.patrolTile
+          this.patrolTile,
         );
         switch (result.type) {
           case PathFindResultType.Completed:
@@ -115,8 +118,8 @@ export class WarshipExecution implements Execution {
             this.warship.tile(),
             this.warship.owner(),
             this.warship,
-            this.target
-          )
+            this.target,
+          ),
         );
         if (!this.target.hasHealth()) {
           // Don't send multiple shells to target that can be oneshotted
@@ -134,7 +137,7 @@ export class WarshipExecution implements Execution {
       const result = this.pathfinder.nextTile(
         this.warship.tile(),
         this.target.tile(),
-        5
+        5,
       );
       switch (result.type) {
         case PathFindResultType.Completed:

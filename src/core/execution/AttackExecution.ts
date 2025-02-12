@@ -45,7 +45,7 @@ export class AttackExecution implements Execution {
     private _ownerID: PlayerID,
     private _targetID: PlayerID | null,
     private sourceTile: TileRef | null,
-    private removeTroops: boolean = true
+    private removeTroops: boolean = true,
   ) {}
 
   public targetID(): PlayerID {
@@ -95,7 +95,7 @@ export class AttackExecution implements Execution {
     this.attack = this._owner.createAttack(
       this.target,
       this.startTroops,
-      this.sourceTile
+      this.sourceTile,
     );
 
     for (const incoming of this._owner.incomingAttacks()) {
@@ -174,7 +174,7 @@ export class AttackExecution implements Execution {
         this.attack.troops(),
         this._owner,
         this.target,
-        this.border.size + this.random.nextInt(0, 5)
+        this.border.size + this.random.nextInt(0, 5),
       );
     // consolex.log(`num tiles per tick: ${numTilesPerTick}`)
     // consolex.log(`num execs: ${this.mg.executions().length}`)
@@ -212,7 +212,7 @@ export class AttackExecution implements Execution {
           this.attack.troops(),
           this._owner,
           this.target,
-          tileToConquer
+          tileToConquer,
         );
       numTilesPerTick -= tilesPerTickUsed;
       this.attack.setTroops(this.attack.troops() - attackerTroopLoss);
@@ -253,8 +253,8 @@ export class AttackExecution implements Execution {
         new TileContainer(
           neighbor,
           dist / 100 + this.random.nextInt(0, 2) - numOwnedByMe + mag,
-          this.mg.ticks()
-        )
+          this.mg.ticks(),
+        ),
       );
     }
   }
@@ -264,10 +264,10 @@ export class AttackExecution implements Execution {
       const gold = this.target.gold();
       this.mg.displayMessage(
         `Conquered ${this.target.displayName()} received ${renderNumber(
-          gold
+          gold,
         )} gold`,
         MessageType.SUCCESS,
-        this._owner.id()
+        this._owner.id(),
       );
       this.target.removeGold(gold);
       this._owner.addGold(gold);
@@ -306,6 +306,6 @@ class TileContainer {
   constructor(
     public readonly tile: TileRef,
     public readonly priority: number,
-    public readonly tick: number
+    public readonly tick: number,
   ) {}
 }

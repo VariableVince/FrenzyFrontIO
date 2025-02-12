@@ -29,7 +29,7 @@ export async function createGameRunner(
   gameID: string,
   gameConfig: GameConfig,
   clientID: ClientID,
-  callBack: (gu: GameUpdateViewData) => void
+  callBack: (gu: GameUpdateViewData) => void,
 ): Promise<GameRunner> {
   const config = getConfig(gameConfig);
   const gameMap = await loadGameMap(gameConfig.gameMap);
@@ -37,9 +37,13 @@ export async function createGameRunner(
     gameMap.gameMap,
     gameMap.miniGameMap,
     gameMap.nationMap,
-    config
+    config,
   );
-  const gr = new GameRunner(game as Game, new Executor(game, gameID, clientID), callBack);
+  const gr = new GameRunner(
+    game as Game,
+    new Executor(game, gameID, clientID),
+    callBack,
+  );
   gr.init();
   return gr;
 }
@@ -54,13 +58,13 @@ export class GameRunner {
   constructor(
     public game: Game,
     private execManager: Executor,
-    private callBack: (gu: GameUpdateViewData | ErrorUpdate) => void
+    private callBack: (gu: GameUpdateViewData | ErrorUpdate) => void,
   ) {}
 
   init() {
     if (this.game.config().spawnBots()) {
       this.game.addExecution(
-        ...this.execManager.spawnBots(this.game.config().numBots())
+        ...this.execManager.spawnBots(this.game.config().numBots()),
       );
     }
     if (this.game.config().spawnNPCs()) {
@@ -83,7 +87,7 @@ export class GameRunner {
     this.isExecuting = true;
 
     this.game.addExecution(
-      ...this.execManager.createExecs(this.turns[this.currTurn])
+      ...this.execManager.createExecs(this.turns[this.currTurn]),
     );
     this.currTurn++;
 
@@ -107,10 +111,10 @@ export class GameRunner {
         .players()
         .filter(
           (p) =>
-            p.type() == PlayerType.Human || p.type() == PlayerType.FakeHuman
+            p.type() == PlayerType.Human || p.type() == PlayerType.FakeHuman,
         )
         .forEach(
-          (p) => (this.playerViewData[p.id()] = placeName(this.game, p))
+          (p) => (this.playerViewData[p.id()] = placeName(this.game, p)),
         );
     }
 
@@ -136,7 +140,7 @@ export class GameRunner {
   public playerActions(
     playerID: PlayerID,
     x: number,
-    y: number
+    y: number,
   ): PlayerActions {
     const player = this.game.player(playerID);
     const tile = this.game.ref(x, y);
@@ -144,7 +148,7 @@ export class GameRunner {
       canBoat: player.canBoat(tile),
       canAttack: player.canAttack(tile),
       buildableUnits: Object.values(UnitType).filter(
-        (ut) => player.canBuild(ut, tile) != false
+        (ut) => player.canBuild(ut, tile) != false,
       ),
       canSendEmojiAllPlayers: player.canSendEmoji(AllPlayers),
     } as PlayerActions;

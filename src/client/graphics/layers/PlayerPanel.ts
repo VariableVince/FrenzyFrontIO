@@ -53,7 +53,7 @@ export class PlayerPanel extends LitElement implements Layer {
   private handleAllianceClick(
     e: Event,
     myPlayer: PlayerView,
-    other: PlayerView
+    other: PlayerView,
   ) {
     e.stopPropagation();
     this.eventBus.emit(new SendAllianceRequestIntentEvent(myPlayer, other));
@@ -63,7 +63,7 @@ export class PlayerPanel extends LitElement implements Layer {
   private handleBreakAllianceClick(
     e: Event,
     myPlayer: PlayerView,
-    other: PlayerView
+    other: PlayerView,
   ) {
     e.stopPropagation();
     this.eventBus.emit(new SendBreakAllianceIntentEvent(myPlayer, other));

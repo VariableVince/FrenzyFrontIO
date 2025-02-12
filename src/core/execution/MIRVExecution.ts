@@ -37,7 +37,10 @@ export class MirvExecution implements Execution {
 
   private separateDst: TileRef;
 
-  constructor(private senderID: PlayerID, private dst: TileRef) {}
+  constructor(
+    private senderID: PlayerID,
+    private dst: TileRef,
+  ) {}
 
   init(mg: Game, ticks: number): void {
     this.random = new PseudoRandom(mg.ticks() + simpleHash(this.senderID));
@@ -57,7 +60,7 @@ export class MirvExecution implements Execution {
       }
       this.nuke = this.player.buildUnit(UnitType.MIRV, 0, spawn);
       const x = Math.floor(
-        (this.mg.x(this.dst) + this.mg.x(this.mg.x(this.nuke.tile()))) / 2
+        (this.mg.x(this.dst) + this.mg.x(this.mg.x(this.nuke.tile()))) / 2,
       );
       const y = Math.max(0, this.mg.y(this.dst) - 500) + 50;
       this.separateDst = this.mg.ref(x, y);
@@ -66,7 +69,7 @@ export class MirvExecution implements Execution {
     for (let i = 0; i < 4; i++) {
       const result = this.pathFinder.nextTile(
         this.nuke.tile(),
-        this.separateDst
+        this.separateDst,
       );
       switch (result.type) {
         case PathFindResultType.Completed:
@@ -81,7 +84,7 @@ export class MirvExecution implements Execution {
           break;
         case PathFindResultType.PathNotFound:
           consolex.warn(
-            `nuke cannot find path from ${this.nuke.tile()} to ${this.dst}`
+            `nuke cannot find path from ${this.nuke.tile()} to ${this.dst}`,
           );
           this.active = false;
           return;
@@ -103,7 +106,7 @@ export class MirvExecution implements Execution {
     console.log(`dsts: ${dsts.length}`);
     dsts.sort(
       (a, b) =>
-        this.mg.manhattanDist(b, this.dst) - this.mg.manhattanDist(a, this.dst)
+        this.mg.manhattanDist(b, this.dst) - this.mg.manhattanDist(a, this.dst),
     );
     console.log(`got ${dsts.length} dsts!!`);
 
@@ -116,8 +119,8 @@ export class MirvExecution implements Execution {
           this.nuke.tile(),
           15 + Math.floor((i / this.warheadCount) * 5),
           //   this.random.nextInt(5, 9),
-          this.random.nextInt(0, 15)
-        )
+          this.random.nextInt(0, 15),
+        ),
       );
     }
     if (this.targetPlayer.isPlayer()) {
@@ -138,11 +141,11 @@ export class MirvExecution implements Execution {
       tries++;
       const x = this.random.nextInt(
         this.mg.x(ref) - this.mirvRange,
-        this.mg.x(ref) + this.mirvRange
+        this.mg.x(ref) + this.mirvRange,
       );
       const y = this.random.nextInt(
         this.mg.y(ref) - this.mirvRange,
-        this.mg.y(ref) + this.mirvRange
+        this.mg.y(ref) + this.mirvRange,
       );
       if (!this.mg.isValidCoord(x, y)) {
         continue;

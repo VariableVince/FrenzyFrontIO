@@ -52,7 +52,7 @@ export class GameManager {
         disableBots: false,
         disableNPCs: false,
         creativeMode: false,
-      })
+      }),
     );
     return id;
   }
@@ -60,7 +60,7 @@ export class GameManager {
   hasActiveGame(gameID: GameID): boolean {
     const game = this.games
       .filter(
-        (g) => g.phase() == GamePhase.Lobby || g.phase() == GamePhase.Active
+        (g) => g.phase() == GamePhase.Lobby || g.phase() == GamePhase.Active,
       )
       .find((g) => g.id == gameID);
     return game != null;
@@ -93,7 +93,7 @@ export class GameManager {
           disableBots: false,
           disableNPCs: false,
           creativeMode: false,
-        })
+        }),
       );
     }
 

@@ -16,7 +16,10 @@ export class DefensePostExecution implements Execution {
   private post: Unit;
   private active: boolean = true;
 
-  constructor(private ownerId: PlayerID, private tile: TileRef) {}
+  constructor(
+    private ownerId: PlayerID,
+    private tile: TileRef,
+  ) {}
 
   init(mg: Game, ticks: number): void {
     this.mg = mg;

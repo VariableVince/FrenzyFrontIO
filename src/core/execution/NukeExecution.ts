@@ -29,7 +29,7 @@ export class NukeExecution implements Execution {
     private dst: TileRef,
     private src?: TileRef,
     private speed: number = 4,
-    private waitTicks = 0
+    private waitTicks = 0,
   ) {}
 
   init(mg: Game, ticks: number): void {
@@ -77,7 +77,7 @@ export class NukeExecution implements Execution {
       let nextY = y;
 
       const ratio = Math.floor(
-        1 + Math.abs(dstY - y) / (Math.abs(dstX - x) + 1)
+        1 + Math.abs(dstY - y) / (Math.abs(dstX - x) + 1),
       );
 
       if (this.random.chance(ratio) && x != dstX) {
@@ -123,7 +123,7 @@ export class NukeExecution implements Execution {
     const ratio = Object.fromEntries(
       this.mg
         .players()
-        .map((p) => [p.id(), (p.troops() + p.workers()) / p.numTilesOwned()])
+        .map((p) => [p.id(), (p.troops() + p.workers()) / p.numTilesOwned()]),
     );
     const attacked = new Map<Player, number>();
     for (const tile of toDestroy) {

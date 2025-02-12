@@ -2,31 +2,46 @@ import { EventBus, GameEvent } from "../core/EventBus";
 import { Game } from "../core/game/Game";
 
 export class MouseUpEvent implements GameEvent {
-  constructor(public readonly x: number, public readonly y: number) {}
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
 }
 
 export class MouseDownEvent implements GameEvent {
-  constructor(public readonly x: number, public readonly y: number) {}
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
 }
 
 export class MouseMoveEvent implements GameEvent {
-  constructor(public readonly x: number, public readonly y: number) {}
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
 }
 
 export class ContextMenuEvent implements GameEvent {
-  constructor(public readonly x: number, public readonly y: number) {}
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
 }
 
 export class ZoomEvent implements GameEvent {
   constructor(
     public readonly x: number,
     public readonly y: number,
-    public readonly delta: number
+    public readonly delta: number,
   ) {}
 }
 
 export class DragEvent implements GameEvent {
-  constructor(public readonly deltaX: number, public readonly deltaY: number) {}
+  constructor(
+    public readonly deltaX: number,
+    public readonly deltaY: number,
+  ) {}
 }
 
 export class AlternateViewEvent implements GameEvent {
@@ -36,7 +51,10 @@ export class AlternateViewEvent implements GameEvent {
 export class RefreshGraphicsEvent implements GameEvent {}
 
 export class ShowBuildMenuEvent implements GameEvent {
-  constructor(public readonly x: number, public readonly y: number) {}
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+  ) {}
 }
 
 export class InputHandler {
@@ -60,7 +78,10 @@ export class InputHandler {
   private readonly PAN_SPEED = 5;
   private readonly ZOOM_SPEED = 10;
 
-  constructor(private canvas: HTMLCanvasElement, private eventBus: EventBus) {}
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private eventBus: EventBus,
+  ) {}
 
   initialize() {
     this.canvas.addEventListener("pointerdown", (e) => this.onPointerDown(e));
@@ -105,12 +126,12 @@ export class InputHandler {
 
       if (this.activeKeys.has("Minus")) {
         this.eventBus.emit(
-          new ZoomEvent(screenCenterX, screenCenterY, this.ZOOM_SPEED)
+          new ZoomEvent(screenCenterX, screenCenterY, this.ZOOM_SPEED),
         );
       }
       if (this.activeKeys.has("Equal")) {
         this.eventBus.emit(
-          new ZoomEvent(screenCenterX, screenCenterY, -this.ZOOM_SPEED)
+          new ZoomEvent(screenCenterX, screenCenterY, -this.ZOOM_SPEED),
         );
       }
     }, 1);
@@ -251,7 +272,7 @@ export class InputHandler {
       if (Math.abs(pinchDelta) > 1) {
         const zoomCenter = this.getPinchCenter();
         this.eventBus.emit(
-          new ZoomEvent(zoomCenter.x, zoomCenter.y, -pinchDelta * 2)
+          new ZoomEvent(zoomCenter.x, zoomCenter.y, -pinchDelta * 2),
         );
         this.lastPinchDistance = currentPinchDistance;
       }

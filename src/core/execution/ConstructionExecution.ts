@@ -31,7 +31,7 @@ export class ConstructionExecution implements Execution {
   constructor(
     private ownerId: PlayerID,
     private tile: TileRef,
-    private constructionType: UnitType
+    private constructionType: UnitType,
   ) {}
 
   init(mg: Game, ticks: number): void {
@@ -56,7 +56,7 @@ export class ConstructionExecution implements Execution {
       this.construction = this.player.buildUnit(
         UnitType.Construction,
         0,
-        spawnTile
+        spawnTile,
       );
       this.cost = this.mg.unitInfo(this.constructionType).cost(this.player);
       this.player.removeGold(this.cost);
@@ -88,7 +88,7 @@ export class ConstructionExecution implements Execution {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
         this.mg.addExecution(
-          new NukeExecution(this.constructionType, player.id(), this.tile)
+          new NukeExecution(this.constructionType, player.id(), this.tile),
         );
         break;
       case UnitType.MIRV:

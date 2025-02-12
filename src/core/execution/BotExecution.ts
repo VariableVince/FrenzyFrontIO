@@ -104,8 +104,8 @@ export class BotExecution implements Execution {
         this.bot.id(),
         toAttack.isPlayer() ? toAttack.id() : null,
         null,
-        null
-      )
+        null,
+      ),
     );
   }
 

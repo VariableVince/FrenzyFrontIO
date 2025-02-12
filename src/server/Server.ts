@@ -134,7 +134,7 @@ wss.on("connection", (ws, req) => {
   ws.on("message", (message: string) => {
     try {
       const clientMsg: ClientMessage = ClientMessageSchema.parse(
-        JSON.parse(message)
+        JSON.parse(message),
       );
       if (clientMsg.type == "join") {
         const forwarded = req.headers["x-forwarded-for"];
@@ -147,7 +147,7 @@ wss.on("connection", (ws, req) => {
         const { isValid, error } = validateUsername(clientMsg.username);
         if (!isValid) {
           console.log(
-            `game ${clientMsg.gameID}, client ${clientMsg.clientID} received invalid username, ${error}`
+            `game ${clientMsg.gameID}, client ${clientMsg.clientID} received invalid username, ${error}`,
           );
           return;
         }
@@ -158,10 +158,10 @@ wss.on("connection", (ws, req) => {
             clientMsg.persistentID,
             ip,
             clientMsg.username,
-            ws
+            ws,
           ),
           clientMsg.gameID,
-          clientMsg.lastTurn
+          clientMsg.lastTurn,
         );
       }
       if (clientMsg.type == "log") {

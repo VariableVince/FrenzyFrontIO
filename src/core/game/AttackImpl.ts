@@ -9,7 +9,7 @@ export class AttackImpl implements Attack {
     private _target: Player | TerraNullius,
     private _attacker: Player,
     private _troops: number,
-    private _sourceTile: TileRef | null
+    private _sourceTile: TileRef | null,
   ) {}
 
   sourceTile(): TileRef | null {

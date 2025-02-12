@@ -13,7 +13,10 @@ export class AllianceRequestExecution implements Execution {
   private requestor: Player;
   private recipient: Player;
 
-  constructor(private requestorID: PlayerID, private recipientID: PlayerID) {}
+  constructor(
+    private requestorID: PlayerID,
+    private recipientID: PlayerID,
+  ) {}
 
   init(mg: Game, ticks: number): void {
     this.mg = mg;

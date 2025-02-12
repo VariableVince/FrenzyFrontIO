@@ -52,7 +52,7 @@ export function generateCryptoRandomUUID(): string {
         (
           c ^
           (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
-        ).toString(16)
+        ).toString(16),
     );
   }
 
@@ -64,6 +64,6 @@ export function generateCryptoRandomUUID(): string {
       const r: number = (Math.random() * 16) | 0;
       const v: number = c === "x" ? r : (r & 0x3) | 0x8;
       return v.toString(16);
-    }
+    },
   );
 }
