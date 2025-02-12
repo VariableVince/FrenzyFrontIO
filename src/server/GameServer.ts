@@ -63,6 +63,9 @@ export class GameServer {
     if (gameConfig.disableNPCs != null) {
       this.gameConfig.disableNPCs = gameConfig.disableNPCs;
     }
+    if (gameConfig.creativeMode != null) {
+      this.gameConfig.creativeMode = gameConfig.creativeMode;
+    }
   }
 
   public addClient(client: Client, lastTurn: number) {
