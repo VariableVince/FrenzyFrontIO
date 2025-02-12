@@ -2,46 +2,31 @@ import { EventBus, GameEvent } from "../core/EventBus";
 import { Game } from "../core/game/Game";
 
 export class MouseUpEvent implements GameEvent {
-  constructor(
-    public readonly x: number,
-    public readonly y: number,
-  ) {}
+  constructor(public readonly x: number, public readonly y: number) {}
 }
 
 export class MouseDownEvent implements GameEvent {
-  constructor(
-    public readonly x: number,
-    public readonly y: number,
-  ) {}
+  constructor(public readonly x: number, public readonly y: number) {}
 }
 
 export class MouseMoveEvent implements GameEvent {
-  constructor(
-    public readonly x: number,
-    public readonly y: number,
-  ) {}
+  constructor(public readonly x: number, public readonly y: number) {}
 }
 
 export class ContextMenuEvent implements GameEvent {
-  constructor(
-    public readonly x: number,
-    public readonly y: number,
-  ) {}
+  constructor(public readonly x: number, public readonly y: number) {}
 }
 
 export class ZoomEvent implements GameEvent {
   constructor(
     public readonly x: number,
     public readonly y: number,
-    public readonly delta: number,
+    public readonly delta: number
   ) {}
 }
 
 export class DragEvent implements GameEvent {
-  constructor(
-    public readonly deltaX: number,
-    public readonly deltaY: number,
-  ) {}
+  constructor(public readonly deltaX: number, public readonly deltaY: number) {}
 }
 
 export class AlternateViewEvent implements GameEvent {
@@ -51,10 +36,7 @@ export class AlternateViewEvent implements GameEvent {
 export class RefreshGraphicsEvent implements GameEvent {}
 
 export class ShowBuildMenuEvent implements GameEvent {
-  constructor(
-    public readonly x: number,
-    public readonly y: number,
-  ) {}
+  constructor(public readonly x: number, public readonly y: number) {}
 }
 
 export class InputHandler {
@@ -72,10 +54,13 @@ export class InputHandler {
 
   private alternateView = false;
 
-  constructor(
-    private canvas: HTMLCanvasElement,
-    private eventBus: EventBus,
-  ) {}
+  private moveInterval: any = null;
+  private activeKeys = new Set<string>();
+
+  private readonly PAN_SPEED = 5;
+  private readonly ZOOM_SPEED = 10;
+
+  constructor(private canvas: HTMLCanvasElement, private eventBus: EventBus) {}
 
   initialize() {
     this.canvas.addEventListener("pointerdown", (e) => this.onPointerDown(e));
@@ -95,13 +80,66 @@ export class InputHandler {
     });
     this.pointers.clear();
 
+    // Initialize the combined movement interval
+    this.moveInterval = setInterval(() => {
+      let deltaX = 0;
+      let deltaY = 0;
+
+      // Handle both WASD and arrow keys
+      if (this.activeKeys.has("KeyW") || this.activeKeys.has("ArrowUp"))
+        deltaY += this.PAN_SPEED;
+      if (this.activeKeys.has("KeyS") || this.activeKeys.has("ArrowDown"))
+        deltaY -= this.PAN_SPEED;
+      if (this.activeKeys.has("KeyA") || this.activeKeys.has("ArrowLeft"))
+        deltaX += this.PAN_SPEED;
+      if (this.activeKeys.has("KeyD") || this.activeKeys.has("ArrowRight"))
+        deltaX -= this.PAN_SPEED;
+
+      if (deltaX !== 0 || deltaY !== 0) {
+        this.eventBus.emit(new DragEvent(deltaX, deltaY));
+      }
+
+      // Handle zooming
+      const screenCenterX = window.innerWidth / 2;
+      const screenCenterY = window.innerHeight / 2;
+
+      if (this.activeKeys.has("Minus")) {
+        this.eventBus.emit(
+          new ZoomEvent(screenCenterX, screenCenterY, this.ZOOM_SPEED)
+        );
+      }
+      if (this.activeKeys.has("Equal")) {
+        this.eventBus.emit(
+          new ZoomEvent(screenCenterX, screenCenterY, -this.ZOOM_SPEED)
+        );
+      }
+    }, 1);
+
     window.addEventListener("keydown", (e) => {
       if (e.code === "Space") {
-        e.preventDefault(); // Prevent page scrolling
+        e.preventDefault();
         if (!this.alternateView) {
           this.alternateView = true;
           this.eventBus.emit(new AlternateViewEvent(true));
         }
+      }
+
+      // Add all movement keys to activeKeys
+      if (
+        [
+          "KeyW",
+          "KeyA",
+          "KeyS",
+          "KeyD",
+          "ArrowUp",
+          "ArrowLeft",
+          "ArrowDown",
+          "ArrowRight",
+          "Minus",
+          "Equal",
+        ].includes(e.code)
+      ) {
+        this.activeKeys.add(e.code);
       }
     });
 
@@ -114,6 +152,24 @@ export class InputHandler {
       if (e.key.toLowerCase() === "r" && e.altKey && !e.ctrlKey) {
         e.preventDefault();
         this.eventBus.emit(new RefreshGraphicsEvent());
+      }
+
+      // Remove all movement keys from activeKeys
+      if (
+        [
+          "KeyW",
+          "KeyA",
+          "KeyS",
+          "KeyD",
+          "ArrowUp",
+          "ArrowLeft",
+          "ArrowDown",
+          "ArrowRight",
+          "Minus",
+          "Equal",
+        ].includes(e.code)
+      ) {
+        this.activeKeys.delete(e.code);
       }
     });
   }
@@ -193,10 +249,9 @@ export class InputHandler {
       const pinchDelta = currentPinchDistance - this.lastPinchDistance;
 
       if (Math.abs(pinchDelta) > 1) {
-        // Threshold to avoid tiny zoom adjustments
         const zoomCenter = this.getPinchCenter();
         this.eventBus.emit(
-          new ZoomEvent(zoomCenter.x, zoomCenter.y, -pinchDelta * 2),
+          new ZoomEvent(zoomCenter.x, zoomCenter.y, -pinchDelta * 2)
         );
         this.lastPinchDistance = currentPinchDistance;
       }
@@ -221,5 +276,10 @@ export class InputHandler {
       x: (pointerEvents[0].clientX + pointerEvents[1].clientX) / 2,
       y: (pointerEvents[0].clientY + pointerEvents[1].clientY) / 2,
     };
+  }
+
+  destroy() {
+    clearInterval(this.moveInterval);
+    this.activeKeys.clear();
   }
 }
