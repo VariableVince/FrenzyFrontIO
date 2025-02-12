@@ -205,7 +205,7 @@ export class DefaultConfig implements Config {
     return 5 * 10;
   }
   emojiMessageCooldown(): Tick {
-    return 15 * 10;
+    return 5 * 10;
   }
   targetDuration(): Tick {
     return 10 * 10;
@@ -371,7 +371,7 @@ export class DefaultConfig implements Config {
   maxPopulation(player: Player | PlayerView): number {
     let maxPop =
       player.type() == PlayerType.Human && this.creativeMode()
-        ? 999_999_999_999
+        ? 1_000_000_000
         : 2 * (Math.pow(player.numTilesOwned(), 0.6) * 1000 + 50000) +
           player.units(UnitType.City).length * this.cityPopulationIncrease();
 

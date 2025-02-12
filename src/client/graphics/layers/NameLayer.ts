@@ -149,23 +149,12 @@ export class NameLayer implements Layer {
     element.style.alignItems = "center";
     element.style.gap = "0px";
 
-    if (player.flag()) {
-      const flagImg = document.createElement("img");
-      flagImg.classList.add("player-flag");
-      flagImg.style.marginBottom = "-5%";
-      flagImg.style.opacity = "0.8";
-      flagImg.src = "/flags/" + sanitize(player.flag()) + ".svg";
-      flagImg.style.zIndex = "1";
-      flagImg.style.width = "40%";
-      flagImg.style.aspectRatio = "3/4";
-      element.appendChild(flagImg);
-    }
+    const textColor = player.type() == PlayerType.Human ? "#000000" : "#4D4D4D";
 
     const nameDiv = document.createElement("div");
     nameDiv.classList.add("player-name");
-    nameDiv.innerHTML =
-      (player.type() !== PlayerType.Human ? "🤖 " : "") + player.name();
-    nameDiv.style.color = this.theme.playerInfoColor(player.id()).toHex();
+    nameDiv.innerHTML = player.name();
+    nameDiv.style.color = textColor;
     nameDiv.style.fontFamily = this.theme.font();
     nameDiv.style.whiteSpace = "nowrap";
     nameDiv.style.overflow = "hidden";
@@ -173,13 +162,26 @@ export class NameLayer implements Layer {
     nameDiv.style.zIndex = "3";
     element.appendChild(nameDiv);
 
+    if (player.flag()) {
+      const flagImg = document.createElement("img");
+      flagImg.classList.add("player-flag");
+      flagImg.style.marginBottom = "-10%";
+      flagImg.style.marginTop = "-17%";
+      flagImg.style.opacity = "0.8";
+      flagImg.src = "/flags/" + sanitize(player.flag()) + ".svg";
+      flagImg.style.zIndex = "1";
+      flagImg.style.width = "30%";
+      flagImg.style.aspectRatio = "3/4";
+      element.appendChild(flagImg);
+    }
+
     const troopsDiv = document.createElement("div");
     troopsDiv.classList.add("player-troops");
     troopsDiv.textContent = renderTroops(player.troops());
-    troopsDiv.style.color = this.theme.playerInfoColor(player.id()).toHex();
+    troopsDiv.style.color = textColor;
     troopsDiv.style.fontFamily = this.theme.font();
-    troopsDiv.style.fontWeight = "bold";
     troopsDiv.style.zIndex = "3";
+    troopsDiv.style.marginTop = "-5%";
     element.appendChild(troopsDiv);
 
     const iconsDiv = document.createElement("div");

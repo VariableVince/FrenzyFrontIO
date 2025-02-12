@@ -119,7 +119,6 @@ export interface Config {
 }
 
 export interface Theme {
-  playerInfoColor(id: PlayerID): Colord;
   territoryColor(playerInfo: PlayerInfo): Colord;
   borderColor(playerInfo: PlayerInfo): Colord;
   defendedBorderColor(playerInfo: PlayerInfo): Colord;

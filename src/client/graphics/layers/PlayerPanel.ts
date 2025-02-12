@@ -125,7 +125,10 @@ export class PlayerPanel extends LitElement implements Layer {
     const canDonate = this.actions.interaction?.canDonate;
     const canSendAllianceRequest =
       this.actions.interaction?.canSendAllianceRequest;
-    const canSendEmoji = this.actions.interaction?.canSendEmoji;
+    const canSendEmoji =
+      other == myPlayer
+        ? this.actions.canSendEmojiAllPlayers
+        : this.actions.interaction?.canSendEmoji;
     const canBreakAlliance = this.actions.interaction?.canBreakAlliance;
     const canTarget = this.actions.interaction?.canTarget;
 

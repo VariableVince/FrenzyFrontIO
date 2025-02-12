@@ -240,10 +240,6 @@ export const pastelTheme = new (class implements Theme {
 
   private _spawnHighlightColor = colord({ r: 255, g: 213, b: 79 });
 
-  playerInfoColor(id: PlayerID): Colord {
-    return colord({ r: 50, g: 50, b: 50 });
-  }
-
   territoryColor(playerInfo: PlayerInfo): Colord {
     if (playerInfo.playerType == PlayerType.Human) {
       return this.humanColors[

@@ -223,6 +223,8 @@ export class GameView implements GameMap {
 
   private defensePostGrid: DefenseGrid;
 
+  private toDelete = new Set<number>();
+
   constructor(
     public worker: WorkerClient,
     private _config: Config,
@@ -244,6 +246,9 @@ export class GameView implements GameMap {
   }
 
   public update(gu: GameUpdateViewData) {
+    this.toDelete.forEach((id) => this._units.delete(id));
+    this.toDelete.clear();
+
     this.lastUpdate = gu;
 
     this.updatedTiles = [];
@@ -282,6 +287,10 @@ export class GameView implements GameMap {
         } else {
           this.defensePostGrid.removeDefense(unit);
         }
+      }
+      if (!unit.isActive()) {
+        // Wait until next tick to delete the unit.
+        this.toDelete.add(unit.id());
       }
     });
   }

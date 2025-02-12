@@ -15,6 +15,7 @@ import { consolex } from "../core/Consolex";
 import "./FlagInput";
 import { FlagInput } from "./FlagInput";
 import page from "page";
+import { PublicLobby } from "./PublicLobby";
 
 class Client {
   private gameStop: () => void;
@@ -23,6 +24,8 @@ class Client {
   private flagInput: FlagInput | null = null;
 
   private joinModal: JoinPrivateLobbyModal;
+  private publicLobby: PublicLobby;
+
   constructor() {}
 
   initialize(): void {
@@ -37,6 +40,9 @@ class Client {
     if (!this.usernameInput) {
       consolex.warn("Username input element not found");
     }
+
+    this.publicLobby = document.querySelector("public-lobby") as PublicLobby;
+
     window.addEventListener("beforeunload", (event) => {
       consolex.log("Browser is closing");
       if (this.gameStop != null) {
@@ -119,7 +125,10 @@ class Client {
         disableNPCs: event.detail.disableNPCs,
         creativeMode: event.detail.creativeMode,
       },
-      () => this.joinModal.close(),
+      () => {
+        this.joinModal.close();
+        this.publicLobby.stop();
+      },
     );
   }
 
