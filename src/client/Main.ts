@@ -14,6 +14,7 @@ import { generateCryptoRandomUUID } from "./Utils";
 import { consolex } from "../core/Consolex";
 import "./components/FlagInput";
 import { FlagInput } from "./components/FlagInput";
+import page from "page";
 
 class Client {
   private gameStop: () => void;
@@ -84,6 +85,16 @@ class Client {
           this.joinModal.open();
         }
       });
+
+    page("/join/:lobbyId", (ctx) => {
+      const lobbyId = ctx.params.lobbyId;
+
+      this.joinModal.open(lobbyId);
+
+      consolex.log(`joining lobby ${lobbyId}`);
+    });
+
+    page();
   }
 
   private async handleJoinLobby(event: CustomEvent) {

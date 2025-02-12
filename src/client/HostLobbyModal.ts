@@ -558,7 +558,10 @@ export class HostLobbyModal extends LitElement {
 
   private async copyToClipboard() {
     try {
-      await navigator.clipboard.writeText(this.lobbyId);
+      //TODO: Convert id to url and copy
+      await navigator.clipboard.writeText(
+        `${location.origin}/join/${this.lobbyId}`,
+      );
       this.copySuccess = true;
       setTimeout(() => {
         this.copySuccess = false;

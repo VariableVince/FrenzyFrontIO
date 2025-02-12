@@ -13,6 +13,7 @@ export default (env, argv) => {
   return {
     entry: "./src/client/Main.ts",
     output: {
+      publicPath: "/",
       filename: "bundle.js",
       path: path.resolve(__dirname, "out"),
       clean: true,
@@ -118,6 +119,7 @@ export default (env, argv) => {
           static: {
             directory: path.join(__dirname, "out"),
           },
+          historyApiFallback: true,
           compress: true,
           port: 9000,
           proxy: [

@@ -130,6 +130,11 @@ app.get("/private_lobby/:id", (req, res) => {
   });
 });
 
+app.get("*", function (req, res) {
+  // SPA routing
+  res.sendFile(path.join(__dirname, "../../out/index.html"));
+});
+
 wss.on("connection", (ws, req) => {
   ws.on("message", (message: string) => {
     try {

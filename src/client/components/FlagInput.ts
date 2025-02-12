@@ -163,7 +163,7 @@ export class FlagInput extends LitElement {
             </button>`
           : html`<img
               class="selected-flag"
-              src="flags/${this.flag}.svg"
+              src="/flags/${this.flag}.svg"
               @click=${() => (this.showModal = true)}
             />`}
         ${this.showModal
@@ -182,7 +182,7 @@ export class FlagInput extends LitElement {
                     @click=${() => this.setFlag("")}
                     class="dropdown-item"
                   >
-                    <img class="country-flag" src="flags/xx.svg" />
+                    <img class="country-flag" src="/flags/none.svg" />
                     <span class="country-name">None</span>
                   </button>
                   ${Countries.filter(
@@ -201,7 +201,7 @@ export class FlagInput extends LitElement {
                       >
                         <img
                           class="country-flag"
-                          src="flags/${country.code}.svg"
+                          src="/flags/${country.code}.svg"
                         />
                         <span class="country-name">${country.name}</span>
                       </button>
