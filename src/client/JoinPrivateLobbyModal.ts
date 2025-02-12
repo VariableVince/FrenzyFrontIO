@@ -9,6 +9,9 @@ export class JoinPrivateLobbyModal extends LitElement {
   @state() private message: string = "";
   @query("#lobbyIdInput") private lobbyIdInput!: HTMLInputElement;
   @state() private hasJoined = false;
+  @state() private players: string[] = [];
+
+  private playersInterval = null;
 
   static styles = css`
     .modal-overlay {
@@ -180,6 +183,39 @@ export class JoinPrivateLobbyModal extends LitElement {
       justify-content: center;
       color: #fff;
     }
+
+    .options-section {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px 24px 24px 24px;
+      border-radius: 12px;
+    }
+
+    .option-title {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      color: #fff;
+      text-align: center;
+    }
+
+    .players-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      padding: 0 16px;
+    }
+
+    .player-tag {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
   `;
 
   render() {
@@ -216,6 +252,24 @@ export class JoinPrivateLobbyModal extends LitElement {
           <div class="message-area ${this.message ? "show" : ""}">
             ${this.message}
           </div>
+          <div class="options-layout">
+            <!-- Lobby Selection -->
+            ${this.hasJoined && this.players.length > 0
+              ? html`<div class="options-section">
+                  <div class="option-title">
+                    ${this.players.length}
+                    ${this.players.length === 1 ? "Player" : "Players"}
+                  </div>
+
+                  <div class="players-list">
+                    ${this.players.map(
+                      (player) =>
+                        html`<span class="player-tag">${player}</span>`
+                    )}
+                  </div>
+                </div>`
+              : ""}
+          </div>
           ${!this.hasJoined
             ? html`<button class="start-game-button" @click=${this.joinLobby}>
                 Join Lobby
@@ -233,6 +287,10 @@ export class JoinPrivateLobbyModal extends LitElement {
   public close() {
     this.isModalOpen = false;
     this.lobbyIdInput.value = null;
+    if (this.playersInterval) {
+      clearInterval(this.playersInterval);
+      this.playersInterval = null;
+    }
   }
 
   public closeAndLeave() {
@@ -284,6 +342,7 @@ export class JoinPrivateLobbyModal extends LitElement {
               composed: true,
             })
           );
+          this.playersInterval = setInterval(() => this.pollPlayers(), 1000);
         } else {
           this.message = "Lobby not found. Please check the ID and try again.";
         }
@@ -291,6 +350,24 @@ export class JoinPrivateLobbyModal extends LitElement {
       .catch((error) => {
         consolex.error("Error checking lobby existence:", error);
         this.message = "An error occurred. Please try again.";
+      });
+  }
+
+  private async pollPlayers() {
+    if (!this.lobbyIdInput?.value) return;
+
+    fetch(`/lobby/${this.lobbyIdInput.value}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        this.players = data.players.map((p) => p.username);
+      })
+      .catch((error) => {
+        consolex.error("Error polling players:", error);
       });
   }
 }
