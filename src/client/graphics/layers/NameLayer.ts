@@ -143,13 +143,12 @@ export class NameLayer implements Layer {
     element.style.alignItems = "center";
     element.style.gap = "0px";
 
-    
     if (player.flag()) {
       const flagImg = document.createElement("img");
-      flagImg.classList.add('player-flag');
+      flagImg.classList.add("player-flag");
       flagImg.style.marginBottom = "-5%";
-      flagImg.style.opacity = '0.8';
-      flagImg.src = 'flags/' + sanitize(player.flag()) + '.svg';
+      flagImg.style.opacity = "0.8";
+      flagImg.src = "flags/" + sanitize(player.flag()) + ".svg";
       flagImg.style.zIndex = "1";
       flagImg.style.width = "40%";
       flagImg.style.aspectRatio = "3/4";
@@ -157,8 +156,9 @@ export class NameLayer implements Layer {
     }
 
     const nameDiv = document.createElement("div");
-    nameDiv.classList.add('player-name');
-    nameDiv.innerHTML = (player.type() !== PlayerType.Human ? "🤖 " : '') + player.name();
+    nameDiv.classList.add("player-name");
+    nameDiv.innerHTML =
+      (player.type() !== PlayerType.Human ? "🤖 " : "") + player.name();
     nameDiv.style.color = this.theme.playerInfoColor(player.id()).toHex();
     nameDiv.style.fontFamily = this.theme.font();
     nameDiv.style.whiteSpace = "nowrap";
@@ -167,9 +167,8 @@ export class NameLayer implements Layer {
     nameDiv.style.zIndex = "3";
     element.appendChild(nameDiv);
 
-
     const troopsDiv = document.createElement("div");
-    troopsDiv.classList.add('player-troops');
+    troopsDiv.classList.add("player-troops");
     troopsDiv.textContent = renderTroops(player.troops());
     troopsDiv.style.color = this.theme.playerInfoColor(player.id()).toHex();
     troopsDiv.style.fontFamily = this.theme.font();
@@ -178,7 +177,7 @@ export class NameLayer implements Layer {
     element.appendChild(troopsDiv);
 
     const iconsDiv = document.createElement("div");
-    iconsDiv.classList.add('player-icons');
+    iconsDiv.classList.add("player-icons");
     iconsDiv.style.display = "flex";
     iconsDiv.style.gap = "4px";
     iconsDiv.style.justifyContent = "center";
@@ -188,6 +187,9 @@ export class NameLayer implements Layer {
     iconsDiv.style.width = "100%";
     iconsDiv.style.height = "100%";
     element.appendChild(iconsDiv);
+
+    // Start off invisible so it doesn't flash at 0,0
+    element.style.display = "none";
 
     this.container.appendChild(element);
     return element;
@@ -226,14 +228,20 @@ export class NameLayer implements Layer {
     render.lastRenderCalc = now + this.rand.nextInt(0, 100);
 
     // Update text sizes
-    const nameDiv = render.element.querySelector(".player-name") as HTMLDivElement;
-    const troopsDiv = render.element.querySelector(".player-troops") as HTMLDivElement;
+    const nameDiv = render.element.querySelector(
+      ".player-name"
+    ) as HTMLDivElement;
+    const troopsDiv = render.element.querySelector(
+      ".player-troops"
+    ) as HTMLDivElement;
     nameDiv.style.fontSize = `${render.fontSize}px`;
     troopsDiv.style.fontSize = `${render.fontSize}px`;
     troopsDiv.textContent = renderTroops(render.player.troops());
 
     // Handle icons
-    const iconsDiv = render.element.querySelector(".player-icons") as HTMLDivElement;
+    const iconsDiv = render.element.querySelector(
+      ".player-icons"
+    ) as HTMLDivElement;
     const iconSize = Math.min(render.fontSize * 1.5, 48);
     const myPlayer = this.getPlayer();
 
