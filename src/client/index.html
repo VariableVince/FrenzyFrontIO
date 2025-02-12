@@ -1,6 +1,5 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="h-full">
-
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -67,7 +66,10 @@
     </script>
 
     <!-- Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16702609763"></script>
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=AW-16702609763"
+    ></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag() {
@@ -76,8 +78,11 @@
       gtag("js", new Date());
       gtag("config", "AW-16702609763");
     </script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7035513310742290"
-    crossorigin="anonymous"></script>
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7035513310742290"
+      crossorigin="anonymous"
+    ></script>
   </head>
 
   <body
@@ -156,20 +161,30 @@
           <public-lobby class="w-full"></public-lobby>
         </div>
 
-    <div class="pt-4 flex gap-4 sm:gap-6 lg:gap-8 max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
-      <button id="host-lobby-button"
-        class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300">
+        <div
+          class="pt-4 flex gap-4 sm:gap-6 lg:gap-8 max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto"
+        >
+          <button
+            id="host-lobby-button"
+            class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300"
+          >
             Create Lobby
           </button>
-      <button id="join-private-lobby-button"
-        class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300">
+          <button
+            id="join-private-lobby-button"
+            class="bg-blue-100 hover:bg-blue-200 text-blue-900 p-3 sm:p-4 lg:p-5 font-medium text-sm sm:text-base lg:text-lg rounded-md w-full border-none cursor-pointer transition-colors duration-300"
+          >
             Join Lobby
           </button>
         </div>
 
-    <div class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto mt-4 sm:mt-6 lg:mt-8">
-      <button id="single-player"
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 lg:p-5 font-bold text-lg sm:text-xl lg:text-2xl rounded-lg border-none cursor-pointer transition-colors duration-300">
+        <div
+          class="max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto mt-4 sm:mt-6 lg:mt-8"
+        >
+          <button
+            id="single-player"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 lg:p-5 font-bold text-lg sm:text-xl lg:text-2xl rounded-lg border-none cursor-pointer transition-colors duration-300"
+          >
             Single Player
           </button>
         </div>
@@ -199,30 +214,54 @@
       <player-info-overlay></player-info-overlay>
     </div>
 
-  <div class="bottom-0 w-full flex-col-reverse sm:flex-row z-50" style="position: fixed; pointer-events: none">
-    <div class="w-full sm:w-2/3 sm:fixed sm:right-0 sm:bottom-0 sm:flex justify-end" style="pointer-events: auto">
-      <events-display></events-display>
-    </div>
-    <div class="w-full sm:w-1/3 md:max-w-72" style="pointer-events: auto">
-      <control-panel></control-panel>
+    <div
+      class="bottom-0 w-full flex-col-reverse sm:flex-row z-50"
+      style="position: fixed; pointer-events: none"
+    >
+      <div
+        class="w-full sm:w-2/3 sm:fixed sm:right-0 sm:bottom-0 sm:flex justify-end"
+        style="pointer-events: auto"
+      >
+        <events-display></events-display>
+      </div>
+      <div class="w-full sm:w-1/3 md:max-w-72" style="pointer-events: auto">
+        <control-panel></control-panel>
+      </div>
     </div>
 
     <!-- Footer section -->
     <div class="w-full bg-gray-900/80 backdrop-blur-md py-4">
       <div
-      class="max-w-7xl mx-auto px-4 flex justify-between items-center text-white sm:flex-row flex-col sm:gap-0 gap-4">
+        class="max-w-7xl mx-auto px-4 flex justify-between items-center text-white sm:flex-row flex-col sm:gap-0 gap-4"
+      >
         <div class="flex sm:flex-row flex-col sm:gap-8 gap-2">
-        <a href="https://youtu.be/jvHEvbko3uw?si=znspkP84P76B1w5I"
-          class="text-white/70 hover:text-white transition-colors duration-300" target="_blank">How to Play</a>
-          <a href="https://discord.gg/k22YrnAzGp" class="text-white/70 hover:text-white transition-colors duration-300"
-            target="_blank">Discord</a>
-            <a href="https://openfront.fandom.com/wiki/Openfront_Wiki" class="text-white/70 hover:text-white transition-colors duration-300"
-              target="_blank">Wiki</a>
+          <a
+            href="https://youtu.be/jvHEvbko3uw?si=znspkP84P76B1w5I"
+            class="text-white/70 hover:text-white transition-colors duration-300"
+            target="_blank"
+            >How to Play</a
+          >
+          <a
+            href="https://discord.gg/k22YrnAzGp"
+            class="text-white/70 hover:text-white transition-colors duration-300"
+            target="_blank"
+            >Discord</a
+          >
+          <a
+            href="https://openfront.fandom.com/wiki/Openfront_Wiki"
+            class="text-white/70 hover:text-white transition-colors duration-300"
+            target="_blank"
+            >Wiki</a
+          >
         </div>
         <div class="text-white/70">
           © 2025
-        <a href="https://github.com/openfrontio/OpenFrontIO" class="hover:text-white transition-colors duration-300"
-          target="_blank">OpenFront.io</a>.
+          <a
+            href="https://github.com/openfrontio/OpenFrontIO"
+            class="hover:text-white transition-colors duration-300"
+            target="_blank"
+            >OpenFront.io</a
+          >.
         </div>
       </div>
     </div>
@@ -238,8 +277,10 @@
     </script>
 
     <!-- Analytics -->
-  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
-    data-cf-beacon='{"token": "03d93e6fefb349c28ee69b408fa25a13"}'></script>
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "03d93e6fefb349c28ee69b408fa25a13"}'
+    ></script>
   </body>
-
 </html>
