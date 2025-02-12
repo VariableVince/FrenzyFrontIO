@@ -156,6 +156,7 @@ export class JoinPrivateLobbyModal extends LitElement {
 
   private async pasteFromClipboard() {
     try {
+      // TODO: This can be either a link or a id, check if it's a link
       const clipText = await navigator.clipboard.readText();
       this.lobbyIdInput.value = clipText;
     } catch (err) {
@@ -164,6 +165,7 @@ export class JoinPrivateLobbyModal extends LitElement {
   }
 
   private joinLobby() {
+    // TODO: This can be either a link or a id, check if it's a link
     const lobbyId = this.lobbyIdInput.value;
     consolex.log(`Joining lobby with ID: ${lobbyId}`);
     this.message = "Checking lobby..."; // Set initial message
