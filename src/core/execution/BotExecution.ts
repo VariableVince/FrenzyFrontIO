@@ -103,8 +103,6 @@ export class BotExecution implements Execution {
         this.bot.troops() / 20,
         this.bot.id(),
         toAttack.isPlayer() ? toAttack.id() : null,
-        null,
-        null,
       ),
     );
   }

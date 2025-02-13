@@ -26,6 +26,7 @@ import { closestTwoTiles } from "./Util";
 import { calculateBoundingBox, simpleHash } from "../Util";
 import { andFN, manhattanDistFN, TileRef } from "../game/GameMap";
 import { ConstructionExecution } from "./ConstructionExecution";
+import { renderTroops } from "../../client/Utils";
 
 export class FakeHumanExecution implements Execution {
   private firstMove = true;
@@ -545,13 +546,14 @@ export class FakeHumanExecution implements Execution {
   }
 
   sendAttack(toAttack: Player | TerraNullius) {
+    console.log(
+      `${this.player.name()} sending troops ${renderTroops(this.player.troops() / 5)}`,
+    );
     this.mg.addExecution(
       new AttackExecution(
         this.player.troops() / 5,
         this.player.id(),
         toAttack.isPlayer() ? toAttack.id() : null,
-        null,
-        null,
       ),
     );
   }

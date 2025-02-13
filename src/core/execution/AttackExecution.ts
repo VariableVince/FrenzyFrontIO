@@ -44,7 +44,7 @@ export class AttackExecution implements Execution {
     private startTroops: number | null = null,
     private _ownerID: PlayerID,
     private _targetID: PlayerID | null,
-    private sourceTile: TileRef | null,
+    private sourceTile: TileRef | null = null,
     private removeTroops: boolean = true,
   ) {}
 
