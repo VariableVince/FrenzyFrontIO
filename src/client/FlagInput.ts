@@ -159,7 +159,7 @@ export class FlagInput extends LitElement {
     return html`
       <div class="flag-container">
         <button
-          @click=${() => (this.showModal = true)}
+          @click=${() => (this.showModal = !this.showModal)}
           class="flag-button"
           title="Pick a flag!"
         >
