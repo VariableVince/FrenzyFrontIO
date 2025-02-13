@@ -379,6 +379,7 @@ export class EventsDisplay extends LitElement implements Layer {
       >
         <table
           class="w-full border-collapse bg-black bg-opacity-60 text-white shadow-lg lg:text-xl text-xs"
+          style="pointer-events: auto;"
         >
           <tbody>
             ${this.events.map(
