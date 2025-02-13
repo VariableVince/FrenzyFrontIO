@@ -360,9 +360,9 @@ export class DefaultConfig implements Config {
         case Difficulty.Medium:
           return 5_000 * (playerInfo?.nation?.strength ?? 1);
         case Difficulty.Hard:
-          return 15_000 * (playerInfo?.nation?.strength ?? 1);
-        case Difficulty.Impossible:
           return 20_000 * (playerInfo?.nation?.strength ?? 1);
+        case Difficulty.Impossible:
+          return 50_000 * (playerInfo?.nation?.strength ?? 1);
       }
     }
     return this.creativeMode() ? 1_000_000 : 25_000;
