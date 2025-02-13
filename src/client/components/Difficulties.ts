@@ -5,7 +5,7 @@ export enum DifficultyDescription {
   Easy = "Relaxed",
   Medium = "Balanced",
   Hard = "Intense",
-  Impossible = "Challenging",
+  Impossible = "Impossible",
 }
 
 @customElement("difficulty-display")
