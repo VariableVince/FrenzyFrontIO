@@ -190,7 +190,7 @@ export class TransformHandler {
     this.scale /= zoomFactor;
 
     // Clamp the scale to prevent extreme zooming
-    this.scale = Math.max(0.5, Math.min(20, this.scale));
+    this.scale = Math.max(0.2, Math.min(20, this.scale));
 
     const canvasRect = this.boundingRect();
     const canvasX = event.x - canvasRect.left;
