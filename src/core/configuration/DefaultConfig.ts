@@ -142,7 +142,7 @@ export class DefaultConfig implements Config {
           cost: (p: Player) =>
             p.type() == PlayerType.Human && this.creativeMode()
               ? 0
-              : 10_000_000,
+              : 15_000_000,
           territoryBound: false,
         };
       case UnitType.MIRVWarhead:
