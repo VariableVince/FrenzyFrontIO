@@ -19,10 +19,12 @@ import { PlayerView } from "../game/GameView";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig } from "../Schemas";
 import { assertNever, within } from "../Util";
-import { Config, ServerConfig, Theme } from "./Config";
+import { Config, GameEnv, ServerConfig, Theme } from "./Config";
 import { pastelTheme } from "./PastelTheme";
 
 export abstract class DefaultServerConfig implements ServerConfig {
+  abstract env(): GameEnv;
+  abstract discordRedirectURI(): string;
   turnIntervalMs(): number {
     return 100;
   }

@@ -138,6 +138,8 @@ export default (env, argv) => {
                 "/lobby",
                 "/archive_singleplayer_game",
                 "/validate-username",
+                "/auth/callback",
+                "/auth/discord",
               ],
               target: "http://localhost:3000",
               secure: false,

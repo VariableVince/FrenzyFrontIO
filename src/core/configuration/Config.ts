@@ -24,6 +24,7 @@ import { UserSettings } from "../game/UserSettings";
 
 export enum GameEnv {
   Dev,
+  Preprod,
   Prod,
 }
 export function getConfig(
@@ -64,6 +65,8 @@ export interface ServerConfig {
   turnIntervalMs(): number;
   gameCreationRate(): number;
   lobbyLifetime(): number;
+  discordRedirectURI(): string;
+  env(): GameEnv;
 }
 
 export interface Config {

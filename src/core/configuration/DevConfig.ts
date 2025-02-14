@@ -1,15 +1,23 @@
 import { GameType, Player, PlayerInfo, UnitInfo, UnitType } from "../game/Game";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig } from "../Schemas";
-import { ServerConfig } from "./Config";
+import { GameEnv, ServerConfig } from "./Config";
 import { DefaultConfig, DefaultServerConfig } from "./DefaultConfig";
 
 export class DevServerConfig extends DefaultServerConfig {
+  env(): GameEnv {
+    return GameEnv.Dev;
+  }
   gameCreationRate(): number {
     return 10 * 1000;
   }
+
   lobbyLifetime(): number {
     return 10 * 1000;
+  }
+
+  discordRedirectURI(): string {
+    return "http://localhost:3000/auth/callback";
   }
 }
 

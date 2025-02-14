@@ -11,7 +11,11 @@ import {
   GameRecordSchema,
   LogSeverity,
 } from "../core/Schemas";
-import { getConfig, getServerConfig } from "../core/configuration/Config";
+import {
+  GameEnv,
+  getConfig,
+  getServerConfig,
+} from "../core/configuration/Config";
 import { slog } from "./StructuredLog";
 import { Client } from "./Client";
 import { GamePhase, GameServer } from "./GameServer";
@@ -22,7 +26,10 @@ import {
   validateUsername,
 } from "../core/validations/username";
 import { Request, Response } from "express";
-
+import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
+import dotenv from "dotenv";
+import crypto from "crypto";
+dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -30,20 +37,89 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+const serverConfig = getServerConfig();
+
+// Initialize Secret Manager
+const secretManager = new SecretManagerServiceClient();
+
+// Discord OAuth Configuration (will be populated from secrets)
+let DISCORD_CLIENT_ID: string;
+let DISCORD_CLIENT_SECRET: string;
+
 // Serve static files from the 'out' directory
 app.use(express.static(path.join(__dirname, "../../out")));
 app.use(express.json());
 
-const gm = new GameManager(getServerConfig());
-
-const bot = new DiscordBot();
-try {
-  await bot.start();
-} catch (error) {
-  console.error("Failed to start bot:", error);
-}
+const gm = new GameManager(serverConfig);
 
 let lobbiesString = "";
+
+// Discord OAuth callback endpoint
+app.get("/auth/callback", async (req: Request, res: Response) => {
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).send("No code provided");
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      body: new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID!,
+        client_secret: DISCORD_CLIENT_SECRET!,
+        code: code as string,
+        grant_type: "authorization_code",
+        redirect_uri: serverConfig.discordRedirectURI(),
+      }),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error("Failed to get access token");
+    }
+
+    const tokenData = await tokenResponse.json();
+
+    // Get user information
+    const userResponse = await fetch("https://discord.com/api/users/@me", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
+
+    if (!userResponse.ok) {
+      throw new Error("Failed to get user information");
+    }
+
+    const userData = await userResponse.json();
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+
+    // TODO: store userData and sessionToken in database.
+
+    res.cookie("session", sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+    });
+    res.redirect(`/`);
+  } catch (error) {
+    console.error("Auth error:", error);
+    res.status(500).send("Authentication failed");
+  }
+});
+
+app.get("/auth/discord", (req: Request, res: Response) => {
+  console.log("Redirecting to Discord OAuth...");
+  const redirectUri = serverConfig.discordRedirectURI();
+  const authorizeUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify`;
+  console.log("Auth URL:", authorizeUrl);
+  res.redirect(authorizeUrl);
+});
 
 // New GET endpoint to list lobbies
 app.get("/lobbies", (req: Request, res: Response) => {
@@ -61,7 +137,7 @@ app.post("/private_lobby", (req, res) => {
 app.post("/archive_singleplayer_game", (req, res) => {
   try {
     const gameRecord: GameRecord = req.body;
-    const clientIP = req.ip || req.socket.remoteAddress || "unknown"; // Added this line
+    const clientIP = req.ip || req.socket.remoteAddress || "unknown";
 
     if (!gameRecord) {
       console.log("game record not found in request");
@@ -144,7 +220,7 @@ wss.on("connection", (ws, req) => {
       if (clientMsg.type == "join") {
         const forwarded = req.headers["x-forwarded-for"];
         let ip = Array.isArray(forwarded)
-          ? forwarded[0] // Get the first IP if it's an array
+          ? forwarded[0]
           : forwarded || req.socket.remoteAddress;
         if (Array.isArray(ip)) {
           ip = ip[0];
@@ -190,9 +266,18 @@ wss.on("connection", (ws, req) => {
   });
 });
 
-function runGame() {
+function startServer() {
   setInterval(() => tick(), 1000);
   setInterval(() => updateLobbies(), 100);
+
+  initializeSecrets();
+
+  const PORT = process.env.PORT || 3000;
+  console.log(`Server will try to run on http://localhost:${PORT}`);
+
+  server.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
 }
 
 function tick() {
@@ -214,11 +299,36 @@ function updateLobbies() {
   });
 }
 
-const PORT = process.env.PORT || 3000;
-console.log(`Server will try to run on http://localhost:${PORT}`);
+// Initialize secrets and start server
+async function initializeSecrets() {
+  try {
+    DISCORD_CLIENT_ID = await getSecret(
+      "DISCORD_CLIENT_ID",
+      serverConfig.env(),
+    );
+    DISCORD_CLIENT_SECRET = await getSecret(
+      "DISCORD_CLIENT_SECRET",
+      serverConfig.env(),
+    );
 
-server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+    if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+      throw new Error("Failed to load Discord secrets");
+    }
+  } catch (error) {
+    console.error("Failed to initialize secrets:", error);
+    process.exit(1);
+  }
+}
 
-runGame();
+async function getSecret(secretName: string, ge: GameEnv) {
+  if (ge == GameEnv.Dev) {
+    console.log(`loading secret ${secretName} from environment variable`);
+    return process.env[secretName]; // This is how you access env vars dynamically
+  }
+  console.log(`loading secret ${secretName} from Google secrets manager`);
+  const name = `projects/openfrontio/secrets/${secretName}/versions/latest`;
+  const [version] = await secretManager.accessSecretVersion({ name });
+  return version.payload?.data?.toString();
+}
+
+startServer();
