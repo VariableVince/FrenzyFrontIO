@@ -24,18 +24,51 @@ import { GameView, PlayerView } from "../../../core/game/GameView";
 interface BuildItemDisplay {
   unitType: UnitType;
   icon: string;
+  description?: string;
 }
 
 const buildTable: BuildItemDisplay[][] = [
   [
-    { unitType: UnitType.AtomBomb, icon: atomBombIcon },
-    { unitType: UnitType.MIRV, icon: mirvIcon },
-    { unitType: UnitType.HydrogenBomb, icon: hydrogenBombIcon },
-    { unitType: UnitType.Warship, icon: warshipIcon },
-    { unitType: UnitType.Port, icon: portIcon },
-    { unitType: UnitType.MissileSilo, icon: missileSiloIcon },
-    { unitType: UnitType.DefensePost, icon: shieldIcon },
-    { unitType: UnitType.City, icon: cityIcon },
+    {
+      unitType: UnitType.AtomBomb,
+      icon: atomBombIcon,
+      description: "Small explosion",
+    },
+    {
+      unitType: UnitType.MIRV,
+      icon: mirvIcon,
+      description: "Huge explosion, only targets selected player",
+    },
+    {
+      unitType: UnitType.HydrogenBomb,
+      icon: hydrogenBombIcon,
+      description: "Large explosion",
+    },
+    {
+      unitType: UnitType.Warship,
+      icon: warshipIcon,
+      description: "Captures trade ships, destroys ships and boats",
+    },
+    {
+      unitType: UnitType.Port,
+      icon: portIcon,
+      description: "Sends trade ships to allies to generate gold",
+    },
+    {
+      unitType: UnitType.MissileSilo,
+      icon: missileSiloIcon,
+      description: "Used to launch nukes",
+    },
+    {
+      unitType: UnitType.DefensePost,
+      icon: shieldIcon,
+      description: "Increase defenses of nearby borders",
+    },
+    {
+      unitType: UnitType.City,
+      icon: cityIcon,
+      description: "Increase max population",
+    },
   ],
 ];
 
@@ -67,6 +100,9 @@ export class BuildMenu extends LitElement {
       max-width: 95vw;
       max-height: 95vh;
       overflow-y: auto;
+    }
+    .build-description {
+      font-size: 0.6rem;
     }
     .build-row {
       display: flex;
@@ -132,10 +168,11 @@ export class BuildMenu extends LitElement {
       .build-menu {
         padding: 10px;
         max-height: 80vh;
+        width: 80vw;
       }
       .build-button {
-        width: 90px;
-        height: 90px;
+        width: 140px;
+        height: 100px;
         margin: 4px;
         padding: 6px;
       }
@@ -149,10 +186,6 @@ export class BuildMenu extends LitElement {
       .build-cost {
         font-size: 11px;
       }
-      .build-button img {
-        width: 32px;
-        height: 32px;
-      }
     }
 
     @media (max-width: 480px) {
@@ -161,7 +194,7 @@ export class BuildMenu extends LitElement {
         max-height: 70vh;
       }
       .build-button {
-        width: 70px;
+        width: calc(50% - 6px);
         height: 70px;
         margin: 3px;
         padding: 4px;
@@ -229,6 +262,7 @@ export class BuildMenu extends LitElement {
                       height="40"
                     />
                     <span class="build-name">${item.unitType}</span>
+                    <span class="build-description">${item.description}</span>
                     <span class="build-cost">
                       ${renderNumber(
                         this.game && this.myPlayer
