@@ -301,7 +301,7 @@ export class DefaultConfig implements Config {
     if (defender.isPlayer()) {
       return {
         attackerTroopLoss:
-          within(defender.troops() / attackTroops, 0.5, 2) * mag,
+          within(defender.troops() / attackTroops, 0.5, 2) * mag * 0.8,
         defenderTroopLoss: defender.troops() / defender.numTilesOwned(),
         tilesPerTickUsed:
           within(defender.troops() / (5 * attackTroops), 0.2, 1.5) * speed,
@@ -405,6 +405,23 @@ export class DefaultConfig implements Config {
 
     if (player.type() == PlayerType.Bot) {
       toAdd *= 0.7;
+    }
+
+    if (player.type() == PlayerType.FakeHuman) {
+      switch (this._gameConfig.difficulty) {
+        case Difficulty.Easy:
+          toAdd *= 0.9;
+          break;
+        case Difficulty.Medium:
+          toAdd *= 1;
+          break;
+        case Difficulty.Hard:
+          toAdd *= 1.2;
+          break;
+        case Difficulty.Impossible:
+          toAdd *= 1.5;
+          break;
+      }
     }
 
     return Math.min(player.population() + toAdd, max) - player.population();
