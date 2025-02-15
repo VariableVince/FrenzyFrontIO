@@ -176,6 +176,7 @@ export const BOT_NAME_SUFFIXES = [
   "Empire",
   "Dynasty",
   "Kingdom",
+  "Queendom",
   "Sultanate",
   "Confederation",
   "Union",
