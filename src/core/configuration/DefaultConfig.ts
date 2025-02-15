@@ -1,8 +1,10 @@
+import { renderNumber } from "../../client/Utils";
 import {
   Difficulty,
   Game,
   GameType,
   Gold,
+  MessageType,
   Player,
   PlayerInfo,
   PlayerType,
@@ -298,13 +300,23 @@ export class DefaultConfig implements Config {
       }
     }
 
+    let largeModifier = 1;
+    if (attacker.numTilesOwned() > 50_000) {
+      largeModifier = Math.sqrt(50_000 / attacker.numTilesOwned());
+    }
+
     if (defender.isPlayer()) {
       return {
         attackerTroopLoss:
-          within(defender.troops() / attackTroops, 0.5, 2) * mag * 0.8,
+          within(defender.troops() / attackTroops, 0.5, 2) *
+          mag *
+          0.8 *
+          largeModifier,
         defenderTroopLoss: defender.troops() / defender.numTilesOwned(),
         tilesPerTickUsed:
-          within(defender.troops() / (5 * attackTroops), 0.2, 1.5) * speed,
+          within(defender.troops() / (5 * attackTroops), 0.2, 1.5) *
+          speed *
+          largeModifier,
       };
     } else {
       return {

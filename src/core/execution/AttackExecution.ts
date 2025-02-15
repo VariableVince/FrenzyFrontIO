@@ -69,7 +69,9 @@ export class AttackExecution implements Execution {
         : mg.player(this._targetID);
 
     if (this._owner == this.target) {
-      throw new Error(`Player ${this._owner} cannot attack itself`);
+      console.error(`Player ${this._owner} cannot attack itself`);
+      this.active = false;
+      return;
     }
 
     if (

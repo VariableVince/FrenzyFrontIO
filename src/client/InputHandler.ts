@@ -124,12 +124,12 @@ export class InputHandler {
       const screenCenterX = window.innerWidth / 2;
       const screenCenterY = window.innerHeight / 2;
 
-      if (this.activeKeys.has("Minus")) {
+      if (this.activeKeys.has("Minus") || this.activeKeys.has("KeyQ")) {
         this.eventBus.emit(
           new ZoomEvent(screenCenterX, screenCenterY, this.ZOOM_SPEED),
         );
       }
-      if (this.activeKeys.has("Equal")) {
+      if (this.activeKeys.has("Equal") || this.activeKeys.has("KeyE")) {
         this.eventBus.emit(
           new ZoomEvent(screenCenterX, screenCenterY, -this.ZOOM_SPEED),
         );
@@ -158,6 +158,8 @@ export class InputHandler {
           "ArrowRight",
           "Minus",
           "Equal",
+          "KeyE",
+          "KeyQ",
         ].includes(e.code)
       ) {
         this.activeKeys.add(e.code);
@@ -188,6 +190,8 @@ export class InputHandler {
           "ArrowRight",
           "Minus",
           "Equal",
+          "KeyE",
+          "KeyQ",
         ].includes(e.code)
       ) {
         this.activeKeys.delete(e.code);
