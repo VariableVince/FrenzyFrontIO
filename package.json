@@ -28,6 +28,7 @@
     "@types/jquery": "^3.5.31",
     "@types/mocha": "^10.0.7",
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.11",
     "@types/sinon": "^17.0.3",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.11",
