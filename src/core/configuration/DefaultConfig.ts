@@ -309,8 +309,8 @@ export class DefaultConfig implements Config {
     }
 
     let largeModifier = 1;
-    if (attacker.numTilesOwned() > 50_000) {
-      largeModifier = Math.sqrt(50_000 / attacker.numTilesOwned());
+    if (attacker.numTilesOwned() > 35_000) {
+      largeModifier = Math.sqrt(35_000 / attacker.numTilesOwned());
     }
 
     if (defender.isPlayer()) {
