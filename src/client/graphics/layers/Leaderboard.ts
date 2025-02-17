@@ -29,11 +29,12 @@ export class Leaderboard extends LitElement implements Layer {
   init() {}
 
   tick() {
-    if (this._hidden && !this.game.inSpawnPhase()) {
+    if (!this._shownOnInit && !this.game.inSpawnPhase()) {
+      this._shownOnInit = true;
       this.showLeaderboard();
       this.updateLeaderboard();
     }
-    if (this._hidden) {
+    if (this._leaderboardHidden) {
       return;
     }
 
@@ -158,32 +159,75 @@ export class Leaderboard extends LitElement implements Layer {
     .hidden {
       display: none !important;
     }
+    .leaderboard-button {
+      position: fixed;
+      left: 10px;
+      top: 10px;
+      z-index: 9999;
+      background-color: rgb(31 41 55 / 0.7);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    .leaderboard-close-button {
+      background: none;
+      border: none;
+      color: white;
+      font-weight: bold;
+      position: absolute;
+      right: 0px;
+      top: 0px;
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
     @media (max-width: 1000px) {
       .leaderboard {
-        display: none !important;
+        width: 100vw;
+        max-width: 100vw;
+        left: 50%;
+        transform: translateX(-50%);
+        top: 60px;
+        padding: 20px 0px 0px 0px;
+      }
+
+      .leaderboard-button {
+        left: 0px;
+        top: 52px;
       }
     }
   `;
 
   players: Entry[] = [];
 
-  // createRenderRoot() {
-  //   return this;
-  // }
   @state()
-  private _hidden = true;
+  private _leaderboardHidden = true;
+
+  private _shownOnInit = false;
 
   render() {
-    // return html`
-    //   <div class="bg-blue-500 p-4 rounded-lg text-white hover:bg-blue-600">
-    //     Test Tailwind
-    //   </div>
-    // `;
     return html`
+      <button
+        @click=${() => this.toggleLeaderboard()}
+        class="leaderboard-button ${this._shownOnInit && this._leaderboardHidden
+          ? ""
+          : "hidden"}"
+      >
+        Leaderboard
+      </button>
       <div
-        class="leaderboard ${this._hidden ? "hidden" : ""}"
+        class="leaderboard ${this._leaderboardHidden ? "hidden" : ""}"
         @contextmenu=${(e) => e.preventDefault()}
       >
+        <button
+          class="leaderboard-close-button"
+          @click=${() => this.hideLeaderboard()}
+        >
+          x
+        </button>
         <table>
           <thead>
             <tr>
@@ -213,18 +257,23 @@ export class Leaderboard extends LitElement implements Layer {
     `;
   }
 
+  toggleLeaderboard() {
+    this._leaderboardHidden = !this._leaderboardHidden;
+    this.requestUpdate();
+  }
+
   hideLeaderboard() {
-    this._hidden = true;
+    this._leaderboardHidden = true;
     this.requestUpdate();
   }
 
   showLeaderboard() {
-    this._hidden = false;
+    this._leaderboardHidden = false;
     this.requestUpdate();
   }
 
   get isVisible() {
-    return !this._hidden;
+    return !this._leaderboardHidden;
   }
 }
 
