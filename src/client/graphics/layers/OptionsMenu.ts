@@ -52,11 +52,13 @@ export class OptionsMenu extends LitElement implements Layer {
   private hasWinner = false;
 
   private onExitButtonClick() {
-    const isConfirmed = confirm("Are you sure you want to exit the game?");
-
-    if (isConfirmed) {
-      window.location.reload();
+    const isAlive = this.game.myPlayer()?.isAlive();
+    if (isAlive) {
+      const isConfirmed = confirm("Are you sure you want to exit the game?");
+      if (!isConfirmed) return;
     }
+
+    window.location.reload();
   }
 
   createRenderRoot() {
