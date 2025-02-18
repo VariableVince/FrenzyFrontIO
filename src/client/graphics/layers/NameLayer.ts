@@ -168,7 +168,7 @@ export class NameLayer implements Layer {
       flagImg.style.marginBottom = "-10%";
       flagImg.style.marginTop = "-17%";
       flagImg.style.opacity = "0.8";
-      flagImg.src = "/flags/" + sanitize(player.flag()) + ".svg";
+      flagImg.src = "/flags/" + player.flag() + ".svg";
       flagImg.style.zIndex = "1";
       flagImg.style.width = "30%";
       flagImg.style.aspectRatio = "3/4";
