@@ -47,4 +47,13 @@ export class PseudoRandom {
   chance(odds: number): boolean {
     return this.nextInt(0, odds) == 0;
   }
+
+  shuffleArray(array: any[]) {
+    for (let i = array.length - 1; i >= 0; i--) {
+      const j = Math.floor(this.nextInt(0, i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+
+    return array;
+  }
 }

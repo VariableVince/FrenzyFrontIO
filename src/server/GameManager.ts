@@ -9,6 +9,7 @@ import { PseudoRandom } from "../core/PseudoRandom";
 
 export class GameManager {
   private lastNewLobby: number = 0;
+  private mapsPlaylist: GameMapType[] = [];
 
   private games: GameServer[] = [];
 
@@ -77,6 +78,13 @@ export class GameManager {
     }
   }
 
+  private getNextMap(): GameMapType {
+    if (this.mapsPlaylist.length == 0) {
+      this.mapsPlaylist = this.random.shuffleArray(Object.values(GameMapType));
+    }
+    return this.mapsPlaylist.shift();
+  }
+
   tick() {
     const lobbies = this.gamesByPhase(GamePhase.Lobby);
     const active = this.gamesByPhase(GamePhase.Active);
@@ -87,7 +95,7 @@ export class GameManager {
       this.lastNewLobby = now;
       lobbies.push(
         new GameServer(generateID(), now, true, this.config, {
-          gameMap: this.random.randElement(Object.values(GameMapType)),
+          gameMap: this.getNextMap(),
           gameType: GameType.Public,
           difficulty: Difficulty.Medium,
           disableBots: false,
