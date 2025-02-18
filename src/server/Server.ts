@@ -331,14 +331,16 @@ async function initializeSecrets() {
     }
   } catch (error) {
     console.error("Failed to initialize secrets:", error);
-    process.exit(1);
   }
 }
 
 async function getSecret(secretName: string, ge: GameEnv) {
   if (ge == GameEnv.Dev) {
     console.log(`loading secret ${secretName} from environment variable`);
-    return process.env[secretName]; // This is how you access env vars dynamically
+    const value = process.env[secretName];
+    if (!value) {
+      throw Error(`error loading secret ${secretName}`);
+    }
   }
   console.log(`loading secret ${secretName} from Google secrets manager`);
   const name = `projects/openfrontio/secrets/${secretName}/versions/latest`;
