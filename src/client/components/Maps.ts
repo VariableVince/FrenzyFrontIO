@@ -10,6 +10,7 @@ export const MapDescription: Record<keyof typeof GameMapType, string> = {
   NorthAmerica: "North America",
   Oceania: "Oceania",
   BlackSea: "Black Sea",
+  Africa: "Africa",
 };
 
 import world from "../../../resources/maps/WorldMap.png";
@@ -18,6 +19,7 @@ import europe from "../../../resources/maps/Europe.png";
 import mena from "../../../resources/maps/Mena.png";
 import northAmerica from "../../../resources/maps/NorthAmerica.png";
 import blackSea from "../../../resources/maps/BlackSea.png";
+import africa from "../../../resources/maps/Africa.png";
 
 @customElement("map-display")
 export class MapDisplay extends LitElement {
@@ -87,6 +89,8 @@ export class MapDisplay extends LitElement {
         return northAmerica;
       case GameMapType.BlackSea:
         return blackSea;
+      case GameMapType.Africa:
+        return africa;
       default:
         return "";
     }
