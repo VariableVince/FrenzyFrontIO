@@ -124,6 +124,7 @@ export class PlayerExecution implements Execution {
     for (const tile of cluster) {
       if (
         this.mg.isOceanShore(tile) ||
+        this.mg.isOnEdgeOfMap(tile) ||
         this.mg.neighbors(tile).some((n) => !this.mg.hasOwner(n))
       ) {
         return false;
@@ -145,7 +146,7 @@ export class PlayerExecution implements Execution {
   private isSurrounded(cluster: Set<TileRef>): boolean {
     let enemyTiles = new Set<TileRef>();
     for (const tr of cluster) {
-      if (this.mg.isOceanShore(tr)) {
+      if (this.mg.isOceanShore(tr) || this.mg.isOnEdgeOfMap(tr)) {
         return false;
       }
       this.mg

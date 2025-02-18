@@ -240,6 +240,9 @@ export class GameView implements GameMap {
     };
     this.defensePostGrid = new DefenseGrid(_map, _config.defensePostRange());
   }
+  isOnEdgeOfMap(ref: TileRef): boolean {
+    return this._map.isOnEdgeOfMap(ref);
+  }
 
   public updatesSinceLastTick(): GameUpdates {
     return this.lastUpdate.updates;

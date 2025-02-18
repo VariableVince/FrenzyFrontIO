@@ -27,6 +27,7 @@ export interface GameMap {
   setOwnerID(ref: TileRef, playerId: number): void;
   hasFallout(ref: TileRef): boolean;
   setFallout(ref: TileRef, value: boolean): void;
+  isOnEdgeOfMap(ref: TileRef): boolean;
   isBorder(ref: TileRef): boolean;
   neighbors(ref: TileRef): TileRef[];
   isWater(ref: TileRef): boolean;
@@ -183,6 +184,12 @@ export class GameMapImpl implements GameMap {
         this.state[ref] &= ~(1 << GameMapImpl.FALLOUT_BIT);
       }
     }
+  }
+
+  isOnEdgeOfMap(ref: TileRef): boolean {
+    const x = this.x(ref);
+    const y = this.y(ref);
+    return x == 0 || x == this.width() - 1 || y == 0 || y == this.height() - 1;
   }
 
   isBorder(ref: TileRef): boolean {

@@ -89,6 +89,9 @@ export class GameImpl implements Game {
       this._config.defensePostRange(),
     );
   }
+  isOnEdgeOfMap(ref: TileRef): boolean {
+    return this._map.isOnEdgeOfMap(ref);
+  }
 
   owner(ref: TileRef): Player | TerraNullius {
     return this.playerBySmallID(this.ownerID(ref));
