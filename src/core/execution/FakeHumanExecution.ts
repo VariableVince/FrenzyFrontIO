@@ -546,9 +546,6 @@ export class FakeHumanExecution implements Execution {
   }
 
   sendAttack(toAttack: Player | TerraNullius) {
-    console.log(
-      `${this.player.name()} sending troops ${renderTroops(this.player.troops() / 5)}`,
-    );
     this.mg.addExecution(
       new AttackExecution(
         this.player.troops() / 5,

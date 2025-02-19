@@ -57,7 +57,7 @@ export class TransportShipExecution implements Execution {
       this.active = false;
       return;
     }
-    if (!mg.hasPlayer(this.targetID)) {
+    if (this.targetID != null && !mg.hasPlayer(this.targetID)) {
       console.warn(`TransportShipExecution: target ${this.targetID} not found`);
       this.active = false;
       return;
