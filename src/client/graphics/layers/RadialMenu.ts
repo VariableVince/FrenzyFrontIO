@@ -283,8 +283,6 @@ export class RadialMenu implements Layer {
     if (this.isVisible) {
       this.hideRadialMenu();
       return;
-    } else {
-      this.showRadialMenu(event.x, event.y);
     }
     this.enableCenterButton(false);
     for (const item of this.menuItems.values()) {
@@ -315,9 +313,13 @@ export class RadialMenu implements Layer {
       consolex.warn("my player not found");
       return;
     }
+    if (!myPlayer.isAlive()) {
+      return;
+    }
     myPlayer.actions(tile).then((actions) => {
       this.handlePlayerActions(myPlayer, actions, tile);
     });
+    this.showRadialMenu(event.x, event.y);
   }
 
   private handlePlayerActions(
