@@ -43,6 +43,12 @@ export class MirvExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!this.mg.hasPlayer(this.senderID)) {
+      console.warn(`MIRVExecution: player ${this.senderID} not found`);
+      this.active = false;
+      return;
+    }
+
     this.random = new PseudoRandom(mg.ticks() + simpleHash(this.senderID));
     this.mg = mg;
     this.pathFinder = PathFinder.Mini(mg, 10_000, true);

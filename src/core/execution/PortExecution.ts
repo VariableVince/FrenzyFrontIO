@@ -31,6 +31,11 @@ export class PortExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!mg.hasPlayer(this._owner)) {
+      console.warn(`PortExecution: player ${this._owner} not found`);
+      this.active = false;
+      return;
+    }
     this.mg = mg;
     this.random = new PseudoRandom(mg.ticks());
   }

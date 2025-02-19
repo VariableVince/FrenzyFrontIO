@@ -12,6 +12,11 @@ export class SetTargetTroopRatioExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!mg.hasPlayer(this.playerID)) {
+      console.warn(
+        `SetTargetTRoopRatioExecution: player ${this.playerID} not found`,
+      );
+    }
     this.player = mg.player(this.playerID);
   }
 

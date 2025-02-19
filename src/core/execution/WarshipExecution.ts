@@ -43,6 +43,11 @@ export class WarshipExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!mg.hasPlayer(this.playerID)) {
+      console.log(`WarshipExecution: player ${this.playerID} not found`);
+      this.active = false;
+      return;
+    }
     this.pathfinder = PathFinder.Mini(mg, 5000, false);
     this._owner = mg.player(this.playerID);
     this.mg = mg;

@@ -50,6 +50,19 @@ export class TransportShipExecution implements Execution {
   }
 
   init(mg: Game, ticks: number) {
+    if (!mg.hasPlayer(this.attackerID)) {
+      console.warn(
+        `TransportShipExecution: attacker ${this.attackerID} not found`,
+      );
+      this.active = false;
+      return;
+    }
+    if (!mg.hasPlayer(this.targetID)) {
+      console.warn(`TransportShipExecution: target ${this.targetID} not found`);
+      this.active = false;
+      return;
+    }
+
     this.lastMove = ticks;
     this.mg = mg;
     this.pathFinder = PathFinder.Mini(mg, 10_000, false, 2);

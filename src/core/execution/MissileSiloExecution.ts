@@ -22,6 +22,12 @@ export class MissileSiloExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!mg.hasPlayer(this._owner)) {
+      console.warn(`MissileSiloExecution: owner ${this._owner} not found`);
+      this.active = false;
+      return;
+    }
+
     this.mg = mg;
     this.player = mg.player(this._owner);
   }

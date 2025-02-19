@@ -33,6 +33,12 @@ export class NukeExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!mg.hasPlayer(this.senderID)) {
+      console.warn(`NukeExecution: sender ${this.senderID} not found`);
+      this.active = false;
+      return;
+    }
+
     this.mg = mg;
     this.player = mg.player(this.senderID);
     this.random = new PseudoRandom(ticks);

@@ -28,6 +28,11 @@ export class PlayerExecution implements Execution {
   }
 
   init(mg: Game, ticks: number) {
+    if (!mg.hasPlayer(this.playerID)) {
+      console.warn(`PlayerExecution: player ${this.playerID} not found`);
+      this.active = false;
+      return;
+    }
     this.mg = mg;
     this.config = mg.config();
     this.player = mg.player(this.playerID);

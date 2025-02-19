@@ -12,6 +12,19 @@ export class TargetPlayerExecution implements Execution {
   ) {}
 
   init(mg: Game, ticks: number): void {
+    if (!mg.hasPlayer(this.requestorID)) {
+      console.warn(
+        `TargetPlayerExecution: requestor ${this.requestorID} not found`,
+      );
+      this.active = false;
+      return;
+    }
+    if (!mg.hasPlayer(this.targetID)) {
+      console.warn(`TargetPlayerExecution: target ${this.targetID} not found`);
+      this.active = false;
+      return;
+    }
+
     this.requestor = mg.player(this.requestorID);
     this.target = mg.player(this.targetID);
   }

@@ -28,6 +28,7 @@ export class SpawnExecution implements Execution {
     this.active = false;
 
     if (!this.mg.inSpawnPhase()) {
+      this.active = false;
       return;
     }
 

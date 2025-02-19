@@ -22,6 +22,11 @@ export class CityExecution implements Execution {
 
   init(mg: Game, ticks: number): void {
     this.mg = mg;
+    if (!mg.hasPlayer(this.ownerId)) {
+      console.warn(`CityExecution: player ${this.ownerId} not found`);
+      this.active = false;
+      return;
+    }
     this.player = mg.player(this.ownerId);
   }
 
