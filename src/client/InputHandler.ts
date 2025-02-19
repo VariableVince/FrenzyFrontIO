@@ -85,15 +85,15 @@ export class InputHandler {
 
   initialize() {
     this.canvas.addEventListener("pointerdown", (e) => this.onPointerDown(e));
-    this.canvas.addEventListener("pointerup", (e) => this.onPointerUp(e));
+    window.addEventListener("pointerup", (e) => this.onPointerUp(e));
     this.canvas.addEventListener("wheel", (e) => this.onScroll(e), {
       passive: false,
     });
-    this.canvas.addEventListener("pointermove", this.onPointerMove.bind(this));
+    window.addEventListener("pointermove", this.onPointerMove.bind(this));
     this.canvas.addEventListener("contextmenu", (e: MouseEvent) => {
       this.onContextMenu(e);
     });
-    this.canvas.addEventListener("mousemove", (e) => {
+    window.addEventListener("mousemove", (e) => {
       if (e.movementX == 0 && e.movementY == 0) {
         return;
       }
