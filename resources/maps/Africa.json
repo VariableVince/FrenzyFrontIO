@@ -26,6 +26,18 @@
       "name": "Central African Republic",
       "strength": 2,
       "flag": "cf"
+    },
+    {
+      "coordinates": [746, 124],
+      "name": "Tunisia",
+      "strength": 3,
+      "flag": "tn"
+    },
+    {
+      "coordinates": [1397, 304],
+      "name": "Egypt",
+      "strength": 3,
+      "flag": "eg"
     }
   ]
 }
