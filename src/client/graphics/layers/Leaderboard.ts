@@ -116,6 +116,7 @@ export class Leaderboard extends LitElement implements Layer {
       z-index: 9999;
       background-color: rgb(31 41 55 / 0.7);
       padding: 10px;
+      padding-top: 0px;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
       border-radius: 10px;
       max-width: 300px;
@@ -176,12 +177,7 @@ export class Leaderboard extends LitElement implements Layer {
       background: none;
       border: none;
       color: white;
-      font-weight: bold;
-      position: absolute;
-      right: 0px;
-      top: 0px;
       cursor: pointer;
-      font-size: 1.1rem;
     }
 
     @media (max-width: 1000px) {
@@ -226,7 +222,7 @@ export class Leaderboard extends LitElement implements Layer {
           class="leaderboard-close-button"
           @click=${() => this.hideLeaderboard()}
         >
-          x
+          Hide
         </button>
         <table>
           <thead>
