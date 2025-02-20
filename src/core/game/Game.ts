@@ -264,6 +264,7 @@ export interface Player {
 
   // Units
   units(...types: UnitType[]): Unit[];
+  unitsIncludingConstruction(type: UnitType): Unit[];
   canBuild(type: UnitType, targetTile: TileRef): TileRef | false;
   buildUnit(type: UnitType, troops: number, tile: TileRef): Unit;
   captureUnit(unit: Unit): void;
@@ -367,9 +368,15 @@ export interface Game extends GameMap {
 export interface PlayerActions {
   canBoat: boolean;
   canAttack: boolean;
-  buildableUnits: UnitType[];
+  buildableUnits: BuildableUnit[];
   canSendEmojiAllPlayers: boolean;
   interaction?: PlayerInteraction;
+}
+
+export interface BuildableUnit {
+  canBuild: boolean;
+  type: UnitType;
+  cost: number;
 }
 
 export interface PlayerProfile {

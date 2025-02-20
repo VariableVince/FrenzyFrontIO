@@ -176,6 +176,16 @@ export class PlayerImpl implements Player {
     return this._units.filter((u) => ts.has(u.type()));
   }
 
+  unitsIncludingConstruction(type: UnitType): Unit[] {
+    const units = this.units(type);
+    units.push(
+      ...this.units(UnitType.Construction).filter(
+        (u) => u.constructionType() == type,
+      ),
+    );
+    return units;
+  }
+
   sharesBorderWith(other: Player | TerraNullius): boolean {
     for (const border of this._borderTiles) {
       for (const neighbor of this.mg.map().neighbors(border)) {

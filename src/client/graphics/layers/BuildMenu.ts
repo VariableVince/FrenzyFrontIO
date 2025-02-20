@@ -228,7 +228,22 @@ export class BuildMenu extends LitElement {
     if (this.myPlayer == null || this.playerActions == null) {
       return false;
     }
-    return this.playerActions.buildableUnits.some((u) => u == item.unitType);
+    const unit = this.playerActions.buildableUnits.filter(
+      (u) => u.type == item.unitType,
+    );
+    if (!unit) {
+      return false;
+    }
+    return unit[0].canBuild;
+  }
+
+  private cost(item: BuildItemDisplay): number {
+    for (const bu of this.playerActions.buildableUnits) {
+      if (bu.type == item.unitType) {
+        return bu.cost;
+      }
+    }
+    return 0;
   }
 
   public onBuildSelected = (item: BuildItemDisplay) => {
@@ -265,11 +280,7 @@ export class BuildMenu extends LitElement {
                     <span class="build-description">${item.description}</span>
                     <span class="build-cost">
                       ${renderNumber(
-                        this.game && this.myPlayer
-                          ? this.game
-                              .unitInfo(item.unitType)
-                              .cost(this.myPlayer)
-                          : 0,
+                        this.game && this.myPlayer ? this.cost(item) : 0,
                       )}
                       <img
                         src=${goldCoinIcon}

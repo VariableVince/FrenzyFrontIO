@@ -6,6 +6,7 @@ import { Executor } from "./execution/ExecutionManager";
 import { WinCheckExecution } from "./execution/WinCheckExecution";
 import {
   AllPlayers,
+  BuildableUnit,
   Cell,
   Game,
   GameUpdates,
@@ -147,9 +148,13 @@ export class GameRunner {
     const actions = {
       canBoat: player.canBoat(tile),
       canAttack: player.canAttack(tile),
-      buildableUnits: Object.values(UnitType).filter(
-        (ut) => player.canBuild(ut, tile) != false,
-      ),
+      buildableUnits: Object.values(UnitType).map((u) => {
+        return {
+          type: u,
+          canBuild: player.canBuild(u, tile) != false,
+          cost: this.game.config().unitInfo(u).cost(player),
+        } as BuildableUnit;
+      }),
       canSendEmojiAllPlayers: player.canSendEmoji(AllPlayers),
     } as PlayerActions;
 
