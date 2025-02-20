@@ -156,28 +156,30 @@ export class NameLayer implements Layer {
     element.style.gap = "0px";
 
     const nameDiv = document.createElement("div");
-    nameDiv.classList.add("player-name");
-    nameDiv.innerHTML = player.name();
-    nameDiv.style.color = this.theme.textColor(player.info());
-    nameDiv.style.fontFamily = this.theme.font();
-    nameDiv.style.whiteSpace = "nowrap";
-    nameDiv.style.overflow = "hidden";
-    nameDiv.style.textOverflow = "ellipsis";
-    nameDiv.style.zIndex = "3";
-    element.appendChild(nameDiv);
-
     if (player.flag()) {
       const flagImg = document.createElement("img");
       flagImg.classList.add("player-flag");
-      flagImg.style.marginBottom = "-10%";
-      flagImg.style.marginTop = "-17%";
       flagImg.style.opacity = "0.8";
       flagImg.src = "/flags/" + player.flag() + ".svg";
       flagImg.style.zIndex = "1";
-      flagImg.style.width = "30%";
       flagImg.style.aspectRatio = "3/4";
-      element.appendChild(flagImg);
+      nameDiv.appendChild(flagImg);
     }
+    nameDiv.classList.add("player-name");
+    nameDiv.style.color = this.theme.textColor(player.info());
+    nameDiv.style.fontFamily = this.theme.font();
+    nameDiv.style.whiteSpace = "nowrap";
+    nameDiv.style.textOverflow = "ellipsis";
+    nameDiv.style.zIndex = "3";
+    nameDiv.style.display = "flex";
+    nameDiv.style.justifyContent = "flex-end";
+    nameDiv.style.alignItems = "center";
+    // nameDiv.style.alignItems = "flex-start";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.innerHTML = player.name();
+    nameDiv.appendChild(nameSpan);
+    element.appendChild(nameDiv);
 
     const troopsDiv = document.createElement("div");
     troopsDiv.classList.add("player-troops");
@@ -244,11 +246,16 @@ export class NameLayer implements Layer {
     const nameDiv = render.element.querySelector(
       ".player-name",
     ) as HTMLDivElement;
+    const flagDiv = render.element.querySelector(
+      ".player-flag",
+    ) as HTMLDivElement;
     const troopsDiv = render.element.querySelector(
       ".player-troops",
     ) as HTMLDivElement;
     nameDiv.style.fontSize = `${render.fontSize}px`;
+    nameDiv.style.lineHeight = `${render.fontSize}px`;
     nameDiv.style.color = render.fontColor;
+    flagDiv.style.height = `${render.fontSize}px`;
     troopsDiv.style.fontSize = `${render.fontSize}px`;
     troopsDiv.style.color = render.fontColor;
     troopsDiv.textContent = renderTroops(render.player.troops());
