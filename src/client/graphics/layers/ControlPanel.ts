@@ -8,6 +8,7 @@ import { EventBus } from "../../../core/EventBus";
 import { UIState } from "../UIState";
 import { SendSetTargetTroopRatioEvent } from "../../Transport";
 import { GameView } from "../../../core/game/GameView";
+import { AttackRatioEvent } from "../../InputHandler";
 
 @customElement("control-panel")
 export class ControlPanel extends LitElement implements Layer {
@@ -60,6 +61,30 @@ export class ControlPanel extends LitElement implements Layer {
     this.attackRatio = 0.2;
     this.uiState.attackRatio = this.attackRatio;
     this.currentTroopRatio = this.targetTroopRatio;
+    this.eventBus.on(AttackRatioEvent, (event) => {
+      let newAttackRatio =
+        (parseInt(
+          (document.getElementById("attack-ratio") as HTMLInputElement).value,
+        ) +
+          event.attackRatio) /
+        100;
+
+      if (newAttackRatio < 0.01) {
+        newAttackRatio = 0.01;
+      }
+
+      if (newAttackRatio > 1) {
+        newAttackRatio = 1;
+      }
+
+      if (newAttackRatio == 0.11 && this.attackRatio == 0.01) {
+        // If we're changing the ratio from 1%, then set it to 10% instead of 11% to keep a consistency
+        newAttackRatio = 0.1;
+      }
+
+      this.attackRatio = newAttackRatio;
+      this.onAttackRatioChange(this.attackRatio);
+    });
   }
 
   tick() {
@@ -239,6 +264,7 @@ export class ControlPanel extends LitElement implements Layer {
             ></div>
             <!-- Range input - exactly overlaying the visual elements -->
             <input
+              id="attack-ratio"
               type="range"
               min="1"
               max="100"
