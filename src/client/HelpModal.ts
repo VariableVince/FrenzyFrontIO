@@ -5,7 +5,8 @@ import "./components/Maps";
 
 @customElement("help-modal")
 export class HelpModal extends LitElement {
-  @state() private isModalOpen = false;
+  @state() private isModalOpen = true;
+  // @state() private isModalOpen = false;
 
   // Added #helpModal infront of everything to prevent leaks of css in other elements outside this one
   private styles = css`
@@ -235,7 +236,7 @@ export class HelpModal extends LitElement {
           <hr class="mt-6 mb-4">
 
           <div class="text-2xl font-bold text-center mb-4">Game UI</div>
-          <div class="flex flex gap-4">
+          <div class="flex flex-col md:flex-row gap-4">
             <div class="flex flex-col items-center">
               <div class="text-gray-300">Leaderboard</div>
               <img src="/images/helpModal/leaderboard.png" alt="Leaderboard" title="Leaderboard" />
@@ -247,8 +248,8 @@ export class HelpModal extends LitElement {
 
           <hr class="mt-6 mb-4">
 
-          <div class="flex flex gap-4">
-            <div class="flex flex-col items-center w-[80%]">
+          <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex flex-col items-center w-full md:w-[80%]">
               <div class="text-gray-300">Control panel</div>
               <img src="/images/helpModal/controlPanel.png" alt="Control panel" title="Control panel" />
               </div>
@@ -265,7 +266,7 @@ export class HelpModal extends LitElement {
 
           <hr class="mt-6 mb-4">
 
-          <div class="flex flex gap-4">
+          <div class="flex flex-col md:flex-row gap-4">
             <div class="flex flex-col items-center">
               <div class="text-gray-300">Options</div>
               <img src="/images/helpModal/options.png" alt="Options" title="Options" />
@@ -285,7 +286,7 @@ export class HelpModal extends LitElement {
 
           <div class="text-2xl font-bold text-center">Radial menu</div>
 
-          <div class="flex flex gap-4">
+          <div class="flex flex-col md:flex-row gap-4">
             <img src="/images/helpModal/radialMenu.png" alt="Radial menu" title="Radial menu" />
             <div>
               <p class="mb-4">Right clicking (or touch on mobile) opens the radial menu. From there you can:</p>
@@ -302,8 +303,8 @@ export class HelpModal extends LitElement {
 
           <div>
             <div class="text-2xl font-bold text-center">Info menu</div>
-            <div class="flex gap-4 mt-2">
-              <div class="flex flex-col items-center w-[80%]">
+            <div class="flex flex-col md:flex-row gap-4 mt-2">
+              <div class="flex flex-col items-center w-full md:w-[80%]">
                 <div class="text-gray-300">Enemy info panel</div>
                 <img src="/images/helpModal/infoMenu.png" alt="Enemy info panel" title="Enemy info panel" />
               </div>
@@ -316,13 +317,13 @@ export class HelpModal extends LitElement {
                   <li class="mb-4"><div class="inline-block icon alliance-icon"></div> - Send an alliance request to the player. Allies can share resources and troops, but can't attack each other.</li>
                   <li><div class="inline-block icon emoji-icon"></div> - Send an emoji to the player.</li>
                 </ul>
+              </div>
             </div>
-          </div>
 
             <hr class="mt-6 mb-4">
 
-            <div class="flex gap-4">
-              <div class="flex flex-col items-center w-[62%]">
+            <div class="flex flex-col md:flex-row gap-4">
+              <div class="flex flex-col items-center w-full md:w-[62%]">
                 <div class="text-gray-300">Ally info panel</div>
                 <img src="/images/helpModal/infoMenuAlly.png" alt="Ally info panel" title="Ally info panel" />
               </div>
@@ -415,7 +416,7 @@ export class HelpModal extends LitElement {
           <div>
             <div class="text-2xl font-bold text-center">Player icons</div>
             <p>Examples of some of the ingame icons you will encounter and what they mean:</p>
-            <div class="flex gap-4 mt-2">
+            <div class="flex flex-col md:flex-row gap-4 mt-2">
               <div class="flex flex-col items-center">
                 <div class="text-gray-300">Crown - This is the number 1 player in the leaderboard</div>
                 <img src="/images/helpModal/number1.png" alt="Number 1 player" title="Number 1 player" />
