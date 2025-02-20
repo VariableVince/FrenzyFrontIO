@@ -90,8 +90,6 @@ export class PathFinder {
       tolerance = 10;
     } else if (dist > 25) {
       tolerance = 5;
-    } else if (dist > 10) {
-      tolerance = 3;
     } else {
       tolerance = 0;
     }
