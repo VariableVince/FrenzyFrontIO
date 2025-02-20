@@ -1,7 +1,12 @@
 import { LitElement, html } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { EventBus } from "../../../core/EventBus";
-import { AllPlayers, MessageType, PlayerType } from "../../../core/game/Game";
+import {
+  AllPlayers,
+  MessageType,
+  PlayerType,
+  Tick,
+} from "../../../core/game/Game";
 import {
   AttackUpdate,
   DisplayMessageUpdate,
@@ -33,6 +38,9 @@ interface Event {
   highlight?: boolean;
   createdAt: number;
   onDelete?: () => void;
+  // lower number: lower on the display
+  priority?: number;
+  duration?: Tick;
 }
 
 @customElement("events-display")
@@ -73,7 +81,8 @@ export class EventsDisplay extends LitElement implements Layer {
     }
 
     let remainingEvents = this.events.filter((event) => {
-      const shouldKeep = this.game.ticks() - event.createdAt < 80;
+      const shouldKeep =
+        this.game.ticks() - event.createdAt < (event.duration ?? 80);
       if (!shouldKeep && event.onDelete) {
         event.onDelete();
       }
@@ -183,6 +192,8 @@ export class EventsDisplay extends LitElement implements Layer {
         this.eventBus.emit(
           new SendAllianceReplyIntentEvent(requestor, recipient, false),
         ),
+      priority: 0,
+      duration: 150,
     });
   }
 
@@ -372,6 +383,14 @@ export class EventsDisplay extends LitElement implements Layer {
     ) {
       return html``;
     }
+    this.events.sort((a, b) => {
+      const aPrior = a.priority ?? 100000;
+      const bPrior = b.priority ?? 100000;
+      if (aPrior == bPrior) {
+        return a.createdAt - b.createdAt;
+      }
+      return bPrior - aPrior;
+    });
 
     return html`
       <div
