@@ -178,6 +178,18 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
         </div>
       `;
     }
+    let playerType = "";
+    switch (player.type()) {
+      case PlayerType.Bot:
+        playerType = "Bot";
+        break;
+      case PlayerType.FakeHuman:
+        playerType = "Nation";
+        break;
+      case PlayerType.Human:
+        playerType = "Player";
+        break;
+    }
 
     return html`
       <div class="p-2">
@@ -188,6 +200,7 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
         >
           ${player.name()}
         </div>
+        <div class="text-sm opacity-80">Type: ${playerType}</div>
         <div class="text-sm opacity-80">
           Troops: ${renderTroops(player.troops())}
         </div>
