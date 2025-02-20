@@ -7,7 +7,7 @@ import { GameView } from "../../../core/game/GameView";
 import { Layer } from "./Layer";
 import { GameUpdateType } from "../../../core/game/GameUpdates";
 import { UserSettings } from "../../../core/game/UserSettings";
-import { RefreshGraphicsEvent } from "../../InputHandler";
+import { AlternateViewEvent, RefreshGraphicsEvent } from "../../InputHandler";
 
 const button = ({
   classes = "",
@@ -51,6 +51,15 @@ export class OptionsMenu extends LitElement implements Layer {
   private isVisible = false;
 
   private hasWinner = false;
+
+  @state()
+  private alternateView: boolean = false;
+
+  private onTerrainButtonClick() {
+    this.alternateView = !this.alternateView;
+    this.eventBus.emit(new AlternateViewEvent(this.alternateView));
+    this.requestUpdate();
+  }
 
   private onExitButtonClick() {
     const isAlive = this.game.myPlayer()?.isAlive();
@@ -153,6 +162,11 @@ export class OptionsMenu extends LitElement implements Layer {
             ? "hidden"
             : ""}"
         >
+          ${button({
+            onClick: this.onTerrainButtonClick,
+            title: "Toggle Terrain",
+            children: "🌲: " + (this.alternateView ? "On" : "Off"),
+          })}
           ${button({
             onClick: this.onToggleEmojisButtonClick,
             title: "Toggle Emojis",
