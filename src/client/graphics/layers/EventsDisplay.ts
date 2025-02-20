@@ -52,6 +52,7 @@ export class EventsDisplay extends LitElement implements Layer {
   private events: Event[] = [];
   @state() private incomingAttacks: AttackUpdate[] = [];
   @state() private outgoingAttacks: AttackUpdate[] = [];
+  @state() private _hidden: boolean = false;
 
   private updateMap = new Map([
     [GameUpdateType.DisplayEvent, (u) => this.onDisplayMessageEvent(u)],
@@ -82,15 +83,15 @@ export class EventsDisplay extends LitElement implements Layer {
 
     let remainingEvents = this.events.filter((event) => {
       const shouldKeep =
-        this.game.ticks() - event.createdAt < (event.duration ?? 80);
+        this.game.ticks() - event.createdAt < (event.duration ?? 600);
       if (!shouldKeep && event.onDelete) {
         event.onDelete();
       }
       return shouldKeep;
     });
 
-    if (remainingEvents.length > 10) {
-      remainingEvents = remainingEvents.slice(-10);
+    if (remainingEvents.length > 30) {
+      remainingEvents = remainingEvents.slice(-30);
     }
 
     if (this.events.length !== remainingEvents.length) {
@@ -394,10 +395,33 @@ export class EventsDisplay extends LitElement implements Layer {
 
     return html`
       <div
-        class="w-full lg:bottom-2.5 lg:right-2.5 z-50 lg:max-w-3xl lg:w-full lg:w-auto"
+        class="${this._hidden
+          ? "w-fit px-[10px] py-[5px]"
+          : ""} rounded-md bg-black bg-opacity-60 relative max-h-[30vw] overflow-y-auto w-full lg:bottom-2.5 lg:right-2.5 z-50 lg:max-w-3xl lg:w-full lg:w-auto"
       >
+        <div class="w-full bg-black/10 sticky top-0 px-[10px]">
+          <button
+            class="text-white cursor-pointer pointer-events-auto ${this._hidden
+              ? "hidden"
+              : ""}"
+            @click=${() => (this._hidden = true)}
+          >
+            Hide
+          </button>
+        </div>
+        <button
+          class="text-white cursor-pointer pointer-events-auto ${this._hidden
+            ? ""
+            : "hidden"}"
+          @click=${() => (this._hidden = false)}
+        >
+          Events
+        </button>
         <table
-          class="w-full border-collapse bg-black bg-opacity-60 text-white shadow-lg lg:text-xl text-xs"
+          class="w-full border-collapse text-white shadow-lg lg:text-xl text-xs ${this
+            ._hidden
+            ? "hidden"
+            : ""}"
           style="pointer-events: auto;"
         >
           <tbody>
