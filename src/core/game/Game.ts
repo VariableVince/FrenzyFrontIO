@@ -46,6 +46,7 @@ export enum GameMapType {
   BlackSea = "Black Sea",
   Africa = "Africa",
   Asia = "Asia",
+  Mars = "Mars",
 }
 
 export enum GameType {

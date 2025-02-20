@@ -32,6 +32,7 @@ const MAP_FILE_NAMES: Record<GameMapType, string> = {
   [GameMapType.BlackSea]: "BlackSea",
   [GameMapType.Africa]: "Africa",
   [GameMapType.Asia]: "Asia",
+  [GameMapType.Mars]: "Mars",
 };
 
 class GameMapLoader {

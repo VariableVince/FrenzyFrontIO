@@ -83,7 +83,10 @@ export class GameManager {
       return this.mapsPlaylist.shift();
     }
     while (true) {
-      this.mapsPlaylist = Object.values(GameMapType);
+      const ignoreMaps = ["Mars"];
+      this.mapsPlaylist = Object.values(GameMapType).filter(
+        (map) => !ignoreMaps.includes(map),
+      );
       this.mapsPlaylist.push(GameMapType.World);
       this.mapsPlaylist.push(GameMapType.Europe);
       this.random.shuffleArray(this.mapsPlaylist);
