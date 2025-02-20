@@ -211,17 +211,40 @@ export class UnitLayer implements Layer {
 
   private handleNuke(unit: UnitView) {
     const rel = this.relationship(unit);
+    let range = 0;
+    switch (unit.type()) {
+      case UnitType.AtomBomb:
+        range = 4;
+        break;
+      case UnitType.HydrogenBomb:
+        range = 6;
+        break;
+      case UnitType.MIRV:
+        range = 9;
+        break;
+    }
 
     // Clear previous area
     for (const t of this.game.bfs(
       unit.lastTile(),
-      euclDistFN(unit.lastTile(), 2),
+      euclDistFN(unit.lastTile(), range),
     )) {
       this.clearCell(this.game.x(t), this.game.y(t));
     }
 
     if (unit.isActive()) {
-      // Paint area
+      for (const t of this.game.bfs(
+        unit.tile(),
+        euclDistFN(unit.tile(), range),
+      )) {
+        this.paintCell(
+          this.game.x(t),
+          this.game.y(t),
+          rel,
+          this.theme.spawnHighlightColor(),
+          255,
+        );
+      }
       for (const t of this.game.bfs(unit.tile(), euclDistFN(unit.tile(), 2))) {
         this.paintCell(
           this.game.x(t),
