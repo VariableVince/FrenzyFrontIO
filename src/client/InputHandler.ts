@@ -57,6 +57,10 @@ export class ShowBuildMenuEvent implements GameEvent {
   ) {}
 }
 
+export class AttackRatioEvent implements GameEvent {
+  constructor(public readonly attackRatio: number) {}
+}
+
 export class InputHandler {
   private lastPointerX: number = 0;
   private lastPointerY: number = 0;
@@ -160,6 +164,8 @@ export class InputHandler {
           "Equal",
           "KeyE",
           "KeyQ",
+          "Digit1",
+          "Digit2",
         ].includes(e.code)
       ) {
         this.activeKeys.add(e.code);
@@ -177,6 +183,14 @@ export class InputHandler {
         this.eventBus.emit(new RefreshGraphicsEvent());
       }
 
+      if (e.code === "Digit1") {
+        this.eventBus.emit(new AttackRatioEvent(-10));
+      }
+
+      if (e.code === "Digit2") {
+        this.eventBus.emit(new AttackRatioEvent(10));
+      }
+
       // Remove all movement keys from activeKeys
       if (
         [
@@ -192,6 +206,8 @@ export class InputHandler {
           "Equal",
           "KeyE",
           "KeyQ",
+          "Digit1",
+          "Digit2",
         ].includes(e.code)
       ) {
         this.activeKeys.delete(e.code);
