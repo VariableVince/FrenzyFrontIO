@@ -7,6 +7,7 @@ import {
   Unit,
   UnitType,
   TerraNullius,
+  MessageType,
 } from "../game/Game";
 import { PseudoRandom } from "../PseudoRandom";
 import { consolex } from "../Consolex";
@@ -57,6 +58,23 @@ export class NukeExecution implements Execution {
         return;
       }
       this.nuke = this.player.buildUnit(this.type, 0, spawn);
+      if (this.mg.hasOwner(this.dst)) {
+        const target = this.mg.owner(this.dst) as Player;
+        if (this.type == UnitType.AtomBomb) {
+          this.mg.displayMessage(
+            `${this.player.name()} - atom bomb inbound`,
+            MessageType.ERROR,
+            target.id(),
+          );
+        }
+        if (this.type == UnitType.HydrogenBomb) {
+          this.mg.displayMessage(
+            `${this.player.name()} - hydrogen bomb inbound`,
+            MessageType.ERROR,
+            target.id(),
+          );
+        }
+      }
     }
     if (this.waitTicks > 0) {
       this.waitTicks--;

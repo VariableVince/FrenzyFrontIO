@@ -8,6 +8,7 @@ import {
   Unit,
   UnitType,
   TerraNullius,
+  MessageType,
 } from "../game/Game";
 import { PathFinder } from "../pathfinding/PathFinding";
 import { PathFindResultType } from "../pathfinding/AStar";
@@ -70,6 +71,12 @@ export class MirvExecution implements Execution {
       );
       const y = Math.max(0, this.mg.y(this.dst) - 500) + 50;
       this.separateDst = this.mg.ref(x, y);
+
+      this.mg.displayMessage(
+        `⚠️⚠️⚠️ ${this.player.name()} - MIRV INBOUND ⚠️⚠️⚠️`,
+        MessageType.ERROR,
+        this.targetPlayer.id(),
+      );
     }
 
     for (let i = 0; i < 4; i++) {
