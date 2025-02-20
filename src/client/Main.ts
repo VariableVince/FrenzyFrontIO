@@ -17,6 +17,7 @@ import { PublicLobby } from "./PublicLobby";
 import { UserSettings } from "../core/game/UserSettings";
 import "./DarkModeButton";
 import { DarkModeButton } from "./DarkModeButton";
+import { HelpModal } from "./HelpModal";
 import { GameType } from "../core/game/Game";
 
 class Client {
@@ -77,6 +78,12 @@ class Client {
       if (this.usernameInput.isValid()) {
         spModal.open();
       }
+    });
+
+    const hlpModal = document.querySelector("help-modal") as HelpModal;
+    hlpModal instanceof HelpModal;
+    document.getElementById("help-button").addEventListener("click", () => {
+      hlpModal.open();
     });
 
     const hostModal = document.querySelector(
