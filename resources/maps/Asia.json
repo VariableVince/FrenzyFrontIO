@@ -99,5 +99,59 @@
       "strength": 2,
       "flag": "tw"
     },
+    {
+      "coordinates": [1166, 661],
+      "name": "China",
+      "strength": 2,
+      "flag": "cn"
+    },
+    {
+      "coordinates": [1314, 639],
+      "name": "South Korea",
+      "strength": 3,
+      "flag": "kr"
+    },
+    {
+      "coordinates": [1485, 659],
+      "name": "Japan",
+      "strength": 1,
+      "flag": "jp"
+    },
+    {
+      "coordinates": [591, 492],
+      "name": "Kazakhstan",
+      "strength": 2,
+      "flag": "kz"
+    },
+    {
+      "coordinates": [546, 629],
+      "name": "Tajikistan",
+      "strength": 3,
+      "flag": "tj"
+    },
+    {
+      "coordinates": [1053, 528],
+      "name": "Mongolia",
+      "strength": 1,
+      "flag": "mn"
+    },
+    {
+      "coordinates": [243, 1067],
+      "name": "Somolia",
+      "strength": 1,
+      "flag": "so"
+    },
+    {
+      "coordinates": [61, 733],
+      "name": "Egypt",
+      "strength": 3,
+      "flag": "eg"
+    },
+    {
+      "coordinates": [59, 490],
+      "name": "Ukraine",
+      "strength": 2,
+      "flag": "ua"
+    }
   ]
 }
