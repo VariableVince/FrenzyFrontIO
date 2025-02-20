@@ -155,6 +155,15 @@ export class NameLayer implements Layer {
     element.style.alignItems = "center";
     element.style.gap = "0px";
 
+    const iconsDiv = document.createElement("div");
+    iconsDiv.classList.add("player-icons");
+    iconsDiv.style.display = "flex";
+    iconsDiv.style.gap = "4px";
+    iconsDiv.style.justifyContent = "center";
+    iconsDiv.style.alignItems = "center";
+    iconsDiv.style.zIndex = "2";
+    element.appendChild(iconsDiv);
+
     const nameDiv = document.createElement("div");
     if (player.flag()) {
       const flagImg = document.createElement("img");
@@ -174,7 +183,6 @@ export class NameLayer implements Layer {
     nameDiv.style.display = "flex";
     nameDiv.style.justifyContent = "flex-end";
     nameDiv.style.alignItems = "center";
-    // nameDiv.style.alignItems = "flex-start";
 
     const nameSpan = document.createElement("span");
     nameSpan.innerHTML = player.name();
@@ -189,18 +197,6 @@ export class NameLayer implements Layer {
     troopsDiv.style.zIndex = "3";
     troopsDiv.style.marginTop = "-5%";
     element.appendChild(troopsDiv);
-
-    const iconsDiv = document.createElement("div");
-    iconsDiv.classList.add("player-icons");
-    iconsDiv.style.display = "flex";
-    iconsDiv.style.gap = "4px";
-    iconsDiv.style.justifyContent = "center";
-    iconsDiv.style.alignItems = "center";
-    iconsDiv.style.position = "absolute";
-    iconsDiv.style.zIndex = "2";
-    iconsDiv.style.width = "100%";
-    iconsDiv.style.height = "100%";
-    element.appendChild(iconsDiv);
 
     // Start off invisible so it doesn't flash at 0,0
     element.style.display = "none";
@@ -255,7 +251,9 @@ export class NameLayer implements Layer {
     nameDiv.style.fontSize = `${render.fontSize}px`;
     nameDiv.style.lineHeight = `${render.fontSize}px`;
     nameDiv.style.color = render.fontColor;
-    flagDiv.style.height = `${render.fontSize}px`;
+    if (flagDiv) {
+      flagDiv.style.height = `${render.fontSize}px`;
+    }
     troopsDiv.style.fontSize = `${render.fontSize}px`;
     troopsDiv.style.color = render.fontColor;
     troopsDiv.textContent = renderTroops(render.player.troops());
@@ -272,7 +270,12 @@ export class NameLayer implements Layer {
     if (render.player === this.firstPlace) {
       if (!existingCrown) {
         iconsDiv.appendChild(
-          this.createIconElement(this.crownIconImage.src, iconSize, "crown"),
+          this.createIconElement(
+            this.crownIconImage.src,
+            iconSize,
+            "crown",
+            false,
+          ),
         );
       }
     } else if (existingCrown) {
@@ -319,7 +322,12 @@ export class NameLayer implements Layer {
     ) {
       if (!existingTarget) {
         iconsDiv.appendChild(
-          this.createIconElement(this.targetIconImage.src, iconSize, "target"),
+          this.createIconElement(
+            this.targetIconImage.src,
+            iconSize,
+            "target",
+            true,
+          ),
         );
       }
     } else if (existingTarget) {
@@ -341,8 +349,10 @@ export class NameLayer implements Layer {
         const emojiDiv = document.createElement("div");
         emojiDiv.setAttribute("data-icon", "emoji");
         emojiDiv.style.fontSize = `${iconSize}px`;
-        // emojiDiv.textAlign = 'center'
         emojiDiv.textContent = emojis[0].message;
+        emojiDiv.style.position = "absolute";
+        emojiDiv.style.top = "50%";
+        emojiDiv.style.transform = "translateY(-50%)";
         iconsDiv.appendChild(emojiDiv);
       }
     } else if (existingEmoji) {
@@ -367,13 +377,18 @@ export class NameLayer implements Layer {
     src: string,
     size: number,
     id: string,
+    center: boolean = false,
   ): HTMLImageElement {
     const icon = document.createElement("img");
     icon.src = src;
     icon.style.width = `${size}px`;
     icon.style.height = `${size}px`;
     icon.setAttribute("data-icon", id);
-    icon.style.position = "absolute";
+    if (center) {
+      icon.style.position = "absolute";
+      icon.style.top = "50%";
+      icon.style.transform = "translateY(-50%)";
+    }
     return icon;
   }
 
