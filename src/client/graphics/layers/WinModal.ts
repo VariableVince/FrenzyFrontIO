@@ -32,6 +32,7 @@ export class WinModal extends LitElement implements Layer {
   isVisible = false;
 
   private _title: string;
+  private won: boolean;
 
   static styles = css`
     :host {
@@ -139,20 +140,38 @@ export class WinModal extends LitElement implements Layer {
     return html`
       <div class="modal ${this.isVisible ? "visible" : ""}">
         <h2>${this._title}</h2>
-        <div>
-          <ins
-            class="adsbygoogle"
-            style="display:block"
-            data-ad-client="ca-pub-7035513310742290"
-            data-ad-slot="3772893937"
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          ></ins>
-        </div>
+        <div>${this.won ? this.supportHTML() : this.adsHTML()}</div>
         <div class="button-container">
           <button @click=${this._handleExit}>Exit Game</button>
           <button @click=${this.hide}>Keep Playing</button>
         </div>
+      </div>
+    `;
+  }
+
+  adsHTML(): ReturnType<typeof html> {
+    return html`<ins
+      class="adsbygoogle"
+      style="display:block"
+      data-ad-client="ca-pub-7035513310742290"
+      data-ad-slot="3772893937"
+      data-ad-format="auto"
+      data-full-width-responsive="true"
+    ></ins>`;
+  }
+
+  supportHTML(): ReturnType<typeof html> {
+    return html`
+      <div style="text-align: center; margin: 15px 0;">
+        <p>
+          Like the game? Help make this my full-time project!
+          <a
+            href="https://discord.com/channels/1284581928254701718/shop/1330243291366559744"
+            style="color: #0096ff; text-decoration: underline; display: block; margin-top: 5px;"
+          >
+            Support the game!
+          </a>
+        </p>
       </div>
     `;
   }
@@ -181,6 +200,7 @@ export class WinModal extends LitElement implements Layer {
     if (!this.hasShownDeathModal && myPlayer && !myPlayer.isAlive()) {
       this.hasShownDeathModal = true;
       this._title = "You died";
+      this.won = false;
       try {
         (adsbygoogle = window.adsbygoogle || []).push({});
       } catch (error) {
@@ -193,8 +213,10 @@ export class WinModal extends LitElement implements Layer {
       this.eventBus.emit(new SendWinnerEvent(winner.clientID()));
       if (winner == this.game.myPlayer()) {
         this._title = "You Won!";
+        this.won = true;
       } else {
         this._title = `${winner.name()} has won!`;
+        this.won = false;
       }
       this.show();
     });
