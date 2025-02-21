@@ -138,6 +138,7 @@ export default (env, argv) => {
                 "/lobby",
                 "/archive_singleplayer_game",
                 "/validate-username",
+                "/debug-ip",
                 "/auth/callback",
                 "/auth/discord",
               ],

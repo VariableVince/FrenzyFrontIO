@@ -31,6 +31,8 @@ import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 import dotenv from "dotenv";
 import crypto from "crypto";
 dotenv.config();
+import rateLimit from "express-rate-limit";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -50,6 +52,22 @@ let DISCORD_CLIENT_SECRET: string;
 // Serve static files from the 'out' directory
 app.use(express.static(path.join(__dirname, "../../out")));
 app.use(express.json());
+
+app.set("trust proxy", 2);
+app.use(
+  rateLimit({
+    windowMs: 1000, // 1 second
+    max: 20, // 20 requests per IP per second
+  }),
+);
+
+app.set("trust proxy", 2);
+app.use(
+  rateLimit({
+    windowMs: 1000, // 1 second
+    max: 20, // 20 requests per IP per second
+  }),
+);
 
 const gm = new GameManager(serverConfig);
 
@@ -205,6 +223,14 @@ app.get("/lobby/:id", (req, res) => {
 app.get("/private_lobby/:id", (req, res) => {
   res.json({
     hi: "5",
+  });
+});
+
+app.get("/debug-ip", (req, res) => {
+  res.send({
+    "x-forwarded-for": req.headers["x-forwarded-for"],
+    "real-ip": req.ip,
+    "raw-headers": req.rawHeaders,
   });
 });
 
