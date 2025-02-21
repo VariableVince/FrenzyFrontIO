@@ -54,6 +54,7 @@ enum Slot {
 
 export class RadialMenu implements Layer {
   private clickedCell: Cell | null = null;
+  private lastClosed: number = 0;
 
   private menuElement: d3.Selection<HTMLDivElement, unknown, null, undefined>;
   private isVisible: boolean = false;
@@ -277,6 +278,7 @@ export class RadialMenu implements Layer {
   }
 
   private onContextMenu(event: ContextMenuEvent) {
+    if (this.lastClosed + 200 > new Date().getTime()) return;
     if (this.buildMenu.isVisible) {
       this.buildMenu.hideMenu();
       return;
@@ -284,6 +286,8 @@ export class RadialMenu implements Layer {
     if (this.isVisible) {
       this.hideRadialMenu();
       return;
+    } else {
+      this.showRadialMenu(event.x, event.y);
     }
     this.enableCenterButton(false);
     for (const item of this.menuItems.values()) {
@@ -314,13 +318,12 @@ export class RadialMenu implements Layer {
       consolex.warn("my player not found");
       return;
     }
-    if (!myPlayer.isAlive()) {
-      return;
+    if (myPlayer && !myPlayer.isAlive() && !this.g.inSpawnPhase()) {
+      return this.hideRadialMenu();
     }
     myPlayer.actions(tile).then((actions) => {
       this.handlePlayerActions(myPlayer, actions, tile);
     });
-    this.showRadialMenu(event.x, event.y);
   }
 
   private handlePlayerActions(
@@ -381,6 +384,7 @@ export class RadialMenu implements Layer {
     this.menuElement.style("display", "none");
     this.isVisible = false;
     this.playerInfoOverlay.hide();
+    this.lastClosed = new Date().getTime();
   }
 
   private handleCenterButtonClick() {
