@@ -187,7 +187,6 @@ export class Leaderboard extends LitElement implements Layer {
         left: 50%;
         transform: translateX(-50%);
         top: 60px;
-        padding: 20px 0px 0px 0px;
       }
 
       .leaderboard-button {
