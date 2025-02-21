@@ -91,7 +91,7 @@ export class GameServer {
     });
     // Remove stale client if this is a reconnect
     const existing = this.activeClients.find(
-      (c) => c.clientID == client.clientID,
+      (c) => c.clientID == client.clientID || client.ip == c.ip,
     );
     if (existing != null) {
       existing.ws.removeAllListeners("message");
