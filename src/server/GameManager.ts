@@ -40,6 +40,10 @@ export class GameManager {
       console.warn(`game ${gameID} not found`);
       return;
     }
+    if (game.isPublic) {
+      console.warn(`cannot update public game ${gameID}`);
+      return;
+    }
     game.updateGameConfig(gameConfig);
   }
 
@@ -53,7 +57,7 @@ export class GameManager {
         disableBots: false,
         disableNPCs: false,
         creativeMode: false,
-      }),
+      })
     );
     return id;
   }
@@ -61,7 +65,7 @@ export class GameManager {
   hasActiveGame(gameID: GameID): boolean {
     const game = this.games
       .filter(
-        (g) => g.phase() == GamePhase.Lobby || g.phase() == GamePhase.Active,
+        (g) => g.phase() == GamePhase.Lobby || g.phase() == GamePhase.Active
       )
       .find((g) => g.id == gameID);
     return game != null;
@@ -122,7 +126,7 @@ export class GameManager {
           disableBots: false,
           disableNPCs: false,
           creativeMode: false,
-        }),
+        })
       );
     }
 

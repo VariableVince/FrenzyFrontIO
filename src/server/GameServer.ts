@@ -28,7 +28,7 @@ export enum GamePhase {
 
 export class GameServer {
   private rateLimiter = new RateLimiterMemory({
-    points: 20, // 20 messages
+    points: 50,
     duration: 1, // per 1 second
   });
 
@@ -53,7 +53,7 @@ export class GameServer {
     public readonly createdAt: number,
     public readonly isPublic: boolean,
     private config: ServerConfig,
-    public gameConfig: GameConfig,
+    public gameConfig: GameConfig
   ) {}
 
   public updateGameConfig(gameConfig: GameConfig): void {
@@ -91,13 +91,13 @@ export class GameServer {
     });
     // Remove stale client if this is a reconnect
     const existing = this.activeClients.find(
-      (c) => c.clientID == client.clientID || client.ip == c.ip,
+      (c) => c.clientID == client.clientID || client.ip == c.ip
     );
     if (existing != null) {
       existing.ws.removeAllListeners("message");
     }
     this.activeClients = this.activeClients.filter(
-      (c) => c.clientID != client.clientID,
+      (c) => c.clientID != client.clientID
     );
     this.activeClients.push(client);
     client.lastPing = Date.now();
@@ -113,7 +113,7 @@ export class GameServer {
       }
       try {
         const clientMsg: ClientMessage = ClientMessageSchema.parse(
-          JSON.parse(message),
+          JSON.parse(message)
         );
         if (this.allClients.has(clientMsg.clientID)) {
           const client = this.allClients.get(clientMsg.clientID);
@@ -133,7 +133,7 @@ export class GameServer {
             this.addIntent(clientMsg.intent);
           } else {
             console.warn(
-              `${this.id}: client ${clientMsg.clientID} sent to wrong game`,
+              `${this.id}: client ${clientMsg.clientID} sent to wrong game`
             );
           }
         }
@@ -146,14 +146,14 @@ export class GameServer {
         }
       } catch (error) {
         console.log(
-          `error handline websocket request in game server: ${error}`,
+          `error handline websocket request in game server: ${error}`
         );
       }
     });
     client.ws.on("close", () => {
       console.log(`${this.id}: client ${client.clientID} disconnected`);
       this.activeClients = this.activeClients.filter(
-        (c) => c.clientID != client.clientID,
+        (c) => c.clientID != client.clientID
       );
     });
     client.ws.on("error", (error: Error) => {
@@ -190,7 +190,7 @@ export class GameServer {
 
     this.endTurnIntervalID = setInterval(
       () => this.endTurn(),
-      this.config.turnIntervalMs(),
+      this.config.turnIntervalMs()
     );
     this.activeClients.forEach((c) => {
       console.log(`${this.id}: sending start message to ${c.clientID}`);
@@ -209,8 +209,8 @@ export class GameServer {
           type: "start",
           turns: this.turns.slice(lastTurn),
           config: this.gameConfig,
-        }),
-      ),
+        })
+      )
     );
   }
 
@@ -227,7 +227,7 @@ export class GameServer {
       ServerTurnMessageSchema.parse({
         type: "turn",
         turn: pastTurn,
-      }),
+      })
     );
     this.activeClients.forEach((c) => {
       c.ws.send(msg);
@@ -244,12 +244,12 @@ export class GameServer {
       }
     });
     console.log(
-      `${this.id}: ending game ${this.id} with ${this.turns.length} turns`,
+      `${this.id}: ending game ${this.id} with ${this.turns.length} turns`
     );
     try {
       if (this.allClients.size > 0) {
         const playerRecords: PlayerRecord[] = Array.from(
-          this.allClients.values(),
+          this.allClients.values()
         ).map((client) => ({
           ip: client.ip,
           clientID: client.clientID,
@@ -264,8 +264,8 @@ export class GameServer {
             this.turns,
             this._startTime,
             Date.now(),
-            this.winner,
-          ),
+            this.winner
+          )
         );
       } else {
         console.log(`${this.id}: no clients joined, not archiving game`);
@@ -301,7 +301,7 @@ export class GameServer {
     for (const client of this.activeClients) {
       if (now - client.lastPing > 60_000) {
         console.log(
-          `${this.id}: no pings from ${client.clientID}, terminating connection`,
+          `${this.id}: no pings from ${client.clientID}, terminating connection`
         );
         if (client.ws.readyState === WebSocket.OPEN) {
           client.ws.close(1000, "no heartbeats received, closing connection");
