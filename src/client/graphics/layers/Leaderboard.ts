@@ -180,14 +180,15 @@ export class Leaderboard extends LitElement implements Layer {
       cursor: pointer;
     }
 
+    .player-name {
+      max-width: 10ch;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     @media (max-width: 1000px) {
       .leaderboard {
-        width: 100vw;
-        max-width: 100vw;
-        left: 50%;
-        transform: translateX(-50%);
         top: 60px;
-        padding: 20px 0px 0px 0px;
       }
 
       .leaderboard-button {
@@ -241,7 +242,7 @@ export class Leaderboard extends LitElement implements Layer {
                   @click=${() => this.handleRowClick(player.player)}
                 >
                   <td>${player.position}</td>
-                  <td>${unsafeHTML(player.name)}</td>
+                  <td class="player-name">${unsafeHTML(player.name)}</td>
                   <td>${player.score}</td>
                   <td>${player.gold}</td>
                 </tr>
