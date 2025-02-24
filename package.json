@@ -103,6 +103,7 @@
     "node-gyp": "^10.2.0",
     "obscenity": "^0.4.3",
     "page": "^1.11.6",
+    "pg": "^8.13.3",
     "priority-queue-typescript": "^1.0.1",
     "protobufjs": "^7.3.2",
     "pureimage": "^0.4.13",
