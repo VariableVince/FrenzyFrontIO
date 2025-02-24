@@ -119,7 +119,7 @@ export class BuildMenu extends LitElement implements Layer {
     }
     .build-button {
       width: 120px;
-      height: 120px;
+      height: 140px;
       border: 2px solid #444;
       background-color: #2c2c2c;
       color: white;
@@ -132,6 +132,7 @@ export class BuildMenu extends LitElement implements Layer {
       align-items: center;
       margin: 8px;
       padding: 10px;
+      gap: 5px;
     }
     .build-button:not(:disabled):hover {
       background-color: #3a3a3a;
@@ -179,9 +180,10 @@ export class BuildMenu extends LitElement implements Layer {
       }
       .build-button {
         width: 140px;
-        height: 100px;
+        height: 120px;
         margin: 4px;
         padding: 6px;
+        gap: 5px;
       }
       .build-icon {
         font-size: 28px;
@@ -202,7 +204,7 @@ export class BuildMenu extends LitElement implements Layer {
       }
       .build-button {
         width: calc(50% - 6px);
-        height: 70px;
+        height: 100px;
         margin: 3px;
         padding: 4px;
         border-width: 1px;
