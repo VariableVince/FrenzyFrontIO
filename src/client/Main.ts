@@ -95,6 +95,7 @@ class Client {
       .addEventListener("click", () => {
         if (this.usernameInput.isValid()) {
           hostModal.open();
+          this.publicLobby.leaveLobby();
         }
       });
 
@@ -172,6 +173,7 @@ class Client {
     consolex.log("leaving lobby, cancelling game");
     this.gameStop();
     this.gameStop = null;
+    this.publicLobby.leaveLobby();
   }
 
   private async handleSinglePlayer(event: CustomEvent) {

@@ -8,7 +8,7 @@ import { getMapsImage } from "./utilities/Maps";
 @customElement("public-lobby")
 export class PublicLobby extends LitElement {
   @state() private lobbies: Lobby[] = [];
-  @state() private isLobbyHighlighted: boolean = false;
+  @state() public isLobbyHighlighted: boolean = false;
   private lobbiesInterval: number | null = null;
   private currLobby: Lobby = null;
 
@@ -57,6 +57,7 @@ export class PublicLobby extends LitElement {
 
   public stop() {
     if (this.lobbiesInterval !== null) {
+      this.isLobbyHighlighted = false;
       clearInterval(this.lobbiesInterval);
       this.lobbiesInterval = null;
     }
@@ -115,9 +116,14 @@ export class PublicLobby extends LitElement {
     `;
   }
 
+  leaveLobby() {
+    this.isLobbyHighlighted = false;
+    this.currLobby = null;
+  }
+
   private lobbyClicked(lobby: Lobby) {
-    this.isLobbyHighlighted = !this.isLobbyHighlighted;
     if (this.currLobby == null) {
+      this.isLobbyHighlighted = true;
       this.currLobby = lobby;
       this.dispatchEvent(
         new CustomEvent("join-lobby", {
@@ -139,7 +145,7 @@ export class PublicLobby extends LitElement {
           composed: true,
         }),
       );
-      this.currLobby = null;
+      this.leaveLobby();
     }
   }
 }

@@ -186,7 +186,7 @@ export class HelpModal extends LitElement {
 
     @media screen and (max-width: 768px) {
       #helpModal .modal-content {
-        max-height: 100vh;
+        max-height: 90vh;
         max-width: 100vw;
         width: 100%;
       }
