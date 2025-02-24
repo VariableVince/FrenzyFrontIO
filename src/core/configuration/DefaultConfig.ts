@@ -135,7 +135,7 @@ export class DefaultConfig implements Config {
                   Math.pow(
                     2,
                     p.unitsIncludingConstruction(UnitType.Port).length,
-                  ) * 125_00,
+                  ) * 125_000,
                 ),
           territoryBound: true,
           constructionDuration: this.creativeMode() ? 0 : 2 * 10,
