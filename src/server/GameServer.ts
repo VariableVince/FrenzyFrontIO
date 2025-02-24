@@ -130,9 +130,12 @@ export class GameServer {
         return;
       }
       try {
-        const clientMsg: ClientMessage = ClientMessageSchema.parse(
-          JSON.parse(message),
-        );
+        let clientMsg: ClientMessage = null;
+        try {
+          clientMsg = ClientMessageSchema.parse(JSON.parse(message));
+        } catch (error) {
+          throw Error(`error parsing schema for ${client.ip}`);
+        }
         if (this.allClients.has(clientMsg.clientID)) {
           const client = this.allClients.get(clientMsg.clientID);
           if (client.persistentID != clientMsg.persistentID) {
@@ -221,15 +224,19 @@ export class GameServer {
   }
 
   private sendStartGameMsg(ws: WebSocket, lastTurn: number) {
-    ws.send(
-      JSON.stringify(
-        ServerStartGameMessageSchema.parse({
-          type: "start",
-          turns: this.turns.slice(lastTurn),
-          config: this.gameConfig,
-        }),
-      ),
-    );
+    try {
+      ws.send(
+        JSON.stringify(
+          ServerStartGameMessageSchema.parse({
+            type: "start",
+            turns: this.turns.slice(lastTurn),
+            config: this.gameConfig,
+          }),
+        ),
+      );
+    } catch (error) {
+      throw new Error(`error sending start message for game ${this.id}`);
+    }
   }
 
   private endTurn() {
@@ -241,12 +248,18 @@ export class GameServer {
     this.turns.push(pastTurn);
     this.intents = [];
 
-    const msg = JSON.stringify(
-      ServerTurnMessageSchema.parse({
-        type: "turn",
-        turn: pastTurn,
-      }),
-    );
+    let msg = "";
+    try {
+      msg = JSON.stringify(
+        ServerTurnMessageSchema.parse({
+          type: "turn",
+          turn: pastTurn,
+        }),
+      );
+    } catch (error) {
+      console.log(`error sending message for game ${this.id}`);
+      return;
+    }
     this.activeClients.forEach((c) => {
       c.ws.send(msg);
     });

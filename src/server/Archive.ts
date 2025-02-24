@@ -121,9 +121,13 @@ async function archiveToGCS(gameRecord: GameRecord) {
   });
 
   const file = bucket.file(recordCopy.id);
-  await file.save(JSON.stringify(GameRecordSchema.parse(recordCopy)), {
-    contentType: "application/json",
-  });
+  try {
+    await file.save(JSON.stringify(recordCopy), {
+      contentType: "application/json",
+    });
+  } catch (error) {
+    console.log(`error saving game ${gameRecord.id}`);
+  }
 
   console.log(`${gameRecord.id}: game record successfully written to GCS`);
 }
@@ -142,11 +146,7 @@ export async function readGameRecord(gameId: GameID): Promise<GameRecord> {
     const [content] = await file.download();
     const gameRecord = JSON.parse(content.toString());
 
-    // Validate the parsed content against the schema
-    const validatedRecord = GameRecordSchema.parse(gameRecord);
-
-    console.log(`${gameId}: Successfully read game record from GCS`);
-    return validatedRecord;
+    return gameRecord as GameRecord;
   } catch (error) {
     console.error(`${gameId}: Error reading game record from GCS: ${error}`, {
       message: error?.message || error,
