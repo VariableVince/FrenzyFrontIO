@@ -303,7 +303,7 @@ export class HostLobbyModal extends LitElement {
 
     @media screen and (max-width: 768px) {
       .modal-content {
-        max-height: calc(100vh - 42px);
+        max-height: calc(90vh - 42px);
         max-width: 100vw;
         width: 100%;
       }
