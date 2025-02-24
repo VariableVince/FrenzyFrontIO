@@ -86,15 +86,29 @@ export class GameManager {
     if (this.mapsPlaylist.length > 0) {
       return this.mapsPlaylist.shift();
     }
+
+    const frequency = {
+      World: 4,
+      Europe: 4,
+      Mena: 2,
+      NorthAmerica: 2,
+      Oceania: 1,
+      BlackSea: 2,
+      Africa: 2,
+      Asia: 2,
+      Mars: 0,
+    };
+
+    Object.keys(GameMapType).map((key) => {
+      let count = parseInt(frequency[key]);
+
+      while (count > 0) {
+        this.mapsPlaylist.push(GameMapType[key]);
+        count--;
+      }
+    });
+
     while (true) {
-      const ignoreMaps = ["Mars"];
-      this.mapsPlaylist = Object.values(GameMapType).filter(
-        (map) => !ignoreMaps.includes(map),
-      );
-      this.mapsPlaylist.push(GameMapType.World);
-      this.mapsPlaylist.push(GameMapType.World);
-      this.mapsPlaylist.push(GameMapType.Europe);
-      this.mapsPlaylist.push(GameMapType.Europe);
       this.random.shuffleArray(this.mapsPlaylist);
       if (this.allNonConsecutive(this.mapsPlaylist)) {
         return this.mapsPlaylist.shift();
