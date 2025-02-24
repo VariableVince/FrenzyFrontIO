@@ -201,7 +201,6 @@ app.post(
       return;
     }
     gameRecord.players.forEach((p) => (p.ip = clientIP));
-    GameRecordSchema.parse(gameRecord);
     archive(gameRecord);
     res.json({
       success: true,
@@ -306,9 +305,12 @@ wss.on("connection", (ws, req) => {
       return;
     }
     try {
-      const clientMsg: ClientMessage = ClientMessageSchema.parse(
-        JSON.parse(message.toString()),
-      );
+      let clientMsg: ClientMessage = null;
+      try {
+        clientMsg = ClientMessageSchema.parse(JSON.parse(message.toString()));
+      } catch (error) {
+        throw new Error(`error parsing zod schema for ip: ${ip}`);
+      }
       if (clientMsg.type == "join") {
         const forwarded = req.headers["x-forwarded-for"];
         let ip = Array.isArray(forwarded)
@@ -339,15 +341,18 @@ wss.on("connection", (ws, req) => {
         if (!wasFound) {
           console.log(`game ${clientMsg.gameID} not found, loading from gcs`);
           const record = await readGameRecord(clientMsg.gameID);
-          ws.send(
-            JSON.stringify(
-              ServerStartGameMessageSchema.parse({
-                type: "start",
-                turns: record.turns,
-                config: record.gameConfig,
-              }),
-            ),
-          );
+
+          let startGame = null;
+          try {
+            startGame = ServerStartGameMessageSchema.parse({
+              type: "start",
+              turns: record.turns,
+              config: record.gameConfig,
+            });
+          } catch (error) {
+            console.log(`error validating schema for ip ${ip}`);
+          }
+          ws.send(JSON.stringify(startGame));
         }
       }
       if (clientMsg.type == "log") {
@@ -361,7 +366,12 @@ wss.on("connection", (ws, req) => {
         });
       }
     } catch (error) {
-      console.warn(`errror handling websocket message for ${ip}: ${error}`);
+      console.warn(
+        `error handling websocket message for ${ip}: ${error}`.substring(
+          0,
+          250,
+        ),
+      );
     }
   });
   ws.on("error", (error: Error) => {
