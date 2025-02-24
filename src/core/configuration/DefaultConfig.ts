@@ -135,7 +135,7 @@ export class DefaultConfig implements Config {
                   Math.pow(
                     2,
                     p.unitsIncludingConstruction(UnitType.Port).length,
-                  ) * 250_000,
+                  ) * 125_00,
                 ),
           territoryBound: true,
           constructionDuration: this.creativeMode() ? 0 : 2 * 10,
@@ -319,8 +319,8 @@ export class DefaultConfig implements Config {
     }
 
     let largeModifier = 1;
-    if (attacker.numTilesOwned() > 35_000) {
-      largeModifier = Math.sqrt(35_000 / attacker.numTilesOwned());
+    if (attacker.numTilesOwned() > 50_000) {
+      largeModifier = Math.sqrt(50_000 / attacker.numTilesOwned());
     }
 
     if (defender.isPlayer()) {
