@@ -9,6 +9,11 @@ export class HelpModal extends LitElement {
 
   // Added #helpModal infront of everything to prevent leaks of css in other elements outside this one
   private styles = css`
+    .radial-menu-image {
+      width: 211px;
+      height: 200px;
+    }
+    
     #helpModal.modal-overlay {
       display: none;
       position: fixed;
@@ -293,7 +298,7 @@ export class HelpModal extends LitElement {
           <div class="text-2xl font-bold text-center">Radial menu</div>
 
           <div class="flex flex-col md:flex-row gap-4">
-            <img src="/images/helpModal/radialMenu.png" alt="Radial menu" title="Radial menu" />
+            <img src="/images/helpModal/radialMenu.png" alt="Radial menu" title="Radial menu", class="radial-menu-image" />
             <div>
               <p class="mb-4">Right clicking (or touch on mobile) opens the radial menu. From there you can:</p>
               <ul>
