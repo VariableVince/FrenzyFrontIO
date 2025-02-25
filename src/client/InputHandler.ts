@@ -62,6 +62,10 @@ export class AttackRatioEvent implements GameEvent {
   constructor(public readonly attackRatio: number) {}
 }
 
+export class CenterCameraEvent implements GameEvent {
+  constructor() {}
+}
+
 export class InputHandler {
   private lastPointerX: number = 0;
   private lastPointerY: number = 0;
@@ -175,6 +179,7 @@ export class InputHandler {
           "KeyQ",
           "Digit1",
           "Digit2",
+          "KeyC",
         ].includes(e.code)
       ) {
         this.activeKeys.add(e.code);
@@ -202,6 +207,11 @@ export class InputHandler {
         this.eventBus.emit(new AttackRatioEvent(10));
       }
 
+      if (e.code === "KeyC") {
+        e.preventDefault();
+        this.eventBus.emit(new CenterCameraEvent());
+      }
+
       // Remove all movement keys from activeKeys
       if (
         [
@@ -219,6 +229,7 @@ export class InputHandler {
           "KeyQ",
           "Digit1",
           "Digit2",
+          "KeyC",
         ].includes(e.code)
       ) {
         this.activeKeys.delete(e.code);
