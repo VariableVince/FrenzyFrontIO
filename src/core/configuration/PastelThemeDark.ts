@@ -253,7 +253,7 @@ export const pastelThemeDark = new (class implements Theme {
   }
 
   textColor(playerInfo: PlayerInfo): string {
-    return playerInfo.playerType == PlayerType.Human ? "#ffffff" : "#dbdbdb";
+    return playerInfo.playerType == PlayerType.Human ? "#ffffff" : "#e6e6e6";
   }
 
   borderColor(playerInfo: PlayerInfo): Colord {

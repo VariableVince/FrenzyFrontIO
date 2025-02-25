@@ -25,6 +25,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { onlyImages, sanitize } from "../../../core/Util";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { renderTroops } from "../../Utils";
+import { GoToPlayerEvent } from "./Leaderboard";
 
 interface Event {
   description: string;
@@ -33,6 +34,7 @@ interface Event {
     text: string;
     className: string;
     action: () => void;
+    preventClose?: boolean;
   }[];
   type: MessageType;
   highlight?: boolean;
@@ -169,6 +171,12 @@ export class EventsDisplay extends LitElement implements Layer {
     this.addEvent({
       description: `${requestor.name()} requests an alliance!`,
       buttons: [
+        {
+          text: "Focus",
+          className: "btn-gray",
+          action: () => this.eventBus.emit(new GoToPlayerEvent(requestor)),
+          preventClose: true,
+        },
         {
           text: "Accept",
           className: "btn",
@@ -447,10 +455,14 @@ export class EventsDisplay extends LitElement implements Layer {
                                     class="inline-block px-3 py-1 text-white rounded text-sm cursor-pointer transition-colors duration-300
                             ${btn.className.includes("btn-info")
                                       ? "bg-blue-500 hover:bg-blue-600"
-                                      : "bg-green-600 hover:bg-green-700"}"
+                                      : btn.className.includes("btn-gray")
+                                        ? "bg-gray-500 hover:bg-gray-600"
+                                        : "bg-green-600 hover:bg-green-700"}"
                                     @click=${() => {
                                       btn.action();
-                                      this.removeEvent(index);
+                                      if (!btn.preventClose) {
+                                        this.removeEvent(index);
+                                      }
                                       this.requestUpdate();
                                     }}
                                   >
