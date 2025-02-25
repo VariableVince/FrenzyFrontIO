@@ -211,7 +211,7 @@ export class HelpModal extends LitElement {
           <span class="close" @click=${this.close}>&times;</span>
 
           <div class="flex flex-col items-center">
-            <div class="text-center text-2xl font-bold mb-4">Keybinds</div>
+            <div class="text-center text-2xl font-bold mb-4">Hotkeys</div>
             <table>
               <thead>
                 <tr>
@@ -223,6 +223,10 @@ export class HelpModal extends LitElement {
                 <tr>
                   <td>Space</td>
                   <td>Alternate view</td>
+                </tr>
+                <tr>
+                  <td>C</td>
+                  <td>Center camera on player</td>
                 </tr>
                 <tr>
                   <td>Q / E</td>
