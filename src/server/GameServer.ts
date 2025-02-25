@@ -9,13 +9,14 @@ import {
   ServerTurnMessageSchema,
   Turn,
 } from "../core/Schemas";
-import { Config, ServerConfig } from "../core/configuration/Config";
+import { Config, GameEnv, ServerConfig } from "../core/configuration/Config";
 import { Client } from "./Client";
 import WebSocket from "ws";
 import { slog } from "./StructuredLog";
 import { CreateGameRecord } from "../core/Util";
 import { archive } from "./Archive";
 import { RateLimiterMemory } from "rate-limiter-flexible";
+import { GameType } from "../core/game/Game";
 
 export enum GamePhase {
   Lobby = "LOBBY",
@@ -94,6 +95,7 @@ export class GameServer {
     });
 
     if (
+      this.gameConfig.gameType == GameType.Public &&
       this.activeClients.filter(
         (c) => c.ip == client.ip && c.clientID != client.clientID,
       ).length >= 3
