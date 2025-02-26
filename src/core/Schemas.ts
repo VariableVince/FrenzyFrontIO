@@ -53,13 +53,15 @@ export type ClientMessage =
 export type ServerMessage =
   | ServerSyncMessage
   | ServerStartGameMessage
-  | ServerPingMessage;
+  | ServerPingMessage
+  | ServerDesyncMessage;
 
 export type ServerSyncMessage = z.infer<typeof ServerTurnMessageSchema>;
 export type ServerStartGameMessage = z.infer<
   typeof ServerStartGameMessageSchema
 >;
 export type ServerPingMessage = z.infer<typeof ServerPingMessageSchema>;
+export type ServerDesyncMessage = z.infer<typeof ServerDesyncSchema>;
 
 export type ClientSendWinnerMessage = z.infer<typeof ClientSendWinnerSchema>;
 export type ClientPingMessage = z.infer<typeof ClientPingMessageSchema>;
@@ -242,7 +244,7 @@ export const TurnSchema = z.object({
 // Server
 
 const ServerBaseMessageSchema = z.object({
-  type: SafeString,
+  type: z.enum(["turn", "ping", "start", "desync"]),
 });
 
 export const ServerTurnMessageSchema = ServerBaseMessageSchema.extend({
@@ -261,10 +263,19 @@ export const ServerStartGameMessageSchema = ServerBaseMessageSchema.extend({
   config: GameConfigSchema,
 });
 
+export const ServerDesyncSchema = ServerBaseMessageSchema.extend({
+  type: z.literal("desync"),
+  turn: z.number(),
+  correctHash: z.number().nullable(),
+  clientsWithCorrectHash: z.number(),
+  totalActiveClients: z.number(),
+});
+
 export const ServerMessageSchema = z.union([
   ServerTurnMessageSchema,
   ServerStartGameMessageSchema,
   ServerPingMessageSchema,
+  ServerDesyncSchema,
 ]);
 
 // Client

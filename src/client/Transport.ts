@@ -246,7 +246,9 @@ export class Transport {
         const serverMsg = ServerMessageSchema.parse(JSON.parse(event.data));
         this.onmessage(serverMsg);
       } catch (error) {
-        console.error("Failed to process server message:", error);
+        console.error(
+          `Failed to process server message ${event.data}: ${error}`,
+        );
       }
     };
     this.socket.onerror = (err) => {
