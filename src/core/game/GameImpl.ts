@@ -30,6 +30,7 @@ import { UnitImpl } from "./UnitImpl";
 import { consolex } from "../Consolex";
 import { GameMap, GameMapImpl, TileRef, TileUpdate } from "./GameMap";
 import { DefenseGrid } from "./DefensePostGrid";
+import { simpleHash } from "../Util";
 
 export function createGame(
   gameMap: GameMap,

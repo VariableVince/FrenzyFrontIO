@@ -5,6 +5,8 @@ import {
   GameConfig,
   Intent,
   PlayerRecord,
+  ServerDesyncSchema,
+  ServerMessageSchema,
   ServerStartGameMessageSchema,
   ServerTurnMessageSchema,
   Turn,
@@ -253,6 +255,8 @@ export class GameServer {
     this.turns.push(pastTurn);
     this.intents = [];
 
+    this.maybeSendDesync();
+
     let msg = "";
     try {
       msg = JSON.stringify(
@@ -265,6 +269,7 @@ export class GameServer {
       console.log(`error sending message for game ${this.id}`);
       return;
     }
+
     this.activeClients.forEach((c) => {
       c.ws.send(msg);
     });
@@ -382,5 +387,88 @@ export class GameServer {
 
   hasStarted(): boolean {
     return this._hasStarted;
+  }
+
+  private maybeSendDesync() {
+    if (this.activeClients.length <= 1) {
+      return;
+    }
+    if (this.turns.length % 10 == 0 && this.turns.length != 0) {
+      const lastHashTurn = this.turns.length - 10;
+      console.log(`checking validity for turn ${lastHashTurn}`);
+
+      let { mostCommonHash, outOfSyncClients } =
+        this.findOutOfSyncClients(lastHashTurn);
+
+      if (
+        outOfSyncClients.length >= Math.floor(this.activeClients.length / 2)
+      ) {
+        // If half clients out of sync assume all are out of sync.
+        outOfSyncClients = this.activeClients;
+      }
+
+      const serverDesync = ServerDesyncSchema.safeParse({
+        type: "desync",
+        turn: lastHashTurn,
+        correctHash: mostCommonHash,
+        clientsWithCorrectHash:
+          this.activeClients.length - outOfSyncClients.length,
+        totalActiveClients: this.activeClients.length,
+      });
+      if (serverDesync.success) {
+        const desyncMsg = JSON.stringify(serverDesync.data);
+        for (const c of outOfSyncClients) {
+          console.log(
+            `game: ${this.id}: sending desync to client ${c.clientID}`,
+          );
+          c.ws.send(desyncMsg);
+        }
+      } else {
+        console.warn(`failed to create desync message ${serverDesync.error}`);
+      }
+    }
+  }
+
+  findOutOfSyncClients(turnNumber: number): {
+    mostCommonHash: number | null;
+    outOfSyncClients: Client[];
+  } {
+    const counts = new Map<number, number>();
+
+    // Count occurrences of each hash
+    for (const client of this.activeClients) {
+      if (client.hashes.has(turnNumber)) {
+        const clientHash = client.hashes.get(turnNumber)!;
+        counts.set(clientHash, (counts.get(clientHash) || 0) + 1);
+      }
+    }
+
+    // Find the most common hash
+    let mostCommonHash: number | null = null;
+    let maxCount = 0;
+
+    for (const [hash, count] of counts.entries()) {
+      if (count > maxCount) {
+        mostCommonHash = hash;
+        maxCount = count;
+      }
+    }
+
+    // Create a list of clients whose hash doesn't match the most common one
+    const outOfSyncClients: Client[] = [];
+
+    for (const client of this.activeClients) {
+      if (client.hashes.has(turnNumber)) {
+        const clientHash = client.hashes.get(turnNumber)!;
+        if (clientHash !== mostCommonHash) {
+          outOfSyncClients.push(client);
+        }
+      }
+    }
+
+    return {
+      mostCommonHash,
+      outOfSyncClients,
+    };
   }
 }

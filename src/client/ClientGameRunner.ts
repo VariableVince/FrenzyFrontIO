@@ -213,6 +213,13 @@ export class ClientGameRunner {
           this.turnsSeen++;
         }
       }
+      if (message.type == "desync") {
+        showErrorModal(
+          `desync from server: ${JSON.stringify(message)}`,
+          "",
+          this.clientID,
+        );
+      }
       if (message.type == "turn") {
         if (!this.hasJoined) {
           this.transport.joinGame(0);
