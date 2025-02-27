@@ -75,21 +75,23 @@ export type GameRecord = z.infer<typeof GameRecordSchema>;
 
 const PlayerTypeSchema = z.nativeEnum(PlayerType);
 
+export interface GameInfo {
+  gameID: GameID;
+  clients?: ClientInfo[];
+  numClients?: number;
+  msUntilStart?: number;
+  gameConfig?: GameConfig;
+}
+export interface ClientInfo {
+  clientID: ClientID;
+  username: string;
+}
 export enum LogSeverity {
   Debug = "DEBUG",
   Info = "INFO",
   Warn = "WARN",
   Error = "ERROR",
   Fatal = "FATAL",
-}
-
-// TODO: create Cell schema
-
-export interface Lobby {
-  id: string;
-  msUntilStart?: number;
-  numClients?: number;
-  gameConfig?: GameConfig;
 }
 
 const GameConfigSchema = z.object({

@@ -15,7 +15,7 @@ import { Colord, colord } from "colord";
 import { preprodConfig } from "./PreprodConfig";
 import { prodConfig } from "./ProdConfig";
 import { consolex } from "../Consolex";
-import { GameConfig } from "../Schemas";
+import { GameConfig, GameID } from "../Schemas";
 import { DefaultConfig } from "./DefaultConfig";
 import { DevConfig, DevServerConfig } from "./DevConfig";
 import { GameMap, TileRef } from "../game/GameMap";
@@ -66,6 +66,11 @@ export interface ServerConfig {
   gameCreationRate(): number;
   lobbyLifetime(): number;
   discordRedirectURI(): string;
+  numWorkers(): number;
+  workerIndex(gameID: GameID): number;
+  workerPath(gameID: GameID): string;
+  workerPort(gameID: GameID): number;
+  workerPortByIndex(workerID: number): number;
   env(): GameEnv;
 }
 

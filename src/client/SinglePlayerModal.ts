@@ -424,7 +424,7 @@ export class SinglePlayerModal extends LitElement {
         detail: {
           gameType: GameType.Singleplayer,
           lobby: {
-            id: generateID(),
+            gameID: generateID(),
           },
           map: this.selectedMap,
           difficulty: this.selectedDifficulty,

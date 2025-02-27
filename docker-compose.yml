@@ -2,17 +2,33 @@ version: "3"
 services:
   game-server:
     build: .
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
+      - "3001"
+      - "3002"
+      - "3003"
+      - "3004"
+      - "3005"
+      - "3006"
+      - "3007"
+      - "3008"
+      - "3009"
+      - "3010"
+      - "3011"
+      - "3012"
+      - "3013"
+      - "3014"
+      - "3015"
     environment:
       - NODE_ENV=production
+
   nginx:
     image: nginx:latest
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt
     depends_on:
       - game-server

@@ -1,16 +1,16 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { Lobby } from "../core/Schemas";
 import { Difficulty, GameMapType, GameType } from "../core/game/Game";
 import { consolex } from "../core/Consolex";
 import { getMapsImage } from "./utilities/Maps";
+import { GameInfo } from "../core/Schemas";
 
 @customElement("public-lobby")
 export class PublicLobby extends LitElement {
-  @state() private lobbies: Lobby[] = [];
+  @state() private lobbies: GameInfo[] = [];
   @state() public isLobbyHighlighted: boolean = false;
   private lobbiesInterval: number | null = null;
-  private currLobby: Lobby = null;
+  private currLobby: GameInfo = null;
 
   createRenderRoot() {
     return this;
@@ -36,15 +36,16 @@ export class PublicLobby extends LitElement {
   private async fetchAndUpdateLobbies(): Promise<void> {
     try {
       const lobbies = await this.fetchLobbies();
+      console.log(`got lobbies: ${JSON.stringify(lobbies)}`);
       this.lobbies = lobbies;
     } catch (error) {
       consolex.error("Error fetching lobbies:", error);
     }
   }
 
-  async fetchLobbies(): Promise<Lobby[]> {
+  async fetchLobbies(): Promise<GameInfo[]> {
     try {
-      const response = await fetch("/lobbies");
+      const response = await fetch("/public_lobbies");
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -67,6 +68,9 @@ export class PublicLobby extends LitElement {
     if (this.lobbies.length === 0) return html``;
 
     const lobby = this.lobbies[0];
+    if (!lobby?.gameConfig) {
+      return;
+    }
     const timeRemaining = Math.max(0, Math.floor(lobby.msUntilStart / 1000));
 
     // Format time to show minutes and seconds
@@ -121,7 +125,7 @@ export class PublicLobby extends LitElement {
     this.currLobby = null;
   }
 
-  private lobbyClicked(lobby: Lobby) {
+  private lobbyClicked(lobby: GameInfo) {
     if (this.currLobby == null) {
       this.isLobbyHighlighted = true;
       this.currLobby = lobby;

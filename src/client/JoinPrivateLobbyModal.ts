@@ -2,6 +2,8 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, state, query } from "lit/decorators.js";
 import { GameMapType, GameType } from "../core/game/Game";
 import { consolex } from "../core/Consolex";
+import { getConfig, getServerConfig } from "../core/configuration/Config";
+import { GameInfo } from "../core/Schemas";
 
 @customElement("join-private-lobby-modal")
 export class JoinPrivateLobbyModal extends LitElement {
@@ -358,13 +360,16 @@ export class JoinPrivateLobbyModal extends LitElement {
     consolex.log(`Joining lobby with ID: ${lobbyId}`);
     this.message = "Checking lobby..."; // Set initial message
 
-    fetch(`/lobby/${lobbyId}/exists`, {
+    const url = `${window.location.origin}/${getServerConfig().workerPath(lobbyId)}/game/${lobbyId}/exists`;
+    fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
     })
-      .then((response) => response.json())
+      .then((response) => {
+        return response.json();
+      })
       .then((data) => {
         if (data.exists) {
           this.message = "Joined successfully! Waiting for game to start...";
@@ -372,7 +377,7 @@ export class JoinPrivateLobbyModal extends LitElement {
           this.dispatchEvent(
             new CustomEvent("join-lobby", {
               detail: {
-                lobby: { id: lobbyId },
+                lobby: { gameID: lobbyId },
                 gameType: GameType.Private,
                 map: GameMapType.World,
               },
@@ -394,15 +399,18 @@ export class JoinPrivateLobbyModal extends LitElement {
   private async pollPlayers() {
     if (!this.lobbyIdInput?.value) return;
 
-    fetch(`/lobby/${this.lobbyIdInput.value}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    fetch(
+      `${getServerConfig().workerPath(this.lobbyIdInput.value)}/lobby/${this.lobbyIdInput.value}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    })
+    )
       .then((response) => response.json())
-      .then((data) => {
-        this.players = data.players.map((p) => p.username);
+      .then((data: GameInfo) => {
+        this.players = data.clients.map((p) => p.username);
       })
       .catch((error) => {
         consolex.error("Error polling players:", error);

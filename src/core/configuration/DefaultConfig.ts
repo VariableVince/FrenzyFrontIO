@@ -1,10 +1,8 @@
-import { renderNumber } from "../../client/Utils";
 import {
   Difficulty,
   Game,
   GameType,
   Gold,
-  MessageType,
   Player,
   PlayerInfo,
   PlayerType,
@@ -14,16 +12,19 @@ import {
   UnitInfo,
   UnitType,
 } from "../game/Game";
-import { GameMap, TileRef } from "../game/GameMap";
+import { TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
 import { UserSettings } from "../game/UserSettings";
-import { GameConfig } from "../Schemas";
-import { assertNever, within } from "../Util";
+import { GameConfig, GameID } from "../Schemas";
+import { assertNever, simpleHash, within } from "../Util";
 import { Config, GameEnv, ServerConfig, Theme } from "./Config";
 import { pastelTheme } from "./PastelTheme";
 import { pastelThemeDark } from "./PastelThemeDark";
 
 export abstract class DefaultServerConfig implements ServerConfig {
+  numWorkers(): number {
+    return 3;
+  }
   abstract env(): GameEnv;
   abstract discordRedirectURI(): string;
   turnIntervalMs(): number {
@@ -34,6 +35,18 @@ export abstract class DefaultServerConfig implements ServerConfig {
   }
   lobbyLifetime(): number {
     return 2 * 60 * 1000;
+  }
+  workerIndex(gameID: GameID): number {
+    return simpleHash(gameID) % this.numWorkers();
+  }
+  workerPath(gameID: GameID): string {
+    return `w${this.workerIndex(gameID)}`;
+  }
+  workerPort(gameID: GameID): number {
+    return this.workerPortByIndex(this.workerIndex(gameID));
+  }
+  workerPortByIndex(index: number): number {
+    return 3001 + index;
   }
 }
 

@@ -1,4 +1,9 @@
-import { Config, GameEnv, ServerConfig } from "../core/configuration/Config";
+import {
+  Config,
+  GameEnv,
+  getServerConfig,
+  ServerConfig,
+} from "../core/configuration/Config";
 import { consolex } from "../core/Consolex";
 import { GameEvent } from "../core/EventBus";
 import {
@@ -125,6 +130,7 @@ export class LocalServer {
     const blob = new Blob([JSON.stringify(GameRecordSchema.parse(record))], {
       type: "application/json",
     });
-    navigator.sendBeacon("/archive_singleplayer_game", blob);
+    const workerPath = getServerConfig().workerPath(this.lobbyConfig.gameID);
+    navigator.sendBeacon(`/${workerPath}/archive_singleplayer_game`, blob);
   }
 }

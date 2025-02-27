@@ -1,24 +1,24 @@
+import { RateLimiterMemory } from "rate-limiter-flexible";
+import WebSocket from "ws";
 import {
   ClientID,
   ClientMessage,
   ClientMessageSchema,
   GameConfig,
+  GameInfo,
   Intent,
   PlayerRecord,
   ServerDesyncSchema,
-  ServerMessageSchema,
   ServerStartGameMessageSchema,
   ServerTurnMessageSchema,
   Turn,
 } from "../core/Schemas";
-import { Config, GameEnv, ServerConfig } from "../core/configuration/Config";
-import { Client } from "./Client";
-import WebSocket from "ws";
-import { slog } from "./StructuredLog";
 import { CreateGameRecord } from "../core/Util";
-import { archive } from "./Archive";
-import { RateLimiterMemory } from "rate-limiter-flexible";
+import { ServerConfig } from "../core/configuration/Config";
 import { GameType } from "../core/game/Game";
+import { archive } from "./Archive";
+import { Client } from "./Client";
+import { slog } from "./StructuredLog";
 
 export enum GamePhase {
   Lobby = "LOBBY",
@@ -51,7 +51,6 @@ export class GameServer {
   constructor(
     public readonly id: string,
     public readonly createdAt: number,
-    public readonly isPublic: boolean,
     private config: ServerConfig,
     public gameConfig: GameConfig,
   ) {}
@@ -360,7 +359,7 @@ export class GameServer {
     const noRecentPings = now > this.lastPingUpdate + 20 * 1000;
     const noActive = this.activeClients.length == 0;
 
-    if (!this.isPublic) {
+    if (this.gameConfig.gameType != GameType.Public) {
       if (this._hasStarted) {
         if (noActive && noRecentPings) {
           console.log(`${this.id}: private game: ${this.id} complete`);
@@ -387,6 +386,24 @@ export class GameServer {
 
   hasStarted(): boolean {
     return this._hasStarted;
+  }
+
+  public gameInfo(): GameInfo {
+    return {
+      gameID: this.id,
+      clients: this.activeClients.map((c) => ({
+        username: c.username,
+        clientID: c.clientID,
+      })),
+      gameConfig: this.gameConfig,
+      msUntilStart: this.isPublic()
+        ? this.createdAt + this.config.lobbyLifetime()
+        : undefined,
+    };
+  }
+
+  public isPublic(): boolean {
+    return this.gameConfig.gameType == GameType.Public;
   }
 
   private maybeSendDesync() {

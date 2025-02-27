@@ -228,9 +228,10 @@ export class Transport {
   ) {
     this.startPing();
     this.maybeKillSocket();
-    const wsHost = process.env.WEBSOCKET_URL || window.location.host;
+    const wsHost = window.location.host;
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    this.socket = new WebSocket(`${wsProtocol}//${wsHost}`);
+    const workerPath = this.serverConfig.workerPath(this.lobbyConfig.gameID);
+    this.socket = new WebSocket(`${wsProtocol}//${wsHost}/${workerPath}`);
     this.onconnect = onconnect;
     this.onmessage = onmessage;
     this.socket.onopen = () => {

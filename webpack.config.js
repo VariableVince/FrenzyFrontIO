@@ -123,21 +123,72 @@ export default (env, argv) => {
           compress: true,
           port: 9000,
           proxy: [
+            // WebSocket proxies
             {
               context: ["/socket"],
               target: "ws://localhost:3000",
               ws: true,
+              changeOrigin: true,
+              logLevel: "debug",
+            },
+            // Worker WebSocket proxies - using direct paths without /socket suffix
+            {
+              context: ["/w0"],
+              target: "ws://localhost:3001",
+              ws: true,
+              secure: false,
+              changeOrigin: true,
+              logLevel: "debug",
             },
             {
+              context: ["/w1"],
+              target: "ws://localhost:3002",
+              ws: true,
+              secure: false,
+              changeOrigin: true,
+              logLevel: "debug",
+            },
+            {
+              context: ["/w2"],
+              target: "ws://localhost:3003",
+              ws: true,
+              secure: false,
+              changeOrigin: true,
+              logLevel: "debug",
+            },
+            // Worker proxies for HTTP requests
+            {
+              context: ["/w0"],
+              target: "http://localhost:3001",
+              pathRewrite: { "^/w0": "" },
+              secure: false,
+              changeOrigin: true,
+              logLevel: "debug",
+            },
+            {
+              context: ["/w1"],
+              target: "http://localhost:3002",
+              pathRewrite: { "^/w1": "" },
+              secure: false,
+              changeOrigin: true,
+              logLevel: "debug",
+            },
+            {
+              context: ["/w2"],
+              target: "http://localhost:3003",
+              pathRewrite: { "^/w2": "" },
+              secure: false,
+              changeOrigin: true,
+              logLevel: "debug",
+            },
+            // Original API endpoints
+            {
               context: [
-                "/lobbies",
+                "/public_lobbies",
                 "/join_game",
-                "/join_lobby",
-                "/private_lobby",
-                "/start_private_lobby",
-                "/lobby",
+                "/start_game",
+                "/create_game",
                 "/archive_singleplayer_game",
-                "/validate-username",
                 "/debug-ip",
                 "/auth/callback",
                 "/auth/discord",
