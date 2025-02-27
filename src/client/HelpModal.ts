@@ -221,6 +221,10 @@ export class HelpModal extends LitElement {
               </thead>
               <tbody class="text-left">
                 <tr>
+                  <td>CTRL + Left Click</td>
+                  <td>Open build menu</td>
+                </tr>
+                <tr>
                   <td>Space</td>
                   <td>Alternate view</td>
                 </tr>
