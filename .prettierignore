@@ -8,3 +8,5 @@
 *.txt
 .prettierignore
 .gitignore
+Dockerfile
+*.conf
