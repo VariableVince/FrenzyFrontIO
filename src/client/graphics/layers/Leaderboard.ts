@@ -188,7 +188,8 @@ export class Leaderboard extends LitElement implements Layer {
 
     @media (max-width: 1000px) {
       .leaderboard {
-        top: 60px;
+        top: 70px;
+        left: 0px;
       }
 
       .leaderboard-button {

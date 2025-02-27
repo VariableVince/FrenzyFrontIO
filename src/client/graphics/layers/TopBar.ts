@@ -8,6 +8,9 @@ import { renderNumber, renderTroops } from "../../Utils";
 export class TopBar extends LitElement implements Layer {
   public game: GameView;
   private isVisible = false;
+  private _population = 0;
+  private _lastPopulationIncreaseRate = 0;
+  private _popRateIsIncreasing = false;
 
   createRenderRoot() {
     return this;
@@ -19,6 +22,15 @@ export class TopBar extends LitElement implements Layer {
   }
 
   tick() {
+    if (this.game?.myPlayer() !== null) {
+      const popIncreaseRate =
+        this.game.myPlayer().population() - this._population;
+      if (this.game.ticks() % 5 == 0) {
+        this._popRateIsIncreasing =
+          popIncreaseRate >= this._lastPopulationIncreaseRate;
+        this._lastPopulationIncreaseRate = popIncreaseRate;
+      }
+    }
     this.requestUpdate();
   }
 
@@ -38,7 +50,7 @@ export class TopBar extends LitElement implements Layer {
 
     return html`
       <div
-        class="fixed top-0 z-50 bg-gray-800/70 text-white text-sm p-1 rounded grid grid-cols-1 sm:grid-cols-2 w-1/2 sm:w-2/3 md:w-1/2 lg:hidden backdrop-blur"
+        class="fixed top-0 z-50 bg-gray-800/70 text-white text-sm p-1 rounded-ee-sm lg:rounded grid grid-cols-1 sm:grid-cols-2 w-1/2 sm:w-2/3 md:w-1/2 lg:hidden backdrop-blur"
       >
         <!-- Pop section (takes 2 columns on desktop) -->
         <div
@@ -49,7 +61,12 @@ export class TopBar extends LitElement implements Layer {
             >${renderTroops(myPlayer.population())} /
             ${renderTroops(maxPop)}</span
           >
-          <span>(+${renderTroops(popRate)})</span>
+          <span
+            class="${this._popRateIsIncreasing
+              ? "text-green-500"
+              : "text-yellow-500"}"
+            >(+${renderTroops(popRate)})</span
+          >
         </div>
         <!-- Gold section (takes 1 column on desktop) -->
         <div

@@ -166,7 +166,9 @@ export class WinModal extends LitElement implements Layer {
         <p>
           Like the game? Help make this my full-time project!
           <a
-            href="https://discord.com/channels/1284581928254701718/shop/1330243291366559744"
+            href="https://discord.gg/k22YrnAzGp"
+            target="_blank"
+            rel="noopener noreferrer"
             style="color: #0096ff; text-decoration: underline; display: block; margin-top: 5px;"
           >
             Support the game!
