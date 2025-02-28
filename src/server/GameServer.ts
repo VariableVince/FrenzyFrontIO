@@ -32,6 +32,8 @@ export class GameServer {
     duration: 1, // per 1 second
   });
 
+  private outOfSyncClients = new Set<ClientID>();
+
   private maxGameDuration = 3 * 60 * 60 * 1000; // 3 hours
 
   private turns: Turn[] = [];
@@ -423,6 +425,17 @@ export class GameServer {
         // If half clients out of sync assume all are out of sync.
         outOfSyncClients = this.activeClients;
       }
+
+      for (const oos of outOfSyncClients) {
+        if (!this.outOfSyncClients.has(oos.clientID)) {
+          console.warn(
+            `Game ${this.id}: has out of sync client ${oos.clientID} on turn ${lastHashTurn}`,
+          );
+          this.outOfSyncClients.add(oos.clientID);
+        }
+      }
+      return;
+      // TODO: renable this once desync issue fixed
 
       const serverDesync = ServerDesyncSchema.safeParse({
         type: "desync",
