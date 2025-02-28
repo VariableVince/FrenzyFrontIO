@@ -5,20 +5,18 @@ import { GamePhase, GameServer } from "./GameServer";
 import { Difficulty, GameMapType, GameType } from "../core/game/Game";
 
 export class GameManager {
-  private games: GameServer[] = [];
+  private games: Map<GameID, GameServer> = new Map();
 
-  constructor(private config: ServerConfig) {}
-
-  public game(id: GameID): GameServer | null {
-    return this.games.find((g) => g.id == id);
+  constructor(private config: ServerConfig) {
+    setInterval(() => this.tick(), 1000);
   }
 
-  gamesByPhase(phase: GamePhase): GameServer[] {
-    return this.games.filter((g) => g.phase() == phase);
+  public game(id: GameID): GameServer | null {
+    return this.games.get(id);
   }
 
   addClient(client: Client, gameID: GameID, lastTurn: number): boolean {
-    const game = this.games.find((g) => g.id == gameID);
+    const game = this.games.get(gameID);
     if (game) {
       game.addClient(client, lastTurn);
       return true;
@@ -36,38 +34,36 @@ export class GameManager {
       infiniteTroops: false,
       instantBuild: false,
       bots: 400,
-      ...gameConfig, // TODO: make sure this works
+      ...gameConfig,
     });
-    this.games.push(game);
+    this.games.set(id, game);
     return game;
   }
 
-  hasActiveGame(gameID: GameID): boolean {
-    const game = this.games
-      .filter((g) => g.id == gameID)
-      .filter(
-        (g) => g.phase() == GamePhase.Lobby || g.phase() == GamePhase.Active,
-      );
-    return game.length > 0;
-  }
-
   tick() {
-    const lobbies = this.gamesByPhase(GamePhase.Lobby);
-    const active = this.gamesByPhase(GamePhase.Active);
-    const finished = this.gamesByPhase(GamePhase.Finished);
-
-    active
-      .filter((g) => !g.hasStarted() && g.isPublic)
-      .forEach((g) => {
-        g.start();
-      });
-    finished.forEach((g) => {
-      try {
-        g.endGame();
-      } catch (error) {
-        console.log(`error ending game ${g.id}: `, error);
+    const active = new Map<GameID, GameServer>();
+    for (const [id, game] of this.games) {
+      const phase = game.phase();
+      if (phase == GamePhase.Active) {
+        if (game.isPublic && !game.hasStarted()) {
+          try {
+            game.start();
+          } catch (error) {
+            console.log(`error starting game ${id}: ${error}`);
+          }
+        }
       }
-    });
-    this.games = [...lobbies, ...active];
+
+      if (phase == GamePhase.Finished) {
+        try {
+          game.end();
+        } catch (error) {
+          console.log(`error ending game ${id}: ${error}`);
+        }
+      } else {
+        active.set(id, game);
+      }
+    }
+    this.games = active;
   }
 }

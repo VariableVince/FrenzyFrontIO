@@ -192,7 +192,7 @@ export function startWorker() {
     asyncHandler(async (req, res) => {
       const lobbyId = req.params.id;
       console.log(`checking if game ${lobbyId} exists`);
-      let gameExists = gm.hasActiveGame(lobbyId);
+      let gameExists = gm.game(lobbyId);
       res.json({
         exists: gameExists,
       });

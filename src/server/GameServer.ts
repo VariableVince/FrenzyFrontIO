@@ -274,7 +274,7 @@ export class GameServer {
     });
   }
 
-  async endGame() {
+  async end() {
     // Close all WebSocket connections
     clearInterval(this.endTurnIntervalID);
     this.allClients.forEach((client) => {
