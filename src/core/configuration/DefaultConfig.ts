@@ -31,10 +31,10 @@ export abstract class DefaultServerConfig implements ServerConfig {
     return 100;
   }
   gameCreationRate(): number {
-    return 1 * 60 * 1000;
+    return 30 * 1000;
   }
   lobbyLifetime(): number {
-    return 2 * 60 * 1000;
+    return 1 * 60 * 1000;
   }
   workerIndex(gameID: GameID): number {
     return simpleHash(gameID) % this.numWorkers();
