@@ -81,7 +81,7 @@ export class PublicLobby extends LitElement {
           ? "bg-gradient-to-r from-green-600 to-green-500"
           : "bg-gradient-to-r from-blue-600 to-blue-500"} text-white font-medium rounded-xl transition-opacity duration-200 hover:opacity-90"
       >
-        <div class="text-lg md:text-2xl font-semibold mb-2">Next Game</div>
+        <div class="text-lg md:text-2xl font-semibold mb-2">Join next Game</div>
         <div class="flex">
           <img
             src="${getMapsImage(lobby.gameConfig.gameMap)}"
