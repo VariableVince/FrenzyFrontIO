@@ -4,7 +4,6 @@ FROM node:18
 # Add environment variable
 ARG GAME_ENV=preprod
 ENV GAME_ENV=$GAME_ENV
-ENV NODE_ENV=production
 
 # Install Nginx, Supervisor and Git (for Husky)
 RUN apt-get update && apt-get install -y nginx supervisor git && \
@@ -19,13 +18,15 @@ COPY package*.json ./
 # Install dependencies while bypassing Husky hooks
 ENV HUSKY=0 
 ENV NPM_CONFIG_IGNORE_SCRIPTS=1
-RUN mkdir -p .git && npm install
+RUN mkdir -p .git && npm install --include=dev
 
 # Copy the rest of the application code
 COPY . .
 
 # Build the client-side application
 RUN npm run build-prod
+
+ENV NODE_ENV=production
 
 # Copy Nginx configuration and ensure it's used instead of the default
 COPY nginx.conf /etc/nginx/conf.d/default.conf
