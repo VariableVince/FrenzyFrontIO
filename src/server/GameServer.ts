@@ -165,9 +165,6 @@ export class GameServer {
           client.lastPing = Date.now();
         }
         if (clientMsg.type == "hash") {
-          console.log(
-            `client ${clientMsg.clientID} got hash ${clientMsg.hash} on tick ${clientMsg.tick}`,
-          );
           client.hashes.set(clientMsg.tick, clientMsg.hash);
         }
         if (clientMsg.type == "winner") {
