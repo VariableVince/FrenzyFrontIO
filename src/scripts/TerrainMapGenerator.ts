@@ -7,7 +7,18 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const mapName = "Africa";
+const maps = [
+  "Africa",
+  "Asia",
+  "WorldMap",
+  "BlackSea",
+  "Europe",
+  "Mars",
+  "Mena",
+  "Oceania",
+  "NorthAmerica",
+];
+const min_island_size = 30;
 
 interface Coord {
   x: number;
@@ -26,7 +37,7 @@ class Terrain {
   constructor(public type: TerrainType) {}
 }
 
-export async function loadTerrainMap(): Promise<void> {
+async function loadTerrainMap(mapName: string): Promise<void> {
   const imagePath = path.resolve(
     __dirname,
     "..",
@@ -39,8 +50,8 @@ export async function loadTerrainMap(): Promise<void> {
   const readStream = createReadStream(imagePath);
   const img = await decodePNGFromStream(readStream);
 
-  console.log("Image loaded successfully");
-  console.log("Image dimensions:", img.width, "x", img.height);
+  console.log(`${mapName}: Image loaded successfully`);
+  console.log(`${mapName}: `, "Image dimensions:", img.width, "x", img.height);
 
   const terrain: Terrain[][] = Array(img.width)
     .fill(null)
@@ -67,7 +78,8 @@ export async function loadTerrainMap(): Promise<void> {
     }
   }
 
-  removeSmallLakes(terrain);
+  removeSmallIslands(terrain);
+  removeSmallLakes(mapName, terrain);
   const shorelineWaters = processShore(terrain);
   processDistToLand(shorelineWaters, terrain);
   processOcean(terrain);
@@ -79,7 +91,7 @@ export async function loadTerrainMap(): Promise<void> {
     "maps",
     mapName + ".bin",
   );
-  fs.writeFile(outputPath, packTerrain(terrain));
+  fs.writeFile(outputPath, packTerrain(mapName, terrain));
 
   const miniTerrain = await createMiniMap(terrain);
   const miniOutputPath = path.join(
@@ -90,7 +102,11 @@ export async function loadTerrainMap(): Promise<void> {
     "maps",
     mapName + "Mini.bin",
   );
-  fs.writeFile(miniOutputPath, packTerrain(miniTerrain));
+  fs.writeFile(miniOutputPath, packTerrain(mapName, miniTerrain));
+}
+
+export async function loadTerrainMaps() {
+  await Promise.all(maps.map((map) => loadTerrainMap(map)));
 }
 
 export async function createMiniMap(tm: Terrain[][]): Promise<Terrain[][]> {
@@ -192,7 +208,7 @@ function neighbors(x: number, y: number, map: Terrain[][]): Terrain[] {
   return ns;
 }
 
-function packTerrain(map: Terrain[][]): Uint8Array {
+function packTerrain(mapName: string, map: Terrain[][]): Uint8Array {
   const width = map.length;
   const height = map[0].length;
   const packedData = new Uint8Array(4 + width * height);
@@ -229,7 +245,7 @@ function packTerrain(map: Terrain[][]): Uint8Array {
       packedData[4 + y * width + x] = packedByte;
     }
   }
-  logBinaryAsBits(packedData);
+  logBinaryAsBits(mapName, packedData);
   return packedData;
 }
 
@@ -278,8 +294,70 @@ function processOcean(map: Terrain[][]) {
   }
 }
 
-function removeSmallLakes(map: Terrain[][]) {
-  console.log(`removing lakes ${map.length}, ${map[0].length}`);
+function getIsland(
+  map: Terrain[][],
+  x: number,
+  y: number,
+  visited: Set<string>,
+) {
+  let island = [];
+  let next = [[x, y]];
+  while (next.length) {
+    const [x, y] = next.pop();
+    const key = `${x},${y}`;
+    if (
+      x < 0 ||
+      x >= map.length ||
+      y < 0 ||
+      y >= map[0].length ||
+      x < 0 ||
+      x >= map.length ||
+      visited.has(key)
+    )
+      continue;
+
+    if (map[x][y].type == TerrainType.Land) {
+      next.push([x + 1, y]);
+      next.push([x - 1, y]);
+      next.push([x, y + 1]);
+      next.push([x, y - 1]);
+    }
+
+    island.push([x, y]);
+    visited.add(key);
+  }
+
+  return island;
+}
+
+function removeSmallIslands(map: Terrain[][]) {
+  const visited = new Set<string>();
+
+  for (let x = 0; x < map.length; x++) {
+    for (let y = 0; y < map[0].length; y++) {
+      if (map[x][y].type == TerrainType.Land) {
+        const key = `${x},${y}`;
+
+        // PERF: If getIsland already visited that coordinates then it's
+        // useless to go over it again.
+        if (visited.has(key)) continue;
+
+        const island = getIsland(map, x, y, visited);
+        if (island.length < min_island_size) {
+          island.forEach((pos) => {
+            const x = pos[0];
+            const y = pos[1];
+            map[x][y].type = TerrainType.Water;
+            map[x][y].ocean = true;
+          });
+        }
+      }
+    }
+  }
+}
+
+function removeSmallLakes(mapName: string, map: Terrain[][]) {
+  console.log(`${mapName}: removing lakes ${map.length}, ${map[0].length}`);
 
   for (let x = 0; x < map.length; x++) {
     for (let y = 0; y < map[0].length; y++) {
@@ -300,11 +378,15 @@ function removeSmallLakes(map: Terrain[][]) {
   }
 }
 
-function logBinaryAsBits(data: Uint8Array, length: number = 8) {
+function logBinaryAsBits(
+  mapName: string,
+  data: Uint8Array,
+  length: number = 8,
+) {
   const bits = Array.from(data.slice(0, length))
     .map((b) => b.toString(2).padStart(8, "0"))
     .join(" ");
-  console.log("Binary data (bits):", bits);
+  console.log(`${mapName}: Binary data (bits):`, bits);
 }
 
-await loadTerrainMap();
+await loadTerrainMaps();
