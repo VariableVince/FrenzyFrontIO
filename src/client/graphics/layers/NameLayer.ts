@@ -387,8 +387,9 @@ export class NameLayer implements Layer {
 
     const existingEmbargo = iconsDiv.querySelector('[data-icon="embargo"]');
     const hasEmbargo =
-      render.player.hasEmbargoAgainst(myPlayer) ||
-      myPlayer.hasEmbargoAgainst(render.player);
+      myPlayer &&
+      (render.player.hasEmbargoAgainst(myPlayer) ||
+        myPlayer.hasEmbargoAgainst(render.player));
     if (myPlayer && hasEmbargo) {
       if (!existingEmbargo) {
         iconsDiv.appendChild(
