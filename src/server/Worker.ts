@@ -67,16 +67,6 @@ export function startWorker() {
     }),
   );
 
-  const rateLimiter = new RateLimiterMemory({
-    points: 50, // 50 messages
-    duration: 1, // per 1 second
-  });
-
-  const updateRateLimiter = new RateLimiterMemory({
-    points: 10,
-    duration: 240, // 4 minutes
-  });
-
   // Endpoint to create a private lobby
   app.post(
     "/create_game/:id",
@@ -216,12 +206,6 @@ export function startWorker() {
         const ip = Array.isArray(forwarded)
           ? forwarded[0]
           : forwarded || req.socket.remoteAddress;
-        try {
-          await rateLimiter.consume(ip);
-        } catch (error) {
-          console.warn(`rate limit exceeded for ${ip}`);
-          return;
-        }
 
         try {
           // Process WebSocket messages as in your original code
