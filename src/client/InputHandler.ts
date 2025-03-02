@@ -1,5 +1,4 @@
 import { EventBus, GameEvent } from "../core/EventBus";
-import { Game } from "../core/game/Game";
 
 export class MouseUpEvent implements GameEvent {
   constructor(
@@ -93,6 +92,9 @@ export class InputHandler {
     this.canvas.addEventListener("pointerdown", (e) => this.onPointerDown(e));
     window.addEventListener("pointerup", (e) => this.onPointerUp(e));
     this.canvas.addEventListener("wheel", (e) => this.onScroll(e), {
+      passive: false,
+    });
+    this.canvas.addEventListener("wheel", (e) => this.onShiftScroll(e), {
       passive: false,
     });
     window.addEventListener("pointermove", this.onPointerMove.bind(this));
@@ -272,7 +274,16 @@ export class InputHandler {
   }
 
   private onScroll(event: WheelEvent) {
-    this.eventBus.emit(new ZoomEvent(event.x, event.y, event.deltaY));
+    if (!event.shiftKey) {
+      this.eventBus.emit(new ZoomEvent(event.x, event.y, event.deltaY));
+    }
+  }
+
+  private onShiftScroll(event: WheelEvent) {
+    if (event.shiftKey) {
+      const ratio = event.deltaY > 0 ? -10 : 10;
+      this.eventBus.emit(new AttackRatioEvent(ratio));
+    }
   }
 
   private onPointerMove(event: PointerEvent) {
