@@ -22,7 +22,8 @@ export type Intent =
   | EmojiIntent
   | DonateIntent
   | TargetTroopRatioIntent
-  | BuildUnitIntent;
+  | BuildUnitIntent
+  | EmbargoIntent;
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type SpawnIntent = z.infer<typeof SpawnIntentSchema>;
@@ -35,6 +36,7 @@ export type BreakAllianceIntent = z.infer<typeof BreakAllianceIntentSchema>;
 export type TargetPlayerIntent = z.infer<typeof TargetPlayerIntentSchema>;
 export type EmojiIntent = z.infer<typeof EmojiIntentSchema>;
 export type DonateIntent = z.infer<typeof DonateIntentSchema>;
+export type EmbargoIntent = z.infer<typeof EmbargoIntentSchema>;
 export type TargetTroopRatioIntent = z.infer<
   typeof TargetTroopRatioIntentSchema
 >;
@@ -139,6 +141,7 @@ const BaseIntentSchema = z.object({
     "emoji",
     "troop_ratio",
     "build_unit",
+    "embargo",
   ]),
   clientID: ID,
   playerID: ID,
@@ -202,6 +205,13 @@ export const EmojiIntentSchema = BaseIntentSchema.extend({
   emoji: EmojiSchema,
 });
 
+export const EmbargoIntentSchema = BaseIntentSchema.extend({
+  type: z.literal("embargo"),
+  playerID: ID,
+  targetID: ID,
+  action: z.union([z.literal("start"), z.literal("stop")]),
+});
+
 export const DonateIntentSchema = BaseIntentSchema.extend({
   type: z.literal("donate"),
   playerID: ID,
@@ -235,6 +245,7 @@ const IntentSchema = z.union([
   DonateIntentSchema,
   TargetTroopRatioIntentSchema,
   BuildUnitIntentSchema,
+  EmbargoIntentSchema,
 ]);
 
 export const TurnSchema = z.object({

@@ -27,7 +27,7 @@ export class TradeShipExecution implements Execution {
   constructor(
     private _owner: PlayerID,
     private srcPort: Unit,
-    private dstPort: Unit,
+    private _dstPort: Unit,
     private pathFinder: PathFinder,
     // don't modify
     private path: TileRef[],
@@ -49,7 +49,12 @@ export class TradeShipExecution implements Execution {
         this.active = false;
         return;
       }
-      this.tradeShip = this.origOwner.buildUnit(UnitType.TradeShip, 0, spawn);
+      this.tradeShip = this.origOwner.buildUnit(
+        UnitType.TradeShip,
+        0,
+        spawn,
+        this._dstPort,
+      );
     }
 
     if (!this.tradeShip.isActive()) {
@@ -64,8 +69,8 @@ export class TradeShipExecution implements Execution {
 
     if (
       !this.wasCaptured &&
-      (!this.dstPort.isActive() ||
-        !this.tradeShip.owner().isAlliedWith(this.dstPort.owner()))
+      (!this._dstPort.isActive() ||
+        !this.tradeShip.owner().canTrade(this._dstPort.owner()))
     ) {
       this.tradeShip.delete(false);
       this.active = false;
@@ -122,17 +127,17 @@ export class TradeShipExecution implements Execution {
       const gold = this.mg
         .config()
         .tradeShipGold(
-          this.mg.manhattanDist(this.srcPort.tile(), this.dstPort.tile()),
+          this.mg.manhattanDist(this.srcPort.tile(), this._dstPort.tile()),
         );
       this.srcPort.owner().addGold(gold);
-      this.dstPort.owner().addGold(gold);
+      this._dstPort.owner().addGold(gold);
       this.mg.displayMessage(
         `Received ${renderNumber(gold)} gold from trade with ${this.srcPort.owner().displayName()}`,
         MessageType.SUCCESS,
-        this.dstPort.owner().id(),
+        this._dstPort.owner().id(),
       );
       this.mg.displayMessage(
-        `Received ${renderNumber(gold)} gold from trade with ${this.dstPort.owner().displayName()}`,
+        `Received ${renderNumber(gold)} gold from trade with ${this._dstPort.owner().displayName()}`,
         MessageType.SUCCESS,
         this.srcPort.owner().id(),
       );
@@ -153,5 +158,9 @@ export class TradeShipExecution implements Execution {
 
   activeDuringSpawnPhase(): boolean {
     return false;
+  }
+
+  dstPort(): TileRef {
+    return this._dstPort.tile();
   }
 }

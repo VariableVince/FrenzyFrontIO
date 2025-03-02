@@ -34,6 +34,7 @@ import { SetTargetTroopRatioExecution } from "./SetTargetTroopRatioExecution";
 import { ConstructionExecution } from "./ConstructionExecution";
 import { fixProfaneUsername, isProfaneUsername } from "../validations/username";
 import { NoOpExecution } from "./NoOpExecution";
+import { EmbargoExecution } from "./EmbargoExecution";
 
 export class Executor {
   // private random = new PseudoRandom(999)
@@ -53,6 +54,7 @@ export class Executor {
   }
 
   createExec(intent: Intent): Execution {
+    let player: Player;
     if (intent.type != "spawn") {
       if (!this.mg.hasPlayer(intent.playerID)) {
         console.warn(
@@ -60,7 +62,7 @@ export class Executor {
         );
         return new NoOpExecution();
       }
-      const player = this.mg.player(intent.playerID);
+      player = this.mg.player(intent.playerID);
       if (player.clientID() != intent.clientID) {
         console.warn(
           `intent ${intent.type} has incorrect clientID ${intent.clientID} for player ${player.name()} with clientID ${player.clientID()}`,
@@ -68,6 +70,7 @@ export class Executor {
         return new NoOpExecution();
       }
     }
+
     switch (intent.type) {
       case "attack": {
         return new AttackExecution(
@@ -124,6 +127,8 @@ export class Executor {
         );
       case "troop_ratio":
         return new SetTargetTroopRatioExecution(intent.playerID, intent.ratio);
+      case "embargo":
+        return new EmbargoExecution(player, intent.targetID, intent.action);
       case "build_unit":
         return new ConstructionExecution(
           intent.playerID,

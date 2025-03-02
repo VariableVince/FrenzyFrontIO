@@ -21,6 +21,7 @@ export class UnitImpl implements Unit {
     private _troops: number,
     private _id: number,
     public _owner: PlayerImpl,
+    private _dstPort?: Unit,
   ) {
     // default to 60% health (or 1.2 is no health specified)
     this._health = toInt((this.mg.unitInfo(_type).maxHealth ?? 2) * 0.6);
@@ -144,5 +145,9 @@ export class UnitImpl implements Unit {
 
   toString(): string {
     return `Unit:${this._type},owner:${this.owner().name()}`;
+  }
+
+  dstPort(): Unit {
+    return this._dstPort;
   }
 }
