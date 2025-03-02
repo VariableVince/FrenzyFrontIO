@@ -1,0 +1,3 @@
+[submodule "gatekeeper"]
+	path = gatekeeper
+	url = git@github.com:openfrontio/gatekeeper.git
