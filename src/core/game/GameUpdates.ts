@@ -1,5 +1,6 @@
 import { ClientID } from "../Schemas";
 import {
+  AllianceRequest,
   EmojiMessage,
   GameUpdates,
   MapPos,
@@ -99,6 +100,7 @@ export interface PlayerUpdate {
   outgoingEmojis: EmojiMessage[];
   outgoingAttacks: AttackUpdate[];
   incomingAttacks: AttackUpdate[];
+  outgoingAllianceRequests: PlayerID[];
 }
 
 export interface AllianceRequestUpdate {

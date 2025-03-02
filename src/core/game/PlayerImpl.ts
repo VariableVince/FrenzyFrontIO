@@ -102,6 +102,10 @@ export class PlayerImpl implements Player {
   largestClusterBoundingBox: { min: Cell; max: Cell } | null;
 
   toUpdate(): PlayerUpdate {
+    const outgoingAllianceRequests = this.outgoingAllianceRequests().map((ar) =>
+      ar.recipient().id(),
+    );
+
     return {
       type: GameUpdateType.Player,
       clientID: this.clientID(),
@@ -138,6 +142,7 @@ export class PlayerImpl implements Player {
             troops: a.troops(),
           }) as AttackUpdate,
       ),
+      outgoingAllianceRequests: outgoingAllianceRequests,
     };
   }
 
