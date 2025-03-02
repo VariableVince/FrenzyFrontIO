@@ -37,20 +37,18 @@ async function getGatekeeper(): Promise<Gatekeeper> {
       // Check if the file exists before attempting to import it
       const realMiddlewarePath = path.resolve(
         __dirname,
-        "./gatekeeper/RealSecurityMiddleware.js",
+        "./gatekeeper/RealGatekeeper.js",
       );
       const tsMiddlewarePath = path.resolve(
         __dirname,
-        "./gatekeeper/RealSecurityMiddleware.ts",
+        "./gatekeeper/RealGatekeeper.ts",
       );
 
       if (
         !fs.existsSync(realMiddlewarePath) &&
         !fs.existsSync(tsMiddlewarePath)
       ) {
-        console.log(
-          "RealSecurityMiddleware file not found, using NoOpGatekeeper",
-        );
+        console.log("RealGatekeeper file not found, using NoOpGatekeeper");
         return new NoOpGatekeeper();
       }
 
@@ -60,9 +58,9 @@ async function getGatekeeper(): Promise<Gatekeeper> {
         "./gatekeeper/RealGatekeeper.js" as any
       ).catch(() => import("./gatekeeper/RealGatekeeper.js" as any));
 
-      if (!module || !module.RealSecurityMiddleware) {
+      if (!module || !module.RealGatekeeper) {
         console.log(
-          "RealSecurityMiddleware class not found in module, using NoOpGatekeeper",
+          "RealGatekeeper class not found in module, using NoOpGatekeeper",
         );
         return new NoOpGatekeeper();
       }
