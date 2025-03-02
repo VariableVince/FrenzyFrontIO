@@ -1,8 +1,9 @@
-// src/server/middleware/securityInterface.ts
+// src/server/Security.ts
 import { Request, Response, NextFunction } from "express";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 export enum LimiterType {
   Get = "get",
@@ -11,11 +12,11 @@ export enum LimiterType {
   WebSocket = "websocket",
 }
 
-export interface SecurityMiddleware {
+export interface Gatekeeper {
   // The wrapper for request handlers with optional rate limiting
   httpHandler: (
-    fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
     limiterType: LimiterType,
+    fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
   ) => (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
   // The wrapper for WebSocket message handlers with rate limiting
@@ -26,41 +27,63 @@ export interface SecurityMiddleware {
 }
 
 // Function to get the appropriate security middleware implementation
-async function getSecurityMiddleware(): Promise<SecurityMiddleware> {
+async function getGatekeeper(): Promise<Gatekeeper> {
   try {
     // Get the current file's directory
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
 
     try {
-      // Use dynamic import for ES modules - without file extension
-      // ts-node will resolve this correctly
-      const module = await import(
-        "./security-middleware/RealSecurityMiddleware"
+      // Check if the file exists before attempting to import it
+      const realMiddlewarePath = path.resolve(
+        __dirname,
+        "./gatekeeper/RealSecurityMiddleware.js",
+      );
+      const tsMiddlewarePath = path.resolve(
+        __dirname,
+        "./gatekeeper/RealSecurityMiddleware.ts",
       );
 
-      if (!module.RealSecurityMiddleware) {
-        throw new Error("RealSecurityMiddleware class not found in module");
+      if (
+        !fs.existsSync(realMiddlewarePath) &&
+        !fs.existsSync(tsMiddlewarePath)
+      ) {
+        console.log(
+          "RealSecurityMiddleware file not found, using NoOpSecurityMiddleware",
+        );
+        return new NoOpGatekeeper();
+      }
+
+      // Use dynamic import for ES modules
+      const module = await import("./gatekeeper/RealGatekeeper.js").catch(
+        () => import("./gatekeeper/RealGatekeeper.js"),
+      );
+
+      if (!module || !module.RealSecurityMiddleware) {
+        console.log(
+          "RealSecurityMiddleware class not found in module, using NoOpSecurityMiddleware",
+        );
+        return new NoOpGatekeeper();
       }
 
       console.log("Successfully loaded real security middleware");
       return new module.RealSecurityMiddleware();
     } catch (error) {
       console.log("Failed to load real security middleware:", error);
-      return new NoOpSecurityMiddleware();
+      return new NoOpGatekeeper();
     }
   } catch (e) {
     // Fall back to no-op if real implementation isn't available
     console.log("using no-op security middleware", e);
-    return new NoOpSecurityMiddleware();
+    return new NoOpGatekeeper();
   }
 }
 
-export class NoOpSecurityMiddleware implements SecurityMiddleware {
+export class NoOpGatekeeper implements Gatekeeper {
   // Simple pass-through with no rate limiting
   httpHandler(
-    fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
     limiterType: LimiterType,
+    fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
   ) {
     return async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -89,14 +112,13 @@ export class NoOpSecurityMiddleware implements SecurityMiddleware {
 // Initialize the security middleware with a default implementation
 // We'll use the NoOpSecurityMiddleware initially and then replace it
 // with the real implementation once it's loaded
-export const securityMiddleware: SecurityMiddleware =
-  new NoOpSecurityMiddleware();
+export const gatekeeper: Gatekeeper = new NoOpGatekeeper();
 
 // Immediately try to load the real middleware
-getSecurityMiddleware()
+getGatekeeper()
   .then((middleware) => {
     // Replace the methods of securityMiddleware with those from the loaded middleware
-    Object.assign(securityMiddleware, middleware);
+    Object.assign(gatekeeper, middleware);
   })
   .catch((error) => {
     console.error("Failed to initialize security middleware:", error);

@@ -13,7 +13,7 @@ import { GameConfig, GameRecord, LogSeverity } from "../core/Schemas";
 import { slog } from "./StructuredLog";
 import { GameType } from "../core/game/Game";
 import { archive } from "./Archive";
-import { LimiterType, securityMiddleware } from "./Security";
+import { LimiterType, gatekeeper } from "./Gatekeeper";
 
 const config = getServerConfig();
 
@@ -80,7 +80,7 @@ export function startWorker() {
   // Endpoint to create a private lobby
   app.post(
     "/create_game/:id",
-    securityMiddleware.httpHandler(async (req, res) => {
+    gatekeeper.httpHandler(LimiterType.Post, async (req, res) => {
       const id = req.params.id;
       if (!id) {
         console.warn(`cannot create game, id not found`);
@@ -111,13 +111,13 @@ export function startWorker() {
         `Worker ${workerId}: IP ${clientIP} creating game ${game.isPublic() ? "Public" : "Private"} with id ${id}`,
       );
       res.json(game.gameInfo());
-    }, LimiterType.Post),
+    }),
   );
 
   // Add other endpoints from your original server
   app.post(
     "/start_game/:id",
-    securityMiddleware.httpHandler(async (req, res) => {
+    gatekeeper.httpHandler(LimiterType.Post, async (req, res) => {
       console.log(`starting private lobby with id ${req.params.id}`);
       const game = gm.game(req.params.id);
       if (!game) {
@@ -132,12 +132,12 @@ export function startWorker() {
       }
       game.start();
       res.status(200).json({ success: true });
-    }, LimiterType.Post),
+    }),
   );
 
   app.put(
     "/game/:id",
-    securityMiddleware.httpHandler(async (req, res) => {
+    gatekeeper.httpHandler(LimiterType.Put, async (req, res) => {
       // TODO: only update public game if from local host
       const lobbyID = req.params.id;
       if (req.body.gameType == GameType.Public) {
@@ -163,34 +163,34 @@ export function startWorker() {
         disableNPCs: req.body.disableNPCs,
       });
       res.status(200).json({ success: true });
-    }, LimiterType.Put),
+    }),
   );
 
   app.get(
     "/game/:id/exists",
-    securityMiddleware.httpHandler(async (req, res) => {
+    gatekeeper.httpHandler(LimiterType.Get, async (req, res) => {
       const lobbyId = req.params.id;
       res.json({
         exists: gm.game(lobbyId) != null,
       });
-    }, LimiterType.Get),
+    }),
   );
 
   app.get(
     "/game/:id",
-    securityMiddleware.httpHandler(async (req, res) => {
+    gatekeeper.httpHandler(LimiterType.Get, async (req, res) => {
       const game = gm.game(req.params.id);
       if (game == null) {
         console.log(`lobby ${req.params.id} not found`);
         return res.status(404).json({ error: "Game not found" });
       }
       res.json(game.gameInfo());
-    }, LimiterType.Get),
+    }),
   );
 
   app.post(
     "/archive_singleplayer_game",
-    securityMiddleware.httpHandler(async (req, res) => {
+    gatekeeper.httpHandler(LimiterType.Post, async (req, res) => {
       const gameRecord: GameRecord = req.body;
       const clientIP = req.ip || req.socket.remoteAddress || "unknown";
 
@@ -204,14 +204,14 @@ export function startWorker() {
       res.json({
         success: true,
       });
-    }, LimiterType.Post),
+    }),
   );
 
   // WebSocket handling
   wss.on("connection", (ws: WebSocket, req) => {
     ws.on(
       "message",
-      securityMiddleware.wsHandler(req, async (message: string) => {
+      gatekeeper.wsHandler(req, async (message: string) => {
         const forwarded = req.headers["x-forwarded-for"];
         const ip = Array.isArray(forwarded)
           ? forwarded[0]

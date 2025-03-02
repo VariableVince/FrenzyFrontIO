@@ -10,6 +10,7 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 import { fileURLToPath } from "url";
 import { isHighTrafficTime } from "./Util";
+import { gatekeeper, LimiterType } from "./Gatekeeper";
 
 const config = getServerConfig();
 const readyWorkers = new Set();
@@ -122,9 +123,12 @@ export async function startMaster() {
 }
 
 // Add lobbies endpoint to list public games for this worker
-app.get("/public_lobbies", (req, res) => {
-  res.send(publicLobbiesJsonStr);
-});
+app.get(
+  "/public_lobbies",
+  gatekeeper.httpHandler(LimiterType.Get, async (req, res) => {
+    res.send(publicLobbiesJsonStr);
+  }),
+);
 
 async function fetchLobbies(): Promise<void> {
   const fetchPromises = [];

@@ -19,7 +19,7 @@ import { GameType } from "../core/game/Game";
 import { archive } from "./Archive";
 import { Client } from "./Client";
 import { slog } from "./StructuredLog";
-import { securityMiddleware } from "./Security";
+import { gatekeeper } from "./Gatekeeper";
 
 export enum GamePhase {
   Lobby = "LOBBY",
@@ -123,7 +123,7 @@ export class GameServer {
 
     client.ws.on(
       "message",
-      securityMiddleware.wsHandler(client.ip, async (message: string) => {
+      gatekeeper.wsHandler(client.ip, async (message: string) => {
         try {
           let clientMsg: ClientMessage = null;
           try {
