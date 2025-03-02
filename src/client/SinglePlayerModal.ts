@@ -6,6 +6,7 @@ import { consolex } from "../core/Consolex";
 import "./components/Difficulties";
 import { DifficultyDescription } from "./components/Difficulties";
 import "./components/Maps";
+import randomMap from "../../resources/images/RandomMap.png";
 
 @customElement("single-player-modal")
 export class SinglePlayerModal extends LitElement {
@@ -17,6 +18,7 @@ export class SinglePlayerModal extends LitElement {
   @state() private infiniteGold: boolean = false;
   @state() private infiniteTroops: boolean = false;
   @state() private instantBuild: boolean = false;
+  @state() private useRandomMap: boolean = false;
 
   static styles = css`
     .modal-overlay {
@@ -230,6 +232,15 @@ export class SinglePlayerModal extends LitElement {
       width: 80%;
     }
 
+    .random-map {
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      background: rgba(30, 30, 30, 0.95);
+    }
+    .random-map.selected {
+      border: 2px solid '@4a9eff'
+      background: 'rgba(74, 158, 255, 0.1)'
+    }
+
     @media screen and (max-width: 768px) {
       .modal-content {
         max-height: calc(90vh - 42px);
@@ -259,14 +270,34 @@ export class SinglePlayerModal extends LitElement {
                   .filter(([key]) => isNaN(Number(key)))
                   .map(
                     ([key, value]) => html`
-                      <div @click=${() => this.handleMapSelection(value)}>
+                      <div
+                        @click=${function () {
+                          this.handleMapSelection(value);
+                        }}
+                      >
                         <map-display
                           .mapKey=${key}
-                          .selected=${this.selectedMap === value}
+                          .selected=${!this.useRandomMap &&
+                          this.selectedMap === value}
                         ></map-display>
                       </div>
                     `,
                   )}
+                <div
+                  class="option-card random-map ${this.useRandomMap
+                    ? "selected"
+                    : ""}"
+                  @click=${this.handleRandomMapToggle}
+                >
+                  <div class="option-image">
+                    <img
+                      src=${randomMap}
+                      alt="Random Map"
+                      style="width:100%; aspect-ratio: 4/2; object-fit:cover; border-radius:8px;"
+                    />
+                  </div>
+                  <div class="option-card-title">Random</div>
+                </div>
               </div>
             </div>
 
@@ -329,7 +360,6 @@ export class SinglePlayerModal extends LitElement {
                   />
                   <div class="option-card-title">Disable Nations</div>
                 </label>
-
                 <label
                   for="instant-build"
                   class="option-card ${this.instantBuild ? "selected" : ""}"
@@ -385,14 +415,21 @@ export class SinglePlayerModal extends LitElement {
 
   public open() {
     this.isModalOpen = true;
+    this.useRandomMap = false;
   }
 
   public close() {
     this.isModalOpen = false;
   }
+
+  private handleRandomMapToggle() {
+    this.useRandomMap = true;
+  }
   private handleMapSelection(value: GameMapType) {
     this.selectedMap = value;
+    this.useRandomMap = false;
   }
+
   private handleDifficultySelection(value: Difficulty) {
     this.selectedDifficulty = value;
   }
@@ -409,16 +446,29 @@ export class SinglePlayerModal extends LitElement {
   private handleInfiniteGoldChange(e: Event) {
     this.infiniteGold = Boolean((e.target as HTMLInputElement).checked);
   }
+
   private handleInfiniteTroopsChange(e: Event) {
     this.infiniteTroops = Boolean((e.target as HTMLInputElement).checked);
   }
+
   private handleDisableNPCsChange(e: Event) {
     this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
   }
+
+  private getRandomMap(): GameMapType {
+    const maps = Object.values(GameMapType);
+    const randIdx = Math.floor(Math.random() * maps.length);
+    return maps[randIdx] as GameMapType;
+  }
+
   private startGame() {
+    // If random map is selected, choose a random map now
+    const mapToUse = this.useRandomMap ? this.getRandomMap() : this.selectedMap;
+
     consolex.log(
-      `Starting single player game with map: ${GameMapType[this.selectedMap]}`,
+      `Starting single player game with map: ${GameMapType[mapToUse]}${this.useRandomMap ? " (Randomly selected)" : ""}`,
     );
+
     this.dispatchEvent(
       new CustomEvent("join-lobby", {
         detail: {
@@ -426,7 +476,7 @@ export class SinglePlayerModal extends LitElement {
           lobby: {
             id: generateID(),
           },
-          map: this.selectedMap,
+          map: mapToUse,
           difficulty: this.selectedDifficulty,
           disableNPCs: this.disableNPCs,
           bots: this.bots,

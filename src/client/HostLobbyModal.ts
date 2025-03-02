@@ -6,6 +6,7 @@ import { consolex } from "../core/Consolex";
 import "./components/Difficulties";
 import { DifficultyDescription } from "./components/Difficulties";
 import "./components/Maps";
+import randomMap from "../../resources/images/RandomMap.png";
 
 @customElement("host-lobby-modal")
 export class HostLobbyModal extends LitElement {
@@ -20,6 +21,7 @@ export class HostLobbyModal extends LitElement {
   @state() private lobbyId = "";
   @state() private copySuccess = false;
   @state() private players: string[] = [];
+  @state() private useRandomMap: boolean = false;
 
   private playersInterval = null;
 
@@ -365,11 +367,27 @@ export class HostLobbyModal extends LitElement {
                       <div @click=${() => this.handleMapSelection(value)}>
                         <map-display
                           .mapKey=${key}
-                          .selected=${this.selectedMap === value}
+                          .selected=${!this.useRandomMap &&
+                          this.selectedMap === value}
                         ></map-display>
                       </div>
                     `,
                   )}
+                <div
+                  class="option-card random-map ${this.useRandomMap
+                    ? "selected"
+                    : ""}"
+                  @click=${this.handleRandomMapToggle}
+                >
+                  <div class="option-image">
+                    <img
+                      src=${randomMap}
+                      alt="Random Map"
+                      style="width:100%; aspect-ratio: 4/2; object-fit:cover; border-radius:8px;"
+                    />
+                  </div>
+                  <div class="option-card-title">Random</div>
+                </div>
               </div>
             </div>
 
@@ -544,9 +562,13 @@ export class HostLobbyModal extends LitElement {
       this.playersInterval = null;
     }
   }
-
+  private async handleRandomMapToggle() {
+    this.useRandomMap = true;
+    this.putGameConfig();
+  }
   private async handleMapSelection(value: GameMapType) {
     this.selectedMap = value;
+    this.useRandomMap = false;
     this.putGameConfig();
   }
   private async handleDifficultySelection(value: Difficulty) {
@@ -599,9 +621,19 @@ export class HostLobbyModal extends LitElement {
     });
   }
 
+  private getRandomMap(): GameMapType {
+    const maps = Object.values(GameMapType);
+    const randIdx = Math.floor(Math.random() * maps.length);
+    return maps[randIdx] as GameMapType;
+  }
+
   private async startGame() {
+    this.selectedMap = this.useRandomMap
+      ? this.getRandomMap()
+      : this.selectedMap;
+    await this.putGameConfig();
     consolex.log(
-      `Starting private game with map: ${GameMapType[this.selectedMap]}`,
+      `Starting single player game with map: ${GameMapType[this.selectedMap]} ${this.useRandomMap ? " (Randomly selected)" : ""}`,
     );
     this.close();
     const response = await fetch(`/start_private_lobby/${this.lobbyId}`, {
