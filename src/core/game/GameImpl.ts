@@ -68,7 +68,6 @@ export class GameImpl implements Game {
   private updates: GameUpdates = createGameUpdatesMap();
   private defenseGrid: DefenseGrid;
 
-  // Not initialized until the game has finished spawning
   private _stats: StatsImpl = new StatsImpl();
 
   constructor(
