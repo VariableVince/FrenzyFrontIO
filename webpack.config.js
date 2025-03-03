@@ -14,8 +14,8 @@ export default (env, argv) => {
     entry: "./src/client/Main.ts",
     output: {
       publicPath: "/",
-      filename: "bundle.js",
-      path: path.resolve(__dirname, "out"),
+      filename: "static/js/bundle.js",
+      path: path.resolve(__dirname, "static"),
       clean: true,
     },
     module: {
@@ -57,7 +57,7 @@ export default (env, argv) => {
           test: /\.(png|jpe?g|gif)$/i,
           type: "asset/resource",
           generator: {
-            filename: "images/[hash][ext][query]",
+            filename: "static/images/[name]-[hash:8][ext]",
           },
         },
         {
@@ -75,8 +75,8 @@ export default (env, argv) => {
               loader: "file-loader",
               options: {
                 name: "[name].[ext]",
-                outputPath: "fonts/",
-                publicPath: "../fonts/", // This is important
+                outputPath: "static/fonts/",
+                publicPath: "../fonts/",
               },
             },
           ],
@@ -106,7 +106,9 @@ export default (env, argv) => {
         "process.env.GAME_ENV": JSON.stringify(isProduction ? "prod" : "dev"),
       }),
       new CopyPlugin({
-        patterns: [{ from: "resources", to: path.resolve(__dirname, "out") }],
+        patterns: [
+          { from: "resources", to: path.resolve(__dirname, "static") },
+        ],
         options: {
           concurrency: 100,
         },
@@ -117,7 +119,7 @@ export default (env, argv) => {
       : {
           devMiddleware: { writeToDisk: true },
           static: {
-            directory: path.join(__dirname, "out"),
+            directory: path.join(__dirname, "static"),
           },
           historyApiFallback: true,
           compress: true,
