@@ -9,8 +9,10 @@ import { GameInfo } from "../core/Schemas";
 export class PublicLobby extends LitElement {
   @state() private lobbies: GameInfo[] = [];
   @state() public isLobbyHighlighted: boolean = false;
+  @state() private isButtonDebounced: boolean = false;
   private lobbiesInterval: number | null = null;
   private currLobby: GameInfo = null;
+  private debounceDelay: number = 750;
 
   createRenderRoot() {
     return this;
@@ -80,9 +82,13 @@ export class PublicLobby extends LitElement {
     return html`
       <button
         @click=${() => this.lobbyClicked(lobby)}
+        ?disabled=${this.isButtonDebounced}
         class="w-full mx-auto p-4 md:p-6 ${this.isLobbyHighlighted
           ? "bg-gradient-to-r from-green-600 to-green-500"
-          : "bg-gradient-to-r from-blue-600 to-blue-500"} text-white font-medium rounded-xl transition-opacity duration-200 hover:opacity-90"
+          : "bg-gradient-to-r from-blue-600 to-blue-500"} text-white font-medium rounded-xl transition-opacity duration-200 hover:opacity-90 ${this
+          .isButtonDebounced
+          ? "opacity-70 cursor-not-allowed"
+          : ""}"
       >
         <div class="text-lg md:text-2xl font-semibold mb-2">Join next Game</div>
         <div class="flex">
@@ -125,6 +131,18 @@ export class PublicLobby extends LitElement {
   }
 
   private lobbyClicked(lobby: GameInfo) {
+    if (this.isButtonDebounced) {
+      return;
+    }
+
+    // Set debounce state
+    this.isButtonDebounced = true;
+
+    // Reset debounce after delay
+    setTimeout(() => {
+      this.isButtonDebounced = false;
+    }, this.debounceDelay);
+
     if (this.currLobby == null) {
       this.isLobbyHighlighted = true;
       this.currLobby = lobby;
