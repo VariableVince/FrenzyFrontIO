@@ -1,22 +1,22 @@
 import { Colord } from "colord";
-import { Theme } from "../../../core/configuration/Config";
-import { Unit, UnitType, Player } from "../../../core/game/Game";
-import { Layer } from "./Layer";
 import { EventBus } from "../../../core/EventBus";
-import {
-  AlternateViewEvent,
-  MouseUpEvent,
-  UnitSelectionEvent,
-} from "../../InputHandler";
 import { ClientID } from "../../../core/Schemas";
-import { GameView, PlayerView, UnitView } from "../../../core/game/GameView";
+import { Theme } from "../../../core/configuration/Config";
+import { UnitType } from "../../../core/game/Game";
 import {
   euclDistFN,
   manhattanDistFN,
   TileRef,
 } from "../../../core/game/GameMap";
 import { GameUpdateType } from "../../../core/game/GameUpdates";
+import { GameView, PlayerView, UnitView } from "../../../core/game/GameView";
+import {
+  AlternateViewEvent,
+  MouseUpEvent,
+  UnitSelectionEvent,
+} from "../../InputHandler";
 import { TransformHandler } from "../TransformHandler";
+import { Layer } from "./Layer";
 
 enum Relationship {
   Self,
@@ -82,29 +82,34 @@ export class UnitLayer implements Layer {
    * @returns Array of player's warships in range, sorted by distance (closest first)
    */
   private findWarshipsNearCell(cell: { x: number; y: number }): UnitView[] {
-    const clickRef = this.game.ref(cell.x, cell.y);
+    try {
+      const clickRef = this.game.ref(cell.x, cell.y);
 
-    // Make sure we have the current player
-    if (this.myPlayer == null) {
-      this.myPlayer = this.game.playerByClientID(this.clientID);
+      // Make sure we have the current player
+      if (this.myPlayer == null) {
+        this.myPlayer = this.game.playerByClientID(this.clientID);
+      }
+
+      // Only select warships owned by the player
+      return this.game
+        .units(UnitType.Warship)
+        .filter(
+          (unit) =>
+            unit.isActive() &&
+            unit.owner() === this.myPlayer && // Only allow selecting own warships
+            this.game.manhattanDist(unit.tile(), clickRef) <=
+              this.WARSHIP_SELECTION_RADIUS,
+        )
+        .sort((a, b) => {
+          // Sort by distance (closest first)
+          const distA = this.game.manhattanDist(a.tile(), clickRef);
+          const distB = this.game.manhattanDist(b.tile(), clickRef);
+          return distA - distB;
+        });
+    } catch (err) {
+      console.debug("User click outside the game. Ignoring the click event");
+      return [];
     }
-
-    // Only select warships owned by the player
-    return this.game
-      .units(UnitType.Warship)
-      .filter(
-        (unit) =>
-          unit.isActive() &&
-          unit.owner() === this.myPlayer && // Only allow selecting own warships
-          this.game.manhattanDist(unit.tile(), clickRef) <=
-            this.WARSHIP_SELECTION_RADIUS,
-      )
-      .sort((a, b) => {
-        // Sort by distance (closest first)
-        const distA = this.game.manhattanDist(a.tile(), clickRef);
-        const distB = this.game.manhattanDist(b.tile(), clickRef);
-        return distA - distB;
-      });
   }
 
   private onMouseUp(event: MouseUpEvent) {
