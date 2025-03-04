@@ -118,6 +118,9 @@ export class UnitLayer implements Layer {
       event.x,
       event.y,
     );
+    if (!this.game.isValidCoord(cell.x, cell.y)) {
+      return;
+    }
 
     // Find warships near this cell, sorted by distance
     const nearbyWarships = this.findWarshipsNearCell(cell);
