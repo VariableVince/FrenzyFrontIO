@@ -107,7 +107,7 @@ export class UnitLayer implements Layer {
           return distA - distB;
         });
     } catch (err) {
-      console.debug("User click outside the game. Ignoring the click event");
+      // The cell coordinate were invalid (user probably clicked outside the map), therefore no warships can be found
       return [];
     }
   }
