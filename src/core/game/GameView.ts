@@ -5,7 +5,6 @@ import {
   Player,
   PlayerActions,
   PlayerProfile,
-  Unit,
 } from "./Game";
 import { AttackUpdate, PlayerUpdate } from "./GameUpdates";
 import { UnitUpdate } from "./GameUpdates";
@@ -91,6 +90,9 @@ export class UnitView {
   }
   constructionType(): UnitType | undefined {
     return this.data.constructionType;
+  }
+  targetId() {
+    return this.data.targetId;
   }
 }
 

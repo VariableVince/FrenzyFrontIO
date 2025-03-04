@@ -71,6 +71,7 @@ export interface UnitUpdate {
   isActive: boolean;
   health?: number;
   constructionType?: UnitType;
+  targetId?: number;
 }
 
 export interface AttackUpdate {
