@@ -87,11 +87,25 @@ export class WarshipExecution implements Execution {
     this.target =
       ships.sort((a, b) => {
         // First compare by Warship type
-        if (a.type() === UnitType.Warship && b.type() !== UnitType.Warship)
+        if (a.type() === UnitType.Warship && b.type() !== UnitType.Warship) {
           return -1;
-        if (a.type() !== UnitType.Warship && b.type() === UnitType.Warship)
+        }
+        if (a.type() !== UnitType.Warship && b.type() === UnitType.Warship) {
           return 1;
-
+        }
+        // Then favor transport ship
+        if (
+          a.type() === UnitType.TransportShip &&
+          b.type() !== UnitType.TransportShip
+        ) {
+          return -1;
+        }
+        if (
+          a.type() !== UnitType.TransportShip &&
+          b.type() === UnitType.TransportShip
+        ) {
+          return 1;
+        }
         // If both are same type, sort by distance
         return distSortUnit(this.mg, this.warship)(a, b);
       })[0] ?? null;
