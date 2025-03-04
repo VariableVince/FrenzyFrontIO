@@ -131,6 +131,8 @@ export interface Config {
   defensePostDefenseBonus(): number;
   falloutDefenseModifier(): number;
   difficultyModifier(difficulty: Difficulty): number;
+  // 0-1
+  traitorDefenseDebuff(): number;
 }
 
 export interface Theme {

@@ -60,6 +60,10 @@ export class DefaultConfig implements Config {
     private _gameConfig: GameConfig,
     private _userSettings: UserSettings,
   ) {}
+
+  traitorDefenseDebuff(): number {
+    return 0.8;
+  }
   spawnImmunityDuration(): Tick {
     return 5 * 10;
   }
@@ -352,7 +356,8 @@ export class DefaultConfig implements Config {
           within(defender.troops() / attackTroops, 0.5, 2) *
           mag *
           0.8 *
-          largeModifier,
+          largeModifier *
+          (defender.isTraitor() ? this.traitorDefenseDebuff() : 1),
         defenderTroopLoss: defender.troops() / defender.numTilesOwned(),
         tilesPerTickUsed:
           within(defender.troops() / (5 * attackTroops), 0.2, 1.5) *
