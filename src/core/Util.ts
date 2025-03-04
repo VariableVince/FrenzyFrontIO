@@ -64,12 +64,12 @@ export function sourceDstOceanShore(
   tile: TileRef,
 ): [TileRef | null, TileRef | null] {
   const dst = gm.owner(tile);
-  let srcTile = closestOceanShoreFromPlayer(gm, src, tile);
+  let srcTile = closestShoreFromPlayer(gm, src, tile);
   let dstTile: TileRef | null = null;
   if (dst.isPlayer()) {
-    dstTile = closestOceanShoreFromPlayer(gm, dst as Player, tile);
+    dstTile = closestShoreFromPlayer(gm, dst as Player, tile);
   } else {
-    dstTile = closestOceanShoreTN(gm, tile, 300);
+    dstTile = closestShoreTN(gm, tile, 50);
   }
   return [srcTile, dstTile];
 }
@@ -78,20 +78,20 @@ export function targetTransportTile(gm: Game, tile: TileRef): TileRef | null {
   const dst = gm.playerBySmallID(gm.ownerID(tile));
   let dstTile: TileRef | null = null;
   if (dst.isPlayer()) {
-    dstTile = closestOceanShoreFromPlayer(gm, dst as Player, tile);
+    dstTile = closestShoreFromPlayer(gm, dst as Player, tile);
   } else {
-    dstTile = closestOceanShoreTN(gm, tile, 300);
+    dstTile = closestShoreTN(gm, tile, 50);
   }
   return dstTile;
 }
 
-export function closestOceanShoreFromPlayer(
+export function closestShoreFromPlayer(
   gm: GameMap,
   player: Player,
   target: TileRef,
 ): TileRef | null {
   const shoreTiles = Array.from(player.borderTiles()).filter((t) =>
-    gm.isOceanShore(t),
+    gm.isShore(t),
   );
   if (shoreTiles.length == 0) {
     return null;
@@ -112,7 +112,7 @@ export function closestOceanShoreFromPlayer(
   });
 }
 
-function closestOceanShoreTN(
+function closestShoreTN(
   gm: GameMap,
   tile: TileRef,
   searchDist: number,
@@ -123,7 +123,7 @@ function closestOceanShoreTN(
       andFN((_, t) => !gm.hasOwner(t), manhattanDistFN(tile, searchDist)),
     ),
   )
-    .filter((t) => gm.isOceanShore(t))
+    .filter((t) => gm.isShore(t))
     .sort((a, b) => gm.manhattanDist(tile, a) - gm.manhattanDist(tile, b));
   if (tn.length == 0) {
     return null;

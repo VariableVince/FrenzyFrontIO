@@ -24,7 +24,7 @@ import { GameUpdateType } from "./GameUpdates";
 import { ClientID } from "../Schemas";
 import {
   assertNever,
-  closestOceanShoreFromPlayer,
+  closestShoreFromPlayer,
   distSortUnit,
   maxInt,
   minInt,
@@ -731,10 +731,10 @@ export class PlayerImpl implements Player {
   }
 
   transportShipSpawn(targetTile: TileRef): TileRef | false {
-    if (!this.mg.isOceanShore(targetTile)) {
+    if (!this.mg.isShore(targetTile)) {
       return false;
     }
-    const spawn = closestOceanShoreFromPlayer(this.mg, this, targetTile);
+    const spawn = closestShoreFromPlayer(this.mg, this, targetTile);
     if (spawn == null) {
       return false;
     }
@@ -782,7 +782,6 @@ export class PlayerImpl implements Player {
   }
 
   public canBoat(tile: TileRef): boolean {
-    const other = this.mg.owner(tile);
     if (
       this.units(UnitType.TransportShip).length >=
       this.mg.config().boatMaxNumber()
@@ -790,54 +789,68 @@ export class PlayerImpl implements Player {
       return false;
     }
 
-    let myPlayerBordersOcean = false;
-    for (const bt of this.borderTiles()) {
-      if (this.mg.isOceanShore(bt)) {
-        myPlayerBordersOcean = true;
-        break;
-      }
-    }
-    let otherPlayerBordersOcean = false;
-    if (!this.mg.hasOwner(tile)) {
-      otherPlayerBordersOcean = true;
-    } else {
-      for (const bt of (other as Player).borderTiles()) {
-        if (this.mg.isOceanShore(bt)) {
-          otherPlayerBordersOcean = true;
-          break;
-        }
-      }
+    const dst = targetTransportTile(this.mg, tile);
+    if (dst == null) {
+      return false;
     }
 
+    const other = this.mg.owner(tile);
+    if (other == this) {
+      return false;
+    }
     if (other.isPlayer() && this.allianceWith(other)) {
       return false;
     }
 
-    let nearOcean = false;
-    for (const t of this.mg.bfs(
-      tile,
-      andFN(
-        (gm, t) => gm.ownerID(t) == gm.ownerID(tile) && gm.isLand(t),
-        manhattanDistFN(tile, 25),
-      ),
-    )) {
-      if (this.mg.isOceanShore(t)) {
-        nearOcean = true;
-        break;
-      }
-    }
-    if (!nearOcean) {
-      return false;
-    }
-
-    if (myPlayerBordersOcean && otherPlayerBordersOcean) {
-      const dst = targetTransportTile(this.mg, tile);
-      if (dst != null) {
-        if (this.canBuild(UnitType.TransportShip, dst)) {
-          return true;
+    if (this.mg.isOceanShore(dst)) {
+      let myPlayerBordersOcean = false;
+      for (const bt of this.borderTiles()) {
+        if (this.mg.isOceanShore(bt)) {
+          myPlayerBordersOcean = true;
+          break;
         }
       }
+
+      let otherPlayerBordersOcean = false;
+      if (!this.mg.hasOwner(tile)) {
+        otherPlayerBordersOcean = true;
+      } else {
+        for (const bt of (other as Player).borderTiles()) {
+          if (this.mg.isOceanShore(bt)) {
+            otherPlayerBordersOcean = true;
+            break;
+          }
+        }
+      }
+
+      if (myPlayerBordersOcean && otherPlayerBordersOcean) {
+        return this.canBuild(UnitType.TransportShip, dst) != false;
+      } else {
+        return false;
+      }
     }
+
+    // Now we are boating in a lake, so do a bfs from target until we find
+    // a border tile owned by the player
+
+    const tiles = this.mg.bfs(
+      dst,
+      andFN(
+        manhattanDistFN(dst, 300),
+        (_, t: TileRef) => this.mg.isLake(t) || this.mg.isShore(t),
+      ),
+    );
+
+    const sorted = Array.from(tiles).sort(
+      (a, b) => this.mg.manhattanDist(dst, a) - this.mg.manhattanDist(dst, b),
+    );
+
+    for (const t of sorted) {
+      if (this.mg.owner(t) == this) {
+        return this.canBuild(UnitType.TransportShip, dst) != false;
+      }
+    }
+    return false;
   }
 
   createAttack(

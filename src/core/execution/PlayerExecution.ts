@@ -128,7 +128,7 @@ export class PlayerExecution implements Execution {
     const enemies = new Set<number>();
     for (const tile of cluster) {
       const isOceanShore = this.mg.isOceanShore(tile);
-      if (this.mg.isShore(tile) && !isOceanShore) {
+      if (this.mg.isOceanShore(tile) && !isOceanShore) {
         continue;
       }
       if (

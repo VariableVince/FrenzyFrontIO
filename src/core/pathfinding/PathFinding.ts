@@ -33,7 +33,7 @@ export class PathFinder {
           if (canMoveOnLand) {
             return true;
           }
-          return game.miniMap().isOcean(tr);
+          return game.miniMap().isWater(tr);
         },
         iterations,
         maxTries,

@@ -281,9 +281,9 @@ export class GameMapImpl implements GameMap {
     q.push(tile);
     while (q.length > 0) {
       const curr = q.pop();
-      seen.add(curr);
       for (const n of this.neighbors(curr)) {
         if (!seen.has(n) && filter(this, n)) {
+          seen.add(n);
           q.push(n);
         }
       }
