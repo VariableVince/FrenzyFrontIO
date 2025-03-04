@@ -82,34 +82,33 @@ export class UnitLayer implements Layer {
    * @returns Array of player's warships in range, sorted by distance (closest first)
    */
   private findWarshipsNearCell(cell: { x: number; y: number }): UnitView[] {
-    try {
-      const clickRef = this.game.ref(cell.x, cell.y);
-
-      // Make sure we have the current player
-      if (this.myPlayer == null) {
-        this.myPlayer = this.game.playerByClientID(this.clientID);
-      }
-
-      // Only select warships owned by the player
-      return this.game
-        .units(UnitType.Warship)
-        .filter(
-          (unit) =>
-            unit.isActive() &&
-            unit.owner() === this.myPlayer && // Only allow selecting own warships
-            this.game.manhattanDist(unit.tile(), clickRef) <=
-              this.WARSHIP_SELECTION_RADIUS,
-        )
-        .sort((a, b) => {
-          // Sort by distance (closest first)
-          const distA = this.game.manhattanDist(a.tile(), clickRef);
-          const distB = this.game.manhattanDist(b.tile(), clickRef);
-          return distA - distB;
-        });
-    } catch (err) {
+    if (!this.game.isValidCoord(cell.x, cell.y)) {
       // The cell coordinate were invalid (user probably clicked outside the map), therefore no warships can be found
       return [];
     }
+    const clickRef = this.game.ref(cell.x, cell.y);
+
+    // Make sure we have the current player
+    if (this.myPlayer == null) {
+      this.myPlayer = this.game.playerByClientID(this.clientID);
+    }
+
+    // Only select warships owned by the player
+    return this.game
+      .units(UnitType.Warship)
+      .filter(
+        (unit) =>
+          unit.isActive() &&
+          unit.owner() === this.myPlayer && // Only allow selecting own warships
+          this.game.manhattanDist(unit.tile(), clickRef) <=
+            this.WARSHIP_SELECTION_RADIUS,
+      )
+      .sort((a, b) => {
+        // Sort by distance (closest first)
+        const distA = this.game.manhattanDist(a.tile(), clickRef);
+        const distB = this.game.manhattanDist(b.tile(), clickRef);
+        return distA - distB;
+      });
   }
 
   private onMouseUp(event: MouseUpEvent) {
