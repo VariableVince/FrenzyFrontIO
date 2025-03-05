@@ -36,8 +36,8 @@ export async function archive(gameRecord: GameRecord) {
 async function archiveToRedshift(gameRecord: GameRecord) {
   const row = {
     id: gameRecord.id,
-    start: new Date(gameRecord.startTimestampMS),
-    end: new Date(gameRecord.endTimestampMS),
+    start_time: new Date(gameRecord.startTimestampMS),
+    end_time: new Date(gameRecord.endTimestampMS),
     duration_seconds: gameRecord.durationSeconds,
     number_turns: gameRecord.num_turns,
     game_mode: gameRecord.gameConfig.gameType,
@@ -58,12 +58,12 @@ async function archiveToRedshift(gameRecord: GameRecord) {
   const params = {
     Sql: `
       INSERT INTO game_results (
-        id, start, end, duration_seconds, number_turns, game_mode, 
+        id, start_time, end_time, duration_seconds, number_turns, game_mode, 
         winner, difficulty, map, players
       ) VALUES (
         '${row.id}', 
-        '${row.start.toISOString()}', 
-        '${row.end.toISOString()}', 
+        '${row.start_time.toISOString()}', 
+        '${row.end_time.toISOString()}', 
         ${row.duration_seconds}, 
         ${row.number_turns}, 
         '${row.game_mode}', 
