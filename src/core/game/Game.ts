@@ -421,7 +421,6 @@ export interface PlayerInteraction {
   canTarget: boolean;
   canDonate: boolean;
   canEmbargo: boolean;
-  stats: PlayerStats;
 }
 
 export interface EmojiMessage {

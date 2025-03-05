@@ -22,12 +22,14 @@ import {
 } from "../core/Schemas";
 import { CreateGameRecord, generateID } from "../core/Util";
 import { LobbyConfig } from "./ClientGameRunner";
+import { LocalPersistantStats } from "./LocalPersistantStats";
 import { getPersistentIDFromCookie } from "./Main";
 
 export class LocalServer {
   private turns: Turn[] = [];
   private intents: Intent[] = [];
   private startedAt: number;
+  private localPersistantsStats = new LocalPersistantStats();
 
   private endTurnIntervalID;
 
