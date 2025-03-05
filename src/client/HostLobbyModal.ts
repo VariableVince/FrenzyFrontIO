@@ -7,7 +7,10 @@ import "./components/Difficulties";
 import { DifficultyDescription } from "./components/Difficulties";
 import "./components/Maps";
 import { generateID } from "../core/Util";
-import { getConfig, getServerConfig } from "../core/configuration/Config";
+import {
+  getConfig,
+  getServerConfigFromClient,
+} from "../core/configuration/Config";
 
 @customElement("host-lobby-modal")
 export class HostLobbyModal extends LitElement {
@@ -584,8 +587,9 @@ export class HostLobbyModal extends LitElement {
   }
 
   private async putGameConfig() {
+    const config = await getServerConfigFromClient();
     const response = await fetch(
-      `${window.location.origin}/${getServerConfig().workerPath(this.lobbyId)}/game/${this.lobbyId}`,
+      `${window.location.origin}/${config.workerPath(this.lobbyId)}/game/${this.lobbyId}`,
       {
         method: "PUT",
         headers: {
@@ -609,8 +613,9 @@ export class HostLobbyModal extends LitElement {
       `Starting private game with map: ${GameMapType[this.selectedMap]}`,
     );
     this.close();
+    const config = await getServerConfigFromClient();
     const response = await fetch(
-      `${window.location.origin}/${getServerConfig().workerPath(this.lobbyId)}/start_game/${this.lobbyId}`,
+      `${window.location.origin}/${config.workerPath(this.lobbyId)}/start_game/${this.lobbyId}`,
       {
         method: "POST",
         headers: {
@@ -636,15 +641,13 @@ export class HostLobbyModal extends LitElement {
   }
 
   private async pollPlayers() {
-    fetch(
-      `/${getServerConfig().workerPath(this.lobbyId)}/game/${this.lobbyId}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+    const config = await getServerConfigFromClient();
+    fetch(`/${config.workerPath(this.lobbyId)}/game/${this.lobbyId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
       },
-    )
+    })
       .then((response) => response.json())
       .then((data: GameInfo) => {
         console.log(`got response: ${data}`);
@@ -654,11 +657,11 @@ export class HostLobbyModal extends LitElement {
 }
 
 async function createLobby(): Promise<GameInfo> {
-  const serverConfig = getServerConfig();
+  const config = await getServerConfigFromClient();
   try {
     const id = generateID();
     const response = await fetch(
-      `/${serverConfig.workerPath(id)}/create_game/${id}`,
+      `/${config.workerPath(id)}/create_game/${id}`,
       {
         method: "POST",
         headers: {

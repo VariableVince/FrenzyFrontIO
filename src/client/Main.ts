@@ -19,6 +19,7 @@ import "./DarkModeButton";
 import { DarkModeButton } from "./DarkModeButton";
 import { HelpModal } from "./HelpModal";
 import { GameType } from "../core/game/Game";
+import { getServerConfigFromClient } from "../core/configuration/Config";
 
 class Client {
   private gameStop: () => void;
@@ -135,9 +136,11 @@ class Client {
       consolex.log("joining lobby, stopping existing game");
       this.gameStop();
     }
+    const config = await getServerConfigFromClient();
     const gameType = event.detail.gameType;
     this.gameStop = joinLobby(
       {
+        serverConfig: config,
         gameType: gameType,
         flag: (): string => this.flagInput.getCurrentFlag(),
         playerName: (): string => this.usernameInput.getCurrentUsername(),

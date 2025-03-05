@@ -18,12 +18,13 @@ import {
 } from "../core/game/GameUpdates";
 import { WorkerClient } from "../core/worker/WorkerClient";
 import { consolex, initRemoteSender } from "../core/Consolex";
-import { getConfig, getServerConfig } from "../core/configuration/Config";
+import { getConfig, ServerConfig } from "../core/configuration/Config";
 import { GameView, PlayerView } from "../core/game/GameView";
 import { GameUpdateViewData } from "../core/game/GameUpdates";
 import { UserSettings } from "../core/game/UserSettings";
 
 export interface LobbyConfig {
+  serverConfig: ServerConfig;
   flag: () => string;
   playerName: () => string;
   clientID: ClientID;
@@ -51,8 +52,6 @@ export function joinLobby(
     `joinging lobby: gameID: ${lobbyConfig.gameID}, clientID: ${lobbyConfig.clientID}, persistentID: ${lobbyConfig.persistentID}`,
   );
 
-  const serverConfig = getServerConfig();
-
   const userSettings: UserSettings = new UserSettings();
   let gameConfig: GameConfig = null;
   if (lobbyConfig.gameType == GameType.Singleplayer) {
@@ -72,7 +71,7 @@ export function joinLobby(
     lobbyConfig,
     gameConfig,
     eventBus,
-    serverConfig,
+    lobbyConfig.serverConfig,
   );
 
   const onconnect = () => {
@@ -106,7 +105,7 @@ export async function createClientGame(
   transport: Transport,
   userSettings: UserSettings,
 ): Promise<ClientGameRunner> {
-  const config = getConfig(gameConfig, userSettings);
+  const config = await getConfig(gameConfig, userSettings);
 
   const gameMap = await loadTerrainMap(gameConfig.gameMap);
   const worker = new WorkerClient(

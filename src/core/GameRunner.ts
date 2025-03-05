@@ -32,7 +32,7 @@ export async function createGameRunner(
   clientID: ClientID,
   callBack: (gu: GameUpdateViewData) => void,
 ): Promise<GameRunner> {
-  const config = getConfig(gameConfig, null);
+  const config = await getConfig(gameConfig, null);
   const gameMap = await loadGameMap(gameConfig.gameMap);
   const game = createGame(
     gameMap.gameMap,

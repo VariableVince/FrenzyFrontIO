@@ -23,7 +23,7 @@ import { pastelThemeDark } from "./PastelThemeDark";
 
 export abstract class DefaultServerConfig implements ServerConfig {
   numWorkers(): number {
-    return 2;
+    return 6;
   }
   abstract env(): GameEnv;
   abstract discordRedirectURI(): string;

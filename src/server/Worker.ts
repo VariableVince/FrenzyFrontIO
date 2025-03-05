@@ -4,7 +4,7 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GameManager } from "./GameManager";
-import { getServerConfig } from "../core/configuration/Config";
+import { getServerConfigFromServer } from "../core/configuration/Config";
 import { WebSocket } from "ws";
 import { Client } from "./Client";
 import rateLimit from "express-rate-limit";
@@ -14,7 +14,7 @@ import { slog } from "./StructuredLog";
 import { GameType } from "../core/game/Game";
 import { archive } from "./Archive";
 
-const config = getServerConfig();
+const config = getServerConfigFromServer();
 
 // Worker setup
 export function startWorker() {

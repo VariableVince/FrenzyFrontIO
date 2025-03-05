@@ -4,7 +4,6 @@
 # 1. Builds and uploads the Docker image to ECR with appropriate tag
 # 2. Copies the update script to EC2 instance (staging or prod)
 # 3. Executes the update script on the EC2 instance
-
 set -e  # Exit immediately if a command exits with a non-zero status
 
 # Function to print section headers
@@ -64,8 +63,6 @@ if [ ! -f "$UPDATE_SCRIPT" ]; then
     exit 1
 fi
 
-
-
 # Step 1: Build and upload Docker image to ECR
 print_header "STEP 1: Building and uploading Docker image to ECR"
 echo "Environment: ${ENV}"
@@ -73,7 +70,6 @@ echo "Using version tag: $VERSION_TAG"
 
 # Execute the build script with the version tag
 $BUILD_SCRIPT $VERSION_TAG
-
 if [ $? -ne 0 ]; then
     echo "❌ Build and upload failed. Stopping deployment."
     exit 1
@@ -88,20 +84,17 @@ chmod +x $UPDATE_SCRIPT
 
 # Copy the update script to the EC2 instance
 scp -i $EC2_KEY $UPDATE_SCRIPT $EC2_HOST:$REMOTE_UPDATE_SCRIPT
-
 if [ $? -ne 0 ]; then
     echo "❌ Failed to copy update script to EC2 instance. Stopping deployment."
     exit 1
 fi
-
 echo "✅ Update script successfully copied to EC2 instance."
 
 # Step 3: Execute the update script on the EC2 instance
 print_header "STEP 3: Executing update script on EC2 instance"
 
-# Make the script executable on the remote server and execute it
-ssh -i $EC2_KEY $EC2_HOST "chmod +x $REMOTE_UPDATE_SCRIPT && $REMOTE_UPDATE_SCRIPT"
-
+# Make the script executable on the remote server and execute it with the environment parameter
+ssh -i $EC2_KEY $EC2_HOST "chmod +x $REMOTE_UPDATE_SCRIPT && $REMOTE_UPDATE_SCRIPT $ENV"
 if [ $? -ne 0 ]; then
     echo "❌ Failed to execute update script on EC2 instance."
     exit 1

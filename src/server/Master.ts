@@ -4,14 +4,17 @@ import express from "express";
 import { GameMapType, GameType, Difficulty } from "../core/game/Game";
 import { generateID } from "../core/Util";
 import { PseudoRandom } from "../core/PseudoRandom";
-import { GameEnv, getServerConfig } from "../core/configuration/Config";
+import {
+  GameEnv,
+  getServerConfigFromServer,
+} from "../core/configuration/Config";
 import { GameInfo } from "../core/Schemas";
 import path from "path";
 import rateLimit from "express-rate-limit";
 import { fileURLToPath } from "url";
 import { isHighTrafficTime } from "./Util";
 
-const config = getServerConfig();
+const config = getServerConfigFromServer();
 const readyWorkers = new Set();
 
 const app = express();
@@ -120,6 +123,18 @@ export async function startMaster() {
     console.log(`Master HTTP server listening on port ${PORT}`);
   });
 }
+
+app.get("/api/env", (req, res) => {
+  const envConfig = {
+    game_env: process.env.GAME_ENV || "prod",
+  };
+
+  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+
+  res.json(envConfig);
+});
 
 // Add lobbies endpoint to list public games for this worker
 app.get("/public_lobbies", (req, res) => {

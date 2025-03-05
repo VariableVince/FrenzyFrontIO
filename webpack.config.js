@@ -186,6 +186,7 @@ export default (env, argv) => {
             // Original API endpoints
             {
               context: [
+                "/api/env",
                 "/public_lobbies",
                 "/join_game",
                 "/start_game",
