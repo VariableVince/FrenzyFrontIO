@@ -2,8 +2,8 @@ import { GameRecord, GameID } from "../core/Schemas";
 import { S3 } from "@aws-sdk/client-s3";
 import { RedshiftData } from "@aws-sdk/client-redshift-data";
 
-// Initialize AWS clients
-const s3 = new S3();
+const s3 = new S3({ region: "eu-west-1" });
+
 const bucket = "openfront-games";
 const redshiftData = new RedshiftData({ region: "eu-west-1" });
 

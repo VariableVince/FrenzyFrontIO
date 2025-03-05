@@ -22,9 +22,7 @@ import { pastelTheme } from "./PastelTheme";
 import { pastelThemeDark } from "./PastelThemeDark";
 
 export abstract class DefaultServerConfig implements ServerConfig {
-  numWorkers(): number {
-    return 6;
-  }
+  abstract numWorkers(): number;
   abstract env(): GameEnv;
   abstract discordRedirectURI(): string;
   turnIntervalMs(): number {
