@@ -67,25 +67,12 @@ docker run -d -p 80:80 \
   --log-opt awslogs-region=eu-west-1 \
   --log-opt awslogs-group=${LOG_GROUP} \
   --log-opt awslogs-create-group=true \
+  --env GAME_ENV=${ENV} \
   --name ${CONTAINER_NAME} \
   $ECR_REPO
 
 if [ $? -eq 0 ]; then
   echo "Update complete! New ${ENV} container is running."
 else
-  echo "Failed to start container. Trying alternative port 8080..."
-  docker run -d -p 8080:80 \
-    --log-driver=awslogs \
-    --log-opt awslogs-region=eu-west-1 \
-    --log-opt awslogs-group=${LOG_GROUP} \
-    --log-opt awslogs-create-group=true \
-    --name ${CONTAINER_NAME} \
-    $ECR_REPO
-  
-  if [ $? -eq 0 ]; then
-    echo "Container started on port 8080 instead of 80!"
-  else
-    echo "Failed to start container on alternative port as well."
-    exit 1
-  fi
+  echo "Failed to start container"
 fi
