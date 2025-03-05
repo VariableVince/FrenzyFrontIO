@@ -11,3 +11,4 @@
 Dockerfile
 *.conf
 .gitmodules
+*.sh
