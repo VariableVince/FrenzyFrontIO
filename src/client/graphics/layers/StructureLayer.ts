@@ -5,7 +5,7 @@ import { EventBus } from "../../../core/EventBus";
 
 import anchorIcon from "../../../../resources/images/buildings/port1.png";
 import missileSiloIcon from "../../../../resources/images/buildings/silo1.png";
-import shieldIcon from "../../../../resources/images/buildings/fort0.png";
+import shieldIcon from "../../../../resources/images/buildings/fortAlt1.png";
 import cityIcon from "../../../../resources/images/buildings/city1.png";
 import { GameView, UnitView } from "../../../core/game/GameView";
 import { Cell, UnitType } from "../../../core/game/Game";
