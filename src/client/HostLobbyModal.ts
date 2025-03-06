@@ -27,6 +27,8 @@ export class HostLobbyModal extends LitElement {
   @state() private players: string[] = [];
 
   private playersInterval = null;
+  // Add a new timer for debouncing bot changes
+  private botsUpdateTimer: number | null = null;
 
   static styles = css`
     .modal-overlay {
@@ -548,6 +550,11 @@ export class HostLobbyModal extends LitElement {
       clearInterval(this.playersInterval);
       this.playersInterval = null;
     }
+    // Clear any pending bot updates
+    if (this.botsUpdateTimer !== null) {
+      clearTimeout(this.botsUpdateTimer);
+      this.botsUpdateTimer = null;
+    }
   }
 
   private async handleMapSelection(value: GameMapType) {
@@ -559,14 +566,28 @@ export class HostLobbyModal extends LitElement {
     this.putGameConfig();
   }
 
+  // Modified to include debouncing
   private handleBotsChange(e: Event) {
     const value = parseInt((e.target as HTMLInputElement).value);
     if (isNaN(value) || value < 0 || value > 400) {
       return;
     }
+
+    // Update the display value immediately
     this.bots = value;
-    this.putGameConfig();
+
+    // Clear any existing timer
+    if (this.botsUpdateTimer !== null) {
+      clearTimeout(this.botsUpdateTimer);
+    }
+
+    // Set a new timer to call putGameConfig after 300ms of inactivity
+    this.botsUpdateTimer = window.setTimeout(() => {
+      this.putGameConfig();
+      this.botsUpdateTimer = null;
+    }, 300);
   }
+
   private handleInstantBuildChange(e: Event) {
     this.instantBuild = Boolean((e.target as HTMLInputElement).checked);
     this.putGameConfig();
