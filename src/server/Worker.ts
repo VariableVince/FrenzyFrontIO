@@ -100,7 +100,7 @@ export function startWorker() {
 
   // Endpoint to create a private lobby
   app.post(
-    "/create_game/:id",
+    "/api/create_game/:id",
     asyncHandler(async (req, res) => {
       const id = req.params.id;
       if (!id) {
@@ -137,7 +137,7 @@ export function startWorker() {
 
   // Add other endpoints from your original server
   app.post(
-    "/start_game/:id",
+    "/api/start_game/:id",
     asyncHandler(async (req, res) => {
       console.log(`starting private lobby with id ${req.params.id}`);
       const game = gm.game(req.params.id);
@@ -157,7 +157,7 @@ export function startWorker() {
   );
 
   app.put(
-    "/game/:id",
+    "/api/game/:id",
     asyncHandler(async (req, res) => {
       // TODO: only update public game if from local host
       const lobbyID = req.params.id;
@@ -188,7 +188,7 @@ export function startWorker() {
   );
 
   app.get(
-    "/game/:id/exists",
+    "/api/game/:id/exists",
     asyncHandler(async (req, res) => {
       const lobbyId = req.params.id;
       res.json({
@@ -198,7 +198,7 @@ export function startWorker() {
   );
 
   app.get(
-    "/game/:id",
+    "/api/game/:id",
     asyncHandler(async (req, res) => {
       const game = gm.game(req.params.id);
       if (game == null) {
@@ -210,7 +210,7 @@ export function startWorker() {
   );
 
   app.post(
-    "/archive_singleplayer_game",
+    "/api/archive_singleplayer_game",
     asyncHandler(async (req, res) => {
       const gameRecord: GameRecord = req.body;
       const clientIP = req.ip || req.socket.remoteAddress || "unknown";

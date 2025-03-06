@@ -589,7 +589,7 @@ export class HostLobbyModal extends LitElement {
   private async putGameConfig() {
     const config = await getServerConfigFromClient();
     const response = await fetch(
-      `${window.location.origin}/${config.workerPath(this.lobbyId)}/game/${this.lobbyId}`,
+      `${window.location.origin}/api/${config.workerPath(this.lobbyId)}/game/${this.lobbyId}`,
       {
         method: "PUT",
         headers: {
@@ -615,7 +615,7 @@ export class HostLobbyModal extends LitElement {
     this.close();
     const config = await getServerConfigFromClient();
     const response = await fetch(
-      `${window.location.origin}/${config.workerPath(this.lobbyId)}/start_game/${this.lobbyId}`,
+      `${window.location.origin}/${config.workerPath(this.lobbyId)}/api/start_game/${this.lobbyId}`,
       {
         method: "POST",
         headers: {
@@ -642,7 +642,7 @@ export class HostLobbyModal extends LitElement {
 
   private async pollPlayers() {
     const config = await getServerConfigFromClient();
-    fetch(`/${config.workerPath(this.lobbyId)}/game/${this.lobbyId}`, {
+    fetch(`/${config.workerPath(this.lobbyId)}/api/game/${this.lobbyId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -661,7 +661,7 @@ async function createLobby(): Promise<GameInfo> {
   try {
     const id = generateID();
     const response = await fetch(
-      `/${config.workerPath(id)}/create_game/${id}`,
+      `/${config.workerPath(id)}/api/create_game/${id}`,
       {
         method: "POST",
         headers: {

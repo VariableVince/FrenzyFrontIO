@@ -361,7 +361,7 @@ export class JoinPrivateLobbyModal extends LitElement {
     this.message = "Checking lobby..."; // Set initial message
 
     const config = await getServerConfigFromClient();
-    const url = `/${config.workerPath(lobbyId)}/game/${lobbyId}/exists`;
+    const url = `/${config.workerPath(lobbyId)}/api/game/${lobbyId}/exists`;
     fetch(url, {
       method: "GET",
       headers: {
@@ -402,7 +402,7 @@ export class JoinPrivateLobbyModal extends LitElement {
     const config = await getServerConfigFromClient();
 
     fetch(
-      `/${config.workerPath(this.lobbyIdInput.value)}/game/${this.lobbyIdInput.value}`,
+      `/${config.workerPath(this.lobbyIdInput.value)}/api/game/${this.lobbyIdInput.value}`,
       {
         method: "GET",
         headers: {

@@ -137,7 +137,7 @@ app.get("/api/env", (req, res) => {
 });
 
 // Add lobbies endpoint to list public games for this worker
-app.get("/public_lobbies", (req, res) => {
+app.get("/api/public_lobbies", (req, res) => {
   res.send(publicLobbiesJsonStr);
 });
 
@@ -146,7 +146,7 @@ async function fetchLobbies(): Promise<void> {
 
   for (const gameID of publicLobbyIDs) {
     const port = config.workerPort(gameID);
-    const promise = fetch(`http://localhost:${port}/game/${gameID}`)
+    const promise = fetch(`http://localhost:${port}/api/game/${gameID}`)
       .then((resp) => resp.json())
       .then((json) => {
         return json as GameInfo;
@@ -209,7 +209,7 @@ async function schedulePublicGame() {
   // Send request to the worker to start the game
   try {
     const response = await fetch(
-      `http://localhost:${config.workerPort(gameID)}/create_game/${gameID}`,
+      `http://localhost:${config.workerPort(gameID)}/api/create_game/${gameID}`,
       {
         method: "POST",
         headers: {

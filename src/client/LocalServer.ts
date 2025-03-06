@@ -126,6 +126,6 @@ export class LocalServer {
       type: "application/json",
     });
     const workerPath = this.serverConfig.workerPath(this.lobbyConfig.gameID);
-    navigator.sendBeacon(`/${workerPath}/archive_singleplayer_game`, blob);
+    navigator.sendBeacon(`/${workerPath}/api/archive_singleplayer_game`, blob);
   }
 }
