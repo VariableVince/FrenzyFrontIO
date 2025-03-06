@@ -78,6 +78,9 @@ export class JoinPrivateLobbyModal extends LitElement {
     }
 
     .close {
+      position: sticky;
+      top: 0px;
+      right: 0px;
       color: #aaa;
       float: right;
       font-size: 28px;
