@@ -65,7 +65,7 @@ export class PlayerImpl implements Player {
   private _workers: bigint;
 
   // 0 to 100
-  private _targetTroopRatio: bigint = 100n;
+  private _targetTroopRatio: bigint;
 
   isTraitor_ = false;
 
@@ -101,7 +101,7 @@ export class PlayerImpl implements Player {
   ) {
     this._flag = playerInfo.flag;
     this._name = playerInfo.name;
-    this._targetTroopRatio = 100n;
+    this._targetTroopRatio = 95n;
     this._troops = toInt(startTroops);
     this._workers = 0n;
     this._gold = 0n;
