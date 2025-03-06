@@ -145,11 +145,6 @@ app.get("/api/env", (req, res) => {
   const envConfig = {
     game_env: process.env.GAME_ENV || "prod",
   };
-
-  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
-  res.set("Pragma", "no-cache");
-  res.set("Expires", "0");
-
   res.json(envConfig);
 });
 
