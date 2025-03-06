@@ -30,9 +30,9 @@ export abstract class DefaultServerConfig implements ServerConfig {
   }
   gameCreationRate(highTraffic: boolean): number {
     if (highTraffic) {
-      return 30 * 1000;
+      return 20 * 1000;
     } else {
-      return 60 * 1000;
+      return 50 * 1000;
     }
   }
   lobbyLifetime(highTraffic: boolean): number {
