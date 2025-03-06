@@ -25,7 +25,7 @@ import { SpawnTimer } from "./layers/SpawnTimer";
 import { OptionsMenu } from "./layers/OptionsMenu";
 import { TopBar } from "./layers/TopBar";
 import { PlayerPanel } from "./layers/PlayerPanel";
-import { GameStartingModal } from "./layers/gameStartingModal";
+import { GameStartingModal } from "../gameStartingModal";
 
 export function createRenderer(
   canvas: HTMLCanvasElement,

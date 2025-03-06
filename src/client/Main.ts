@@ -7,7 +7,7 @@ import { UsernameInput } from "./UsernameInput";
 import { SinglePlayerModal } from "./SinglePlayerModal";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinPrivateLobbyModal } from "./JoinPrivateLobbyModal";
-import { GameStartingModal } from "./graphics/layers/gameStartingModal";
+import { GameStartingModal } from "./gameStartingModal";
 import { generateID } from "../core/Util";
 import { generateCryptoRandomUUID } from "./Utils";
 import { consolex } from "../core/Consolex";
