@@ -163,6 +163,7 @@ export class EventsDisplay extends LitElement implements Layer {
     ) {
       return;
     }
+
     this.addEvent({
       description: event.message,
       createdAt: this.game.ticks(),
@@ -514,9 +515,9 @@ export class EventsDisplay extends LitElement implements Layer {
                     <td class="lg:p-3 p-1 text-left">
                       ${event.focusID
                         ? html`<button
-                            @click=${event.focusID
-                              ? () => this.emitGoToPlayerEvent(event.focusID)
-                              : () => {}}
+                            @click=${() => {
+                              this.emitGoToPlayerEvent(event.focusID);
+                            }}
                           >
                             ${this.getEventDescription(event)}
                           </button>`
@@ -528,7 +529,7 @@ export class EventsDisplay extends LitElement implements Layer {
                                 (btn) => html`
                                   <button
                                     class="inline-block px-3 py-1 text-white rounded text-sm cursor-pointer transition-colors duration-300
-                              ${btn.className.includes("btn-info")
+                            ${btn.className.includes("btn-info")
                                       ? "bg-blue-500 hover:bg-blue-600"
                                       : btn.className.includes("btn-gray")
                                         ? "bg-gray-500 hover:bg-gray-600"
