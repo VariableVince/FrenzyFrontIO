@@ -24,7 +24,9 @@ import {
   CancelAttackIntentEvent,
   SendAllianceReplyIntentEvent,
 } from "../../Transport";
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { unsafeHTML, UnsafeHTMLDirective } from "lit/directives/unsafe-html.js";
+import { DirectiveResult } from "lit/directive.js";
+
 import { onlyImages, sanitize } from "../../../core/Util";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { renderTroops } from "../../Utils";
@@ -46,6 +48,7 @@ interface Event {
   // lower number: lower on the display
   priority?: number;
   duration?: Tick;
+  focusID?: number;
 }
 
 @customElement("events-display")
@@ -160,7 +163,6 @@ export class EventsDisplay extends LitElement implements Layer {
     ) {
       return;
     }
-
     this.addEvent({
       description: event.message,
       createdAt: this.game.ticks(),
@@ -218,6 +220,7 @@ export class EventsDisplay extends LitElement implements Layer {
         ),
       priority: 0,
       duration: 150,
+      focusID: update.requestorID,
     });
   }
 
@@ -238,6 +241,7 @@ export class EventsDisplay extends LitElement implements Layer {
       type: update.accepted ? MessageType.SUCCESS : MessageType.ERROR,
       highlight: true,
       createdAt: this.game.ticks(),
+      focusID: update.request.recipientID,
     });
   }
 
@@ -254,6 +258,7 @@ export class EventsDisplay extends LitElement implements Layer {
         type: MessageType.ERROR,
         highlight: true,
         createdAt: this.game.ticks(),
+        focusID: update.betrayedID,
       });
     } else if (betrayed === myPlayer) {
       this.addEvent({
@@ -261,6 +266,7 @@ export class EventsDisplay extends LitElement implements Layer {
         type: MessageType.ERROR,
         highlight: true,
         createdAt: this.game.ticks(),
+        focusID: update.traitorID,
       });
     }
   }
@@ -283,6 +289,7 @@ export class EventsDisplay extends LitElement implements Layer {
       type: MessageType.WARN,
       highlight: true,
       createdAt: this.game.ticks(),
+      focusID: otherID,
     });
   }
 
@@ -298,6 +305,7 @@ export class EventsDisplay extends LitElement implements Layer {
       type: MessageType.INFO,
       highlight: true,
       createdAt: this.game.ticks(),
+      focusID: event.targetID,
     });
   }
 
@@ -305,6 +313,12 @@ export class EventsDisplay extends LitElement implements Layer {
     const myPlayer = this.game.playerByClientID(this.clientID);
     if (!myPlayer) return;
     this.eventBus.emit(new CancelAttackIntentEvent(myPlayer.id(), id));
+  }
+
+  emitGoToPlayerEvent(attackerID: number) {
+    const attacker = this.game.playerBySmallID(attackerID) as PlayerView;
+    if (!attacker) return;
+    this.eventBus.emit(new GoToPlayerEvent(attacker));
   }
 
   onEmojiMessageEvent(update: EmojiUpdate) {
@@ -326,6 +340,7 @@ export class EventsDisplay extends LitElement implements Layer {
         type: MessageType.INFO,
         highlight: true,
         createdAt: this.game.ticks(),
+        focusID: update.emoji.senderID,
       });
     } else if (sender === myPlayer && recipient !== AllPlayers) {
       this.addEvent({
@@ -336,6 +351,7 @@ export class EventsDisplay extends LitElement implements Layer {
         type: MessageType.INFO,
         highlight: true,
         createdAt: this.game.ticks(),
+        focusID: recipient.smallID(),
       });
     }
   }
@@ -355,6 +371,14 @@ export class EventsDisplay extends LitElement implements Layer {
     }
   }
 
+  private getEventDescription(
+    event: Event,
+  ): string | DirectiveResult<typeof UnsafeHTMLDirective> {
+    return event.unsafeDescription
+      ? unsafeHTML(onlyImages(event.description))
+      : event.description;
+  }
+
   private renderAttacks() {
     if (
       this.incomingAttacks.length === 0 &&
@@ -370,25 +394,18 @@ export class EventsDisplay extends LitElement implements Layer {
               <td class="lg:p-3 p-1 text-left text-red-400">
                 ${this.incomingAttacks.map(
                   (attack) => html`
-                    <div class="ml-2">
+                    <button
+                      class="ml-2"
+                      @click=${() =>
+                        this.emitGoToPlayerEvent(attack.attackerID)}
+                    >
                       ${renderTroops(attack.troops)}
                       ${(
                         this.game.playerBySmallID(
                           attack.attackerID,
                         ) as PlayerView
                       )?.name()}
-                      <button
-                        class="inline-block px-2 text-white rounded text-sm cursor-pointer transition-colors duration-300 bg-blue-500 hover:bg-blue-600 btn-gray"
-                        @click=${() => {
-                          const attacker = this.game.playerBySmallID(
-                            attack.attackerID,
-                          ) as PlayerView;
-                          this.eventBus.emit(new GoToPlayerEvent(attacker));
-                        }}
-                      >
-                        Focus
-                      </button>
-                    </div>
+                    </button>
                   `,
                 )}
               </td>
@@ -401,22 +418,26 @@ export class EventsDisplay extends LitElement implements Layer {
               <td class="lg:p-3 p-1 text-left text-blue-400">
                 ${this.outgoingAttacks.map(
                   (attack) => html`
-                    <div class="ml-2">
+                    <button
+                      class="ml-2"
+                      @click=${() => this.emitGoToPlayerEvent(attack.targetID)}
+                    >
                       ${renderTroops(attack.troops)}
                       ${(
                         this.game.playerBySmallID(attack.targetID) as PlayerView
                       )?.name()}
-                      ${!attack.retreating
-                        ? html`<button
-                            ${attack.retreating ? "disabled" : ""}
-                            @click=${() => {
-                              this.emitCancelAttackIntent(attack.id);
-                            }}
-                          >
-                            ❌
-                          </button>`
-                        : "(retreating...)"}
-                    </div>
+                    </button>
+
+                    ${!attack.retreating
+                      ? html`<button
+                          ${attack.retreating ? "disabled" : ""}
+                          @click=${() => {
+                            this.emitCancelAttackIntent(attack.id);
+                          }}
+                        >
+                          ❌
+                        </button>`
+                      : "(retreating...)"}
                   `,
                 )}
               </td>
@@ -491,9 +512,15 @@ export class EventsDisplay extends LitElement implements Layer {
                     )}"
                   >
                     <td class="lg:p-3 p-1 text-left">
-                      ${event.unsafeDescription
-                        ? unsafeHTML(onlyImages(event.description))
-                        : event.description}
+                      ${event.focusID
+                        ? html`<button
+                            @click=${event.focusID
+                              ? () => this.emitGoToPlayerEvent(event.focusID)
+                              : () => {}}
+                          >
+                            ${this.getEventDescription(event)}
+                          </button>`
+                        : this.getEventDescription(event)}
                       ${event.buttons
                         ? html`
                             <div class="flex flex-wrap gap-1.5 mt-1">
@@ -501,7 +528,7 @@ export class EventsDisplay extends LitElement implements Layer {
                                 (btn) => html`
                                   <button
                                     class="inline-block px-3 py-1 text-white rounded text-sm cursor-pointer transition-colors duration-300
-                            ${btn.className.includes("btn-info")
+                              ${btn.className.includes("btn-info")
                                       ? "bg-blue-500 hover:bg-blue-600"
                                       : btn.className.includes("btn-gray")
                                         ? "bg-gray-500 hover:bg-gray-600"
