@@ -7,6 +7,7 @@ import { UsernameInput } from "./UsernameInput";
 import { SinglePlayerModal } from "./SinglePlayerModal";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinPrivateLobbyModal } from "./JoinPrivateLobbyModal";
+import { GameStartingModal } from "./gameStartingModal";
 import { generateID } from "../core/Util";
 import { generateCryptoRandomUUID } from "./Utils";
 import { consolex } from "../core/Consolex";
@@ -163,6 +164,14 @@ class Client {
       () => {
         this.joinModal.close();
         this.publicLobby.stop();
+
+        // show when the game loads
+        const startingModal = document.querySelector(
+          "game-starting-modal",
+        ) as GameStartingModal;
+        startingModal instanceof GameStartingModal;
+        startingModal.show();
+
         if (gameType != GameType.Singleplayer) {
           window.history.pushState({}, "", `/join/${lobby.gameID}`);
           sessionStorage.setItem("inLobby", "true");
