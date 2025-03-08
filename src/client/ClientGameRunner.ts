@@ -2,7 +2,13 @@ import { PlayerID, GameMapType, Difficulty, GameType } from "../core/game/Game";
 import { EventBus } from "../core/EventBus";
 import { createRenderer, GameRenderer } from "./graphics/GameRenderer";
 import { InputHandler, MouseUpEvent } from "./InputHandler";
-import { ClientID, GameConfig, GameID, ServerMessage } from "../core/Schemas";
+import {
+  ClientID,
+  GameConfig,
+  GameID,
+  ServerMessage,
+  PlayerRecord,
+} from "../core/Schemas";
 import { loadTerrainMap } from "../core/game/TerrainMapLoader";
 import {
   SendAttackIntentEvent,
@@ -15,6 +21,7 @@ import {
   ErrorUpdate,
   GameUpdateType,
   HashUpdate,
+  WinUpdate,
 } from "../core/game/GameUpdates";
 import { WorkerClient } from "../core/worker/WorkerClient";
 import { consolex, initRemoteSender } from "../core/Consolex";
@@ -23,6 +30,8 @@ import { GameView, PlayerView } from "../core/game/GameView";
 import { GameUpdateViewData } from "../core/game/GameUpdates";
 import { UserSettings } from "../core/game/UserSettings";
 import { LocalPersistantStats } from "./LocalPersistantStats";
+import { CreateGameRecord } from "../core/Util";
+import { getPersistentIDFromCookie } from "./Main";
 
 export interface LobbyConfig {
   serverConfig: ServerConfig;
@@ -54,19 +63,21 @@ export function joinLobby(
   );
 
   const userSettings: UserSettings = new UserSettings();
-  let gameConfig: GameConfig = null;
-  if (lobbyConfig.gameType == GameType.Singleplayer) {
-    gameConfig = {
-      gameType: GameType.Singleplayer,
-      gameMap: lobbyConfig.map,
-      difficulty: lobbyConfig.difficulty,
-      disableNPCs: lobbyConfig.disableNPCs,
-      bots: lobbyConfig.bots,
-      infiniteGold: lobbyConfig.infiniteGold,
-      infiniteTroops: lobbyConfig.infiniteTroops,
-      instantBuild: lobbyConfig.instantBuild,
-    };
-  }
+  const gameConfig: GameConfig = {
+    gameType: lobbyConfig.gameType,
+    gameMap: lobbyConfig.map,
+    difficulty: lobbyConfig.difficulty,
+    disableNPCs: lobbyConfig.disableNPCs,
+    bots: lobbyConfig.bots,
+    infiniteGold: lobbyConfig.infiniteGold,
+    infiniteTroops: lobbyConfig.infiniteTroops,
+    instantBuild: lobbyConfig.instantBuild,
+  };
+  LocalPersistantStats.startGame(
+    lobbyConfig.gameID,
+    lobbyConfig.playerID,
+    gameConfig,
+  );
 
   const transport = new Transport(
     lobbyConfig,
@@ -138,6 +149,7 @@ export async function createClientGame(
   );
 
   return new ClientGameRunner(
+    gameConfig,
     lobbyConfig,
     eventBus,
     gameRenderer,
@@ -149,7 +161,6 @@ export async function createClientGame(
 }
 
 export class ClientGameRunner {
-  private localPersistantsStats = new LocalPersistantStats();
   private myPlayer: PlayerView;
   private isActive = false;
 
@@ -157,6 +168,7 @@ export class ClientGameRunner {
   private hasJoined = false;
 
   constructor(
+    private gameConfig: GameConfig,
     private lobby: LobbyConfig,
     private eventBus: EventBus,
     private renderer: GameRenderer,
@@ -166,8 +178,30 @@ export class ClientGameRunner {
     private gameView: GameView,
   ) {}
 
+  private saveGame(update: WinUpdate) {
+    const players: PlayerRecord[] = [
+      {
+        ip: null,
+        persistentID: getPersistentIDFromCookie(),
+        username: this.lobby.playerName(),
+        clientID: this.lobby.clientID,
+      },
+    ];
+    const record = CreateGameRecord(
+      this.lobby.gameID,
+      this.gameConfig,
+      players,
+      // Not saving turns locally
+      [],
+      LocalPersistantStats.startTime(),
+      Date.now(),
+      this.gameView.playerBySmallID(update.winnerID).id(),
+      update.allPlayersStats,
+    );
+    LocalPersistantStats.endGame(record);
+  }
+
   public start() {
-    this.localPersistantsStats.startGame(this.lobby);
     consolex.log("starting client game");
     this.isActive = true;
     this.eventBus.on(MouseUpEvent, (e) => this.inputEvent(e));
@@ -184,6 +218,10 @@ export class ClientGameRunner {
       });
       this.gameView.update(gu);
       this.renderer.tick();
+
+      if (gu.updates[GameUpdateType.Win].length > 0) {
+        this.saveGame(gu.updates[GameUpdateType.Win][0]);
+      }
     });
     const worker = this.worker;
     const keepWorkerAlive = () => {

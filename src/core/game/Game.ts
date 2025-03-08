@@ -1,7 +1,7 @@
 import { Config } from "../configuration/Config";
 import { GameEvent } from "../EventBus";
 import { PlayerView } from "./GameView";
-import { ClientID, GameConfig, GameID } from "../Schemas";
+import { ClientID, GameConfig, GameID, AllPlayersStats } from "../Schemas";
 import { GameMap, GameMapImpl, TileRef } from "./GameMap";
 import {
   GameUpdate,
@@ -9,7 +9,7 @@ import {
   PlayerUpdate,
   UnitUpdate,
 } from "./GameUpdates";
-import { PlayerStats, Stats } from "./Stats";
+import { Stats } from "./Stats";
 
 export type PlayerID = string;
 export type Tick = number;
@@ -378,7 +378,7 @@ export interface Game extends GameMap {
   ticks(): Tick;
   inSpawnPhase(): boolean;
   executeNextTick(): GameUpdates;
-  setWinner(winner: Player): void;
+  setWinner(winner: Player, allPlayersStats: AllPlayersStats): void;
   config(): Config;
 
   // Units
