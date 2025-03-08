@@ -24,13 +24,12 @@ import {
   UnitInfo,
   UnitType,
 } from "./Game";
-import { ClientID, GameID } from "../Schemas";
+import { ClientID, GameID, PlayerStats } from "../Schemas";
 import { TerraNulliusImpl } from "./TerraNulliusImpl";
 import { WorkerClient } from "../worker/WorkerClient";
 import { GameMap, GameMapImpl, TileRef, TileUpdate } from "./GameMap";
 import { GameUpdateViewData } from "./GameUpdates";
 import { DefenseGrid } from "./DefensePostGrid";
-import { PlayerStats } from "./Stats";
 
 export class UnitView {
   public _wasUpdated = true;

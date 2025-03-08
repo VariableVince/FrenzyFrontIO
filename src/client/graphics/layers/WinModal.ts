@@ -9,7 +9,6 @@ import { PseudoRandom } from "../../../core/PseudoRandom";
 import { simpleHash } from "../../../core/Util";
 import { EventBus } from "../../../core/EventBus";
 import { SendWinnerEvent } from "../../Transport";
-import { GameStat, LocalPersistantStats } from "../../LocalPersistantStats";
 
 // Add this at the top of your file
 declare global {
@@ -28,7 +27,6 @@ export class WinModal extends LitElement implements Layer {
   private rand: PseudoRandom;
 
   private hasShownDeathModal = false;
-  private localPersistantsStats = new LocalPersistantStats();
 
   @state()
   isVisible = false;
@@ -222,14 +220,6 @@ export class WinModal extends LitElement implements Layer {
     this.rand = new PseudoRandom(simpleHash(this.game.myClientID()));
   }
 
-  private updateGameStats(outcome: GameStat["outcome"]) {
-    this.localPersistantsStats.endGame(
-      this.game.gameID(),
-      this.game.myPlayer().stats(),
-      outcome,
-    );
-  }
-
   tick() {
     const myPlayer = this.game.myPlayer();
     if (!this.hasShownDeathModal && myPlayer && !myPlayer.isAlive()) {
@@ -240,15 +230,15 @@ export class WinModal extends LitElement implements Layer {
     }
     this.game.updatesSinceLastTick()[GameUpdateType.Win].forEach((wu) => {
       const winner = this.game.playerBySmallID(wu.winnerID) as PlayerView;
-      this.eventBus.emit(new SendWinnerEvent(winner.clientID()));
+      this.eventBus.emit(
+        new SendWinnerEvent(winner.clientID(), wu.allPlayersStats),
+      );
       if (winner == this.game.myPlayer()) {
         this._title = "You Won!";
         this.won = true;
-        this.updateGameStats("victory");
       } else {
         this._title = `${winner.name()} has won!`;
         this.won = false;
-        this.updateGameStats("defeat");
       }
       this.show();
     });
