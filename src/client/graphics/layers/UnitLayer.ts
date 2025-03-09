@@ -334,7 +334,7 @@ export class UnitLayer implements Layer {
 
     for (const t of this.game.bfs(
       unit.lastTile(),
-      euclDistFN(unit.lastTile(), range),
+      euclDistFN(unit.lastTile(), range, false),
     )) {
       this.clearCell(this.game.x(t), this.game.y(t));
     }
@@ -342,7 +342,7 @@ export class UnitLayer implements Layer {
     if (unit.isActive()) {
       for (const t of this.game.bfs(
         unit.tile(),
-        euclDistFN(unit.tile(), range),
+        euclDistFN(unit.tile(), range, false),
       )) {
         this.paintCell(
           this.game.x(t),
