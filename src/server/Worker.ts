@@ -4,7 +4,10 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GameManager } from "./GameManager";
-import { getServerConfigFromServer } from "../core/configuration/Config";
+import {
+  GameEnv,
+  getServerConfigFromServer,
+} from "../core/configuration/Config";
 import { WebSocket } from "ws";
 import { Client } from "./Client";
 import rateLimit from "express-rate-limit";
@@ -185,13 +188,35 @@ export function startWorker() {
     "/api/archived_game/:id",
     gatekeeper.httpHandler(LimiterType.Get, async (req, res) => {
       const gameRecord = await readGameRecord(req.params.id);
+
       if (!gameRecord) {
-        res.json({
+        return res.status(404).json({
+          success: false,
+          error: "Game not found",
           exists: false,
         });
-        return;
       }
-      res.json({
+
+      if (
+        config.env() != GameEnv.Dev &&
+        gameRecord.gitCommit != config.gitCommit()
+      ) {
+        console.warn(
+          `git commit mismatch for game ${req.params.id}, expected ${config.gitCommit()}, got ${gameRecord.gitCommit}`,
+        );
+        return res.status(409).json({
+          success: false,
+          error: "Version mismatch",
+          exists: true,
+          details: {
+            expectedCommit: config.gitCommit(),
+            actualCommit: gameRecord.gitCommit,
+          },
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
         exists: true,
         gameRecord: gameRecord,
       });

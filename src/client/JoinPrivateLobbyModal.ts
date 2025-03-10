@@ -364,63 +364,99 @@ export class JoinPrivateLobbyModal extends LitElement {
     }
   }
 
-  private async joinLobby() {
+  private async joinLobby(): Promise<void> {
     const lobbyId = this.lobbyIdInput.value;
     consolex.log(`Joining lobby with ID: ${lobbyId}`);
-    this.message = "Checking lobby..."; // Set initial message
+    this.message = "Checking lobby...";
 
-    const config = await getServerConfigFromClient();
-    const url = `/${config.workerPath(lobbyId)}/api/game/${lobbyId}/exists`;
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const gameInfo = await response.json();
-      if (gameInfo.exists) {
-        this.message = "Joined successfully! Waiting for game to start...";
-        this.hasJoined = true;
-        this.dispatchEvent(
-          new CustomEvent("join-lobby", {
-            detail: {
-              gameID: lobbyId,
-            } as JoinLobbyEvent,
-            bubbles: true,
-            composed: true,
-          }),
-        );
-        this.playersInterval = setInterval(() => this.pollPlayers(), 1000);
-      } else {
-        const archive_url = `/${config.workerPath(lobbyId)}/api/archived_game/${lobbyId}`;
-        const archive_response = await fetch(archive_url, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        const archive_data = await archive_response.json();
-        if (archive_data.exists) {
-          const gr = archive_data.gameRecord as GameRecord;
-          this.dispatchEvent(
-            new CustomEvent("join-lobby", {
-              detail: {
-                gameID: lobbyId,
-                gameRecord: gr,
-              } as JoinLobbyEvent,
-              bubbles: true,
-              composed: true,
-            }),
-          );
-        } else {
-          this.message = "Lobby not found. Please check the ID and try again.";
-        }
-      }
+      // First, check if the game exists in active lobbies
+      const gameExists = await this.checkActiveLobby(lobbyId);
+      if (gameExists) return;
+
+      // If not active, check archived games
+      const archivedGame = await this.checkArchivedGame(lobbyId);
+      if (archivedGame) return;
+
+      this.message = "Lobby not found. Please check the ID and try again.";
     } catch (error) {
       consolex.error("Error checking lobby existence:", error);
       this.message = "An error occurred. Please try again.";
     }
+  }
+
+  private async checkActiveLobby(lobbyId: string): Promise<boolean> {
+    const config = await getServerConfigFromClient();
+    const url = `/${config.workerPath(lobbyId)}/api/game/${lobbyId}/exists`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const gameInfo = await response.json();
+
+    if (gameInfo.exists) {
+      this.message = "Joined successfully! Waiting for game to start...";
+      this.hasJoined = true;
+
+      this.dispatchEvent(
+        new CustomEvent("join-lobby", {
+          detail: { gameID: lobbyId } as JoinLobbyEvent,
+          bubbles: true,
+          composed: true,
+        }),
+      );
+
+      this.playersInterval = setInterval(() => this.pollPlayers(), 1000);
+      return true;
+    }
+
+    return false;
+  }
+
+  private async checkArchivedGame(lobbyId: string): Promise<boolean> {
+    const config = await getServerConfigFromClient();
+    const archiveUrl = `/${config.workerPath(lobbyId)}/api/archived_game/${lobbyId}`;
+
+    const archiveResponse = await fetch(archiveUrl, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const archiveData = await archiveResponse.json();
+
+    if (
+      archiveData.success === false &&
+      archiveData.error === "Version mismatch"
+    ) {
+      consolex.warn(
+        `Git commit hash mismatch for game ${lobbyId}`,
+        archiveData.details,
+      );
+      this.message =
+        "This game was created with a different version. Cannot join.";
+      return true;
+    }
+
+    if (archiveData.exists) {
+      const gameRecord = archiveData.gameRecord as GameRecord;
+
+      this.dispatchEvent(
+        new CustomEvent("join-lobby", {
+          detail: {
+            gameID: lobbyId,
+            gameRecord: gameRecord,
+          } as JoinLobbyEvent,
+          bubbles: true,
+          composed: true,
+        }),
+      );
+
+      return true;
+    }
+
+    return false;
   }
 
   private async pollPlayers() {

@@ -395,4 +395,5 @@ export const GameRecordSchema = z.object({
   winner: ID.nullable(),
   allPlayersStats: z.record(ID, PlayerStatsSchema),
   version: z.enum(["v0.0.1"]),
+  gitCommit: z.string().nullable().optional(),
 });

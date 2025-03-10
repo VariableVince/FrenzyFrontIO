@@ -22,6 +22,9 @@ import { pastelTheme } from "./PastelTheme";
 import { pastelThemeDark } from "./PastelThemeDark";
 
 export abstract class DefaultServerConfig implements ServerConfig {
+  gitCommit(): string {
+    return process.env.GIT_COMMIT;
+  }
   adminHeader(): string {
     return "x-admin-key";
   }

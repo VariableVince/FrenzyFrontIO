@@ -23,6 +23,9 @@ export class DevServerConfig extends DefaultServerConfig {
   numWorkers(): number {
     return 2;
   }
+  gitCommit(): string {
+    return "DEV";
+  }
 }
 
 export class DevConfig extends DefaultConfig {

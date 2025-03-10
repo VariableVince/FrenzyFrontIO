@@ -15,6 +15,7 @@ const analyticsBucket = "openfront-analytics";
 
 export async function archive(gameRecord: GameRecord) {
   try {
+    gameRecord.gitCommit = config.gitCommit();
     // Archive to Redshift Serverless
     await archiveAnalyticsToS3(gameRecord);
 

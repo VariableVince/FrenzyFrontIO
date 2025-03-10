@@ -1,6 +1,9 @@
 # Build stage - will use your native architecture
 FROM --platform=$BUILDPLATFORM oven/bun:1 AS builder
 
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
+
 # Set the working directory for the build
 WORKDIR /build
 
@@ -28,6 +31,8 @@ FROM oven/bun:1
 ARG GAME_ENV=prod
 ENV GAME_ENV=$GAME_ENV
 ENV NODE_ENV=production
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
 
 # Install Nginx, Supervisor and Git (for Husky)
 RUN apt-get update && apt-get install -y nginx supervisor && \

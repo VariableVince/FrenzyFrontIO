@@ -100,6 +100,8 @@ export interface ServerConfig {
   env(): GameEnv;
   adminToken(): string;
   adminHeader(): string;
+  // Only available on the server
+  gitCommit(): string;
 }
 
 export interface Config {
