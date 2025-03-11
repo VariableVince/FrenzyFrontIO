@@ -1,4 +1,4 @@
-import { MessageType } from "./Game";
+import { MessageType, nukeTypes, UnitSpecificInfos } from "./Game";
 import { UnitUpdate } from "./GameUpdates";
 import { GameUpdateType } from "./GameUpdates";
 import { simpleHash, toInt, within, withinInt } from "../Util";
@@ -6,6 +6,7 @@ import { Unit, TerraNullius, UnitType, Player, UnitInfo } from "./Game";
 import { GameImpl } from "./GameImpl";
 import { PlayerImpl } from "./PlayerImpl";
 import { TileRef } from "./GameMap";
+import { consolex } from "../Consolex";
 
 export class UnitImpl implements Unit {
   private _active = true;
@@ -16,6 +17,10 @@ export class UnitImpl implements Unit {
 
   private _constructionType: UnitType = undefined;
 
+  private _dstPort: Unit | null = null; // Only for trade ships
+  private _detonationDst: TileRef | null = null; // Only for nukes
+  private _warshipTarget: Unit | null = null;
+
   constructor(
     private _type: UnitType,
     private mg: GameImpl,
@@ -23,10 +28,13 @@ export class UnitImpl implements Unit {
     private _troops: number,
     private _id: number,
     public _owner: PlayerImpl,
-    private _dstPort?: Unit,
+    unitsSpecificInfos: UnitSpecificInfos = {},
   ) {
     this._health = toInt(this.mg.unitInfo(_type).maxHealth ?? 1);
     this._lastTile = _tile;
+    this._dstPort = unitsSpecificInfos.dstPort;
+    this._detonationDst = unitsSpecificInfos.detonationDst;
+    this._warshipTarget = unitsSpecificInfos.warshipTarget;
   }
 
   id() {
@@ -34,6 +42,8 @@ export class UnitImpl implements Unit {
   }
 
   toUpdate(): UnitUpdate {
+    const warshipTarget = this.warshipTarget();
+    const dstPort = this.dstPort();
     return {
       type: GameUpdateType.Unit,
       unitType: this._type,
@@ -45,7 +55,9 @@ export class UnitImpl implements Unit {
       lastPos: this._lastTile,
       health: this.hasHealth() ? Number(this._health) : undefined,
       constructionType: this._constructionType,
-      targetId: this.target() ? this.target().id() : null,
+      dstPortId: dstPort ? dstPort.id() : null,
+      warshipTargetId: warshipTarget ? warshipTarget.id() : null,
+      detonationDst: this.detonationDst(),
     };
   }
 
@@ -153,15 +165,19 @@ export class UnitImpl implements Unit {
     return `Unit:${this._type},owner:${this.owner().name()}`;
   }
 
+  setWarshipTarget(target: Unit) {
+    this._warshipTarget = target;
+  }
+
+  warshipTarget(): Unit {
+    return this._warshipTarget;
+  }
+
+  detonationDst(): TileRef {
+    return this._detonationDst;
+  }
+
   dstPort(): Unit {
     return this._dstPort;
-  }
-
-  setTarget(target: Unit) {
-    this._target = target;
-  }
-
-  target() {
-    return this._target;
   }
 }
