@@ -285,11 +285,6 @@ export class PlayerImpl implements Player {
   isAlive(): boolean {
     return this._tiles.size > 0;
   }
-  executions(): Execution[] {
-    return this.mg
-      .executions()
-      .filter((exec) => exec.owner().id() == this.id());
-  }
 
   incomingAllianceRequests(): AllianceRequest[] {
     return this.mg.allianceRequests.filter((ar) => ar.recipient() == this);
