@@ -5,7 +5,7 @@ import { PseudoRandom } from "../PseudoRandom";
 import { simpleHash } from "../Util";
 import { GameMap, TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
-import { blueShades, humanColors, redShades, territoryColors } from "./Colors";
+import { blue, botColor, humanColors, red, territoryColors } from "./Colors";
 
 export const pastelThemeDark = new (class implements Theme {
   private rand = new PseudoRandom(123);
@@ -30,11 +30,14 @@ export const pastelThemeDark = new (class implements Theme {
   private _spawnHighlightColor = colord({ r: 255, g: 213, b: 79 });
 
   territoryColor(player: PlayerView): Colord {
+    if (player.teamName() == TeamName.Bot) {
+      return botColor;
+    }
     if (player.teamName() == TeamName.Red) {
-      return redShades[simpleHash(player.id()) % redShades.length];
+      return red;
     }
     if (player.teamName() == TeamName.Blue) {
-      return blueShades[simpleHash(player.id()) % blueShades.length];
+      return blue;
     }
     if (player.info().playerType == PlayerType.Human) {
       return humanColors[simpleHash(player.id()) % humanColors.length];
