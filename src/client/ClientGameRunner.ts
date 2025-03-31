@@ -386,6 +386,8 @@ export class ClientGameRunner {
 
       if (units.length > 0) {
         this.gameView.setFocusedPlayer(units[0].owner() as PlayerView);
+      } else {
+        this.gameView.setFocusedPlayer(null);
       }
     }
   }
