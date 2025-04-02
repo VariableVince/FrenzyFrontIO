@@ -280,20 +280,22 @@ function getNextMap(): GameMapType {
   }
 
   const frequency = {
-    World: 2,
+    World: 1,
     Europe: 3,
     Mena: 2,
-    NorthAmerica: 3,
-    BlackSea: 2,
-    Pangaea: 2,
+    NorthAmerica: 2,
+    BlackSea: 1,
+    Pangaea: 1,
     Africa: 2,
     Asia: 1,
     Mars: 1,
     Britannia: 2,
-    GatewayToTheAtlantic: 3,
+    GatewayToTheAtlantic: 2,
     Australia: 2,
     Iceland: 2,
     SouthAmerica: 3,
+    Japan: 3,
+    TwoSeas: 3,
   };
 
   Object.keys(GameMapType).forEach((key) => {
