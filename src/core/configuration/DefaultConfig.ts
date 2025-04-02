@@ -2,6 +2,7 @@ import {
   Difficulty,
   Game,
   GameMapType,
+  GameMode,
   GameType,
   Gold,
   Player,
@@ -376,6 +377,9 @@ export class DefaultConfig implements Config {
     return 600 * 10; // 10 minutes.
   }
   percentageTilesOwnedToWin(): number {
+    if (this._gameConfig.gameMode == GameMode.Team) {
+      return 95;
+    }
     return 80;
   }
   boatMaxNumber(): number {
