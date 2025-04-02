@@ -5,7 +5,7 @@ import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getServerConfigFromServer } from "../core/configuration/ConfigLoader";
-import { Difficulty, GameMapType, GameType } from "../core/game/Game";
+import { Difficulty, GameMapType, GameMode, GameType } from "../core/game/Game";
 import { PseudoRandom } from "../core/PseudoRandom";
 import { GameConfig, GameInfo } from "../core/Schemas";
 import { generateID } from "../core/Util";
@@ -237,6 +237,7 @@ async function schedulePublicGame() {
     instantBuild: false,
     disableNPCs: false,
     disableNukes: false,
+    gameMode: Math.random() < 0.7 ? GameMode.FFA : GameMode.Team,
     bots: 400,
   } as GameConfig;
 
