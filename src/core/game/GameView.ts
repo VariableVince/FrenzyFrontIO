@@ -384,6 +384,10 @@ export class GameView implements GameMap {
     throw Error(`player id ${id} not found`);
   }
 
+  players(): PlayerView[] {
+    return Array.from(this._players.values());
+  }
+
   playerBySmallID(id: number): PlayerView | TerraNullius {
     if (id == 0) {
       return new TerraNulliusImpl();
