@@ -94,6 +94,8 @@ export class PlayerImpl implements Player {
   public _outgoingAttacks: Attack[] = [];
   public _outgoingLandAttacks: Attack[] = [];
 
+  private _hasSpawned = false;
+
   constructor(
     private mg: GameImpl,
     private _smallID: number,
@@ -162,6 +164,7 @@ export class PlayerImpl implements Player {
       ),
       outgoingAllianceRequests: outgoingAllianceRequests,
       stats: this.mg.stats().getPlayerStats(this.id()),
+      hasSpawned: this.hasSpawned(),
     };
   }
 
@@ -289,6 +292,14 @@ export class PlayerImpl implements Player {
   }
   isAlive(): boolean {
     return this._tiles.size > 0;
+  }
+
+  hasSpawned(): boolean {
+    return this._hasSpawned;
+  }
+
+  setHasSpawned(hasSpawned: boolean): void {
+    this._hasSpawned = hasSpawned;
   }
 
   incomingAllianceRequests(): AllianceRequest[] {
