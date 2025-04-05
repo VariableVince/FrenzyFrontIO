@@ -29,7 +29,7 @@ export class UnitLayer implements Layer {
   private canvas: HTMLCanvasElement;
   private context: CanvasRenderingContext2D;
 
-  private boatToTrail = new Map<UnitView, Set<TileRef>>();
+  private boatToTrail = new Map<UnitView, TileRef[]>();
 
   private theme: Theme = null;
 
@@ -478,10 +478,10 @@ export class UnitLayer implements Layer {
     const rel = this.relationship(unit);
 
     if (!this.boatToTrail.has(unit)) {
-      this.boatToTrail.set(unit, new Set<TileRef>());
+      this.boatToTrail.set(unit, []);
     }
     const trail = this.boatToTrail.get(unit);
-    trail.add(unit.lastTile());
+    trail.push(unit.lastTile());
 
     // Clear previous area
     for (const t of this.game.bfs(
@@ -493,7 +493,7 @@ export class UnitLayer implements Layer {
 
     if (unit.isActive()) {
       // Paint trail
-      for (const t of trail) {
+      for (const t of trail.slice(-4)) {
         this.paintCell(
           this.game.x(t),
           this.game.y(t),

@@ -54,24 +54,29 @@ export class NukeExecution implements Execution {
     const rand = new PseudoRandom(this.mg.ticks());
     return this.mg.bfs(this.dst, (_, n: TileRef) => {
       const d = this.mg.euclideanDist(this.dst, n);
-      return (d <= magnitude.inner || rand.chance(2)) && d <= magnitude.outer;
+      if (d > magnitude.outer) {
+        return false;
+      }
+      return d <= magnitude.inner || rand.chance(2);
     });
   }
 
-  private getAttackedTiles() {
+  private getAttackedTiles(): Map<Player, number> {
     const toDestroy = this.tilesToDestroy();
 
-    const attacked = new Map<Player, number>();
+    const attacked = new Map<number, number>();
     for (const tile of toDestroy) {
-      const owner = this.mg.owner(tile);
-      if (owner.isPlayer()) {
-        const mp = this.mg.player(owner.id());
-        const prev = attacked.get(mp) ?? 0;
-        attacked.set(mp, prev + 1);
+      const ownerID = this.mg.ownerID(tile);
+      if (ownerID != 0) {
+        const prev = attacked.get(ownerID) ?? 0;
+        attacked.set(ownerID, prev + 1);
       }
     }
-
-    return attacked;
+    return new Map(
+      Array.from(attacked.entries()).map(([smallID, value]) => {
+        return [this.mg.playerBySmallID(smallID), value] as [Player, number];
+      }),
+    );
   }
 
   private breakAlliances() {
