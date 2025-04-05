@@ -553,6 +553,23 @@ export class UnitLayer implements Layer {
         );
       }
       this.boatToTrail.delete(unit);
+
+      // Repaint overlapping trails
+      const trailSet = new Set(trail);
+      for (const [other, trail] of this.boatToTrail) {
+        for (const t of trail) {
+          if (trailSet.has(t)) {
+            this.paintCell(
+              this.game.x(t),
+              this.game.y(t),
+              rel,
+              this.theme.territoryColor(other.owner()),
+              150,
+              this.transportShipTrailContext,
+            );
+          }
+        }
+      }
     }
   }
 
