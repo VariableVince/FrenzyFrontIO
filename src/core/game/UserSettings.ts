@@ -28,7 +28,7 @@ export class UserSettings {
 
   focusLocked() {
     if (this.focusedLocked_ === null) {
-      this.focusedLocked_ = this.get("settings.focusLocked", false);
+      this.focusedLocked_ = this.get("settings.focusLocked", true);
     }
     return this.focusedLocked_;
   }
