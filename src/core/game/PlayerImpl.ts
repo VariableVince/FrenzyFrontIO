@@ -768,6 +768,12 @@ export class PlayerImpl implements Player {
   }
 
   nukeSpawn(tile: TileRef): TileRef | false {
+    const owner = this.mg.owner(tile);
+    if (owner.isPlayer()) {
+      if (this.isOnSameTeam(owner)) {
+        return false;
+      }
+    }
     // only get missilesilos that are not on cooldown
     const spawns = this.units(UnitType.MissileSilo)
       .map((u) => u as Unit)
