@@ -473,18 +473,25 @@ export class DefaultConfig implements Config {
     }
 
     if (defender.isPlayer()) {
+      const ratio = within(
+        Math.pow(defender.troops() / attackTroops, 0.2),
+        0.1,
+        10,
+      );
+      const speedRatio = within(
+        defender.troops() / (5 * attackTroops),
+        0.1,
+        10,
+      );
+
       return {
         attackerTroopLoss:
-          within(defender.troops() / attackTroops, 0.6, 2) *
+          ratio *
           mag *
-          0.8 *
           largeLossModifier *
           (defender.isTraitor() ? this.traitorDefenseDebuff() : 1),
-        defenderTroopLoss: defender.troops() / defender.numTilesOwned(),
-        tilesPerTickUsed:
-          within(defender.troops() / (5 * attackTroops), 0.2, 1.5) *
-          speed *
-          largeSpeedMalus,
+        defenderTroopLoss: defender.population() / defender.numTilesOwned(),
+        tilesPerTickUsed: Math.floor(speedRatio * speed * largeSpeedMalus),
       };
     } else {
       return {
