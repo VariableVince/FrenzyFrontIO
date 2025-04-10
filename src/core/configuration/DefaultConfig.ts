@@ -620,7 +620,8 @@ export class DefaultConfig implements Config {
   }
 
   goldAdditionRate(player: Player): number {
-    return Math.sqrt(player.workers() * player.numTilesOwned()) / 200;
+    const ratio = Math.pow(player.workers() / player.population(), 1.3);
+    return Math.floor(Math.sqrt(player.workers()) * ratio * 5);
   }
 
   troopAdjustmentRate(player: Player): number {
