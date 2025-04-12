@@ -18,14 +18,12 @@ import { metrics } from "./WorkerMetrics";
 
 const config = getServerConfigFromServer();
 
-let log = logger.child({ component: "Worker" });
+const workerId = parseInt(process.env.WORKER_ID || "0");
+const log = logger.child({ component: `worker_${workerId}` });
 
 // Worker setup
 export function startWorker() {
-  // Get worker ID from environment variable
-  const workerId = parseInt(process.env.WORKER_ID || "0");
-  log = log.child({ workerId: workerId });
-  log.info(`Worker ${workerId} starting...`);
+  log.info(`Worker starting...`);
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
