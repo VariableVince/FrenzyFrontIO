@@ -123,6 +123,7 @@ export interface Config {
   nukeMagnitudes(unitType: UnitType): NukeMagnitude;
   defaultNukeSpeed(): number;
   nukeDeathFactor(humans: number, tilesOwned: number): number;
+  structureMinDist(): number;
 }
 
 export interface Theme {

@@ -676,4 +676,8 @@ export class DefaultConfig implements Config {
   nukeDeathFactor(humans: number, tilesOwned: number): number {
     return (5 * humans) / Math.max(1, tilesOwned);
   }
+
+  structureMinDist(): number {
+    return 18;
+  }
 }

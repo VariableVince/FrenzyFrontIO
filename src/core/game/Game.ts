@@ -347,6 +347,7 @@ export interface Player {
   // Units
   units(...types: UnitType[]): Unit[];
   unitsIncludingConstruction(type: UnitType): Unit[];
+  buildableUnits(tile: TileRef): BuildableUnit[];
   canBuild(type: UnitType, targetTile: TileRef): TileRef | false;
   buildUnit(
     type: UnitType,
