@@ -69,7 +69,7 @@ export abstract class DefaultServerConfig implements ServerConfig {
         GameMapType.Europe,
       ].includes(map)
     ) {
-      return Math.random() < 0.2 ? 150 : 70;
+      return Math.random() < 0.2 ? 100 : 50;
     }
     // Maps with ~2.5 - ~3.5 mil pixels
     if (
@@ -80,7 +80,7 @@ export abstract class DefaultServerConfig implements ServerConfig {
         GameMapType.Asia,
       ].includes(map)
     ) {
-      return Math.random() < 0.2 ? 100 : 50;
+      return Math.random() < 0.3 ? 50 : 25;
     }
     // Maps with ~2 mil pixels
     if (
@@ -92,7 +92,7 @@ export abstract class DefaultServerConfig implements ServerConfig {
         GameMapType.FaroeIslands,
       ].includes(map)
     ) {
-      return Math.random() < 0.2 ? 70 : 40;
+      return Math.random() < 0.3 ? 50 : 25;
     }
     // Maps smaller than ~2 mil pixels
     if (
@@ -102,14 +102,14 @@ export abstract class DefaultServerConfig implements ServerConfig {
         GameMapType.Pangaea,
       ].includes(map)
     ) {
-      return Math.random() < 0.2 ? 60 : 35;
+      return Math.random() < 0.5 ? 30 : 15;
     }
     // world belongs with the ~2 mils, but these amounts never made sense so I assume the insanity is intended.
     if (map == GameMapType.World) {
-      return Math.random() < 0.2 ? 150 : 60;
+      return Math.random() < 0.2 ? 150 : 50;
     }
     // default return for non specified map
-    return Math.random() < 0.2 ? 85 : 45;
+    return Math.random() < 0.2 ? 50 : 20;
   }
   workerIndex(gameID: GameID): number {
     return simpleHash(gameID) % this.numWorkers();
