@@ -25,12 +25,16 @@ on:
         required: false
         default: ""
         type: string
+  push:
+    branches:
+      - main
 
 jobs:
   deploy:
-    name: Deploy to ${{ inputs.target_environment }}
+    # Use different logic based on event type
+    name: Deploy to ${{ github.event_name == 'workflow_dispatch' && inputs.target_environment || 'staging' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.target_environment }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.target_environment || 'staging' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +48,13 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SERVER_HOST_STAGING }} >> ~/.ssh/known_hosts
-          cat >.env.${{ inputs.target_environment }} <<EOF
+
+          # Determine environment based on trigger type
+          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.target_environment || 'staging' }}"
+          TARGET_HOST="${{ github.event_name == 'workflow_dispatch' && inputs.target_host || 'staging' }}"
+          TARGET_SUBDOMAIN="${{ github.event_name == 'workflow_dispatch' && inputs.target_subdomain || 'main' }}"
+
+          cat >.env.$TARGET_ENV <<EOF
           ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}
           CF_ACCOUNT_ID=${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN=${{ secrets.CF_API_TOKEN }}
@@ -62,4 +72,6 @@ jobs:
           SSH_KEY=~/.ssh/id_rsa
           VERSION_TAG="latest"
           EOF
-          ./deploy.sh ${{ inputs.target_environment }} ${{ inputs.target_host }} ${{ inputs.target_subdomain }}
+
+          ./deploy.sh $TARGET_ENV $TARGET_HOST $TARGET_SUBDOMAIN
+          echo "Deployed to $TARGET_ENV environment on $TARGET_HOST host with subdomain $TARGET_SUBDOMAIN"
