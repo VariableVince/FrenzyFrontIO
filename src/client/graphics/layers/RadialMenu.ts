@@ -380,7 +380,8 @@ export class RadialMenu implements Layer {
       });
     }
     if (
-      actions.buildableUnits.some((bu) => bu.type == UnitType.TransportShip)
+      actions.buildableUnits.find((bu) => bu.type == UnitType.TransportShip)
+        ?.canBuild
     ) {
       this.activateMenuElement(Slot.Boat, "#3f6ab1", boatIcon, () => {
         // BestTransportShipSpawn is an expensive operation, so

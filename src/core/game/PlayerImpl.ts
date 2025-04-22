@@ -43,7 +43,7 @@ import { andFN, manhattanDistFN, TileRef } from "./GameMap";
 import { AttackUpdate, GameUpdateType, PlayerUpdate } from "./GameUpdates";
 import { TerraNulliusImpl } from "./TerraNulliusImpl";
 import {
-  bestShoreDeploymentSource as bestTranpsortShipSpawn,
+  bestShoreDeploymentSource,
   canBuildTransportShip,
 } from "./TransportShipUtils";
 import { UnitImpl } from "./UnitImpl";
@@ -1017,7 +1017,7 @@ export class PlayerImpl implements Player {
   }
 
   bestTransportShipSpawn(targetTile: TileRef): TileRef | false {
-    return bestTranpsortShipSpawn(this.mg, this, targetTile);
+    return bestShoreDeploymentSource(this.mg, this, targetTile);
   }
 
   // It's a probability list, so if an element appears twice it's because it's
