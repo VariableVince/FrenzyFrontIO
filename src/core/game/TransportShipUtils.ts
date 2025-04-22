@@ -148,6 +148,10 @@ export function bestShoreDeploymentSource(
   player: Player,
   target: TileRef,
 ): TileRef | null {
+  target = targetTransportTile(gm, target);
+  if (target == null) {
+    return null;
+  }
   let closestManhattanDistance = Infinity;
   let minX = Infinity,
     minY = Infinity,
