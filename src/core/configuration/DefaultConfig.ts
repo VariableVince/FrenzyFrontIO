@@ -145,7 +145,7 @@ export class DefaultConfig implements Config {
     return 0.5;
   }
   traitorDuration(): number {
-    return 15 * 10; // 15 seconds
+    return 30 * 10; // 30 seconds
   }
   spawnImmunityDuration(): Tick {
     return 5 * 10;
