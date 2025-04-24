@@ -429,7 +429,7 @@ export class UnitLayer implements Layer {
       if (unit.type() == UnitType.TradeShip && unit.dstPortId() != null) {
         const target = this.game.unit(unit.dstPortId())?.owner();
         const myPlayer = this.game.myPlayer();
-        if (myPlayer != null) {
+        if (myPlayer != null && target != null) {
           if (myPlayer == target) {
             rel = Relationship.Self;
           } else if (myPlayer.isFriendly(target)) {
