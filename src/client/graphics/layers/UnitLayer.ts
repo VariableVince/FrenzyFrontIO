@@ -428,8 +428,13 @@ export class UnitLayer implements Layer {
       let rel = this.relationship(unit);
       if (unit.type() == UnitType.TradeShip && unit.dstPortId() != null) {
         const target = this.game.unit(unit.dstPortId())?.owner();
-        if (this.game.myPlayer() != null && this.game.myPlayer() == target) {
-          rel = Relationship.Self;
+        const myPlayer = this.game.myPlayer();
+        if (myPlayer != null) {
+          if (myPlayer == target) {
+            rel = Relationship.Self;
+          } else if (myPlayer.isFriendly(target)) {
+            rel = Relationship.Ally;
+          }
         }
       }
       switch (rel) {
