@@ -350,9 +350,12 @@ export class RadialMenu implements Layer {
     actions: PlayerActions,
     tile: TileRef,
   ) {
-    this.activateMenuElement(Slot.Build, "#ebe250", buildIcon, () => {
-      this.buildMenu.showMenu(tile);
-    });
+    if (!this.g.inSpawnPhase()) {
+      this.activateMenuElement(Slot.Build, "#ebe250", buildIcon, () => {
+        this.buildMenu.showMenu(tile);
+      });
+    }
+
     if (this.g.hasOwner(tile)) {
       this.activateMenuElement(Slot.Info, "#64748B", infoIcon, () => {
         this.playerPanel.show(actions, tile);
