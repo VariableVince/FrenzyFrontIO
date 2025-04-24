@@ -51,6 +51,7 @@ export enum Team {
 export enum GameMapType {
   World = "World",
   Europe = "Europe",
+  EuropeClassic = "Europe Classic",
   Mena = "Mena",
   NorthAmerica = "North America",
   SouthAmerica = "South America",
@@ -76,6 +77,7 @@ export const mapCategories: Record<string, GameMapType[]> = {
     GameMapType.NorthAmerica,
     GameMapType.SouthAmerica,
     GameMapType.Europe,
+    GameMapType.EuropeClassic,
     GameMapType.Asia,
     GameMapType.Africa,
     GameMapType.Oceania,

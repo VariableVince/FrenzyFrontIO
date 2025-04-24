@@ -4,6 +4,7 @@ import australia from "../../../resources/maps/AustraliaThumb.webp";
 import betweenTwoSeas from "../../../resources/maps/BetweenTwoSeasThumb.webp";
 import blackSea from "../../../resources/maps/BlackSeaThumb.webp";
 import britannia from "../../../resources/maps/BritanniaThumb.webp";
+import europeClassic from "../../../resources/maps/EuropeClassicThumb.webp";
 import europe from "../../../resources/maps/EuropeThumb.webp";
 import faroeislands from "../../../resources/maps/FaroeIslandsThumb.webp";
 import gatewayToTheAtlantic from "../../../resources/maps/GatewayToTheAtlanticThumb.webp";
@@ -28,6 +29,8 @@ export function getMapsImage(map: GameMapType): string {
       return oceania;
     case GameMapType.Europe:
       return europe;
+    case GameMapType.EuropeClassic:
+      return europeClassic;
     case GameMapType.Mena:
       return mena;
     case GameMapType.NorthAmerica:
