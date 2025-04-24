@@ -26,7 +26,6 @@ export class TransportShipExecution implements Execution {
   private mg: Game;
   private attacker: Player;
   private target: Player | TerraNullius;
-  private embarkDelay = 10;
 
   // TODO make private
   public path: TileRef[];
@@ -153,10 +152,6 @@ export class TransportShipExecution implements Execution {
     }
     if (!this.boat.isActive()) {
       this.active = false;
-      return;
-    }
-    if (this.embarkDelay > 0) {
-      this.embarkDelay--;
       return;
     }
     if (ticks - this.lastMove < this.ticksPerMove) {
