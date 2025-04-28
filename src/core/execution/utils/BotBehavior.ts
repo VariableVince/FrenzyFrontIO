@@ -130,12 +130,11 @@ export class BotBehavior {
       // Choose a new enemy randomly
       const neighbors = this.player.neighbors();
       for (const neighbor of this.random.shuffleArray(neighbors)) {
-        if (neighbor.isPlayer()) {
-          if (this.player.isFriendly(neighbor)) continue;
-          if (neighbor.type() == PlayerType.FakeHuman) {
-            if (this.random.chance(2)) {
-              continue;
-            }
+        if (!neighbor.isPlayer()) continue;
+        if (this.player.isFriendly(neighbor)) continue;
+        if (neighbor.type() == PlayerType.FakeHuman) {
+          if (this.random.chance(2)) {
+            continue;
           }
         }
         this.enemy = neighbor;
