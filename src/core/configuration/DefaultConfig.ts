@@ -42,7 +42,11 @@ export abstract class DefaultServerConfig implements ServerConfig {
   r2SecretKey(): string {
     return process.env.R2_SECRET_KEY;
   }
-  abstract r2Bucket(): string;
+
+  r2Bucket(): string {
+    return process.env.R2_BUCKET;
+  }
+
   adminHeader(): string {
     return "x-admin-key";
   }
