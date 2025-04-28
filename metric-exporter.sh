@@ -36,7 +36,7 @@ push_metrics() {
   
   # Push to Pushgateway with instance label
   curl -s -u "$AUTH" --data-binary @"$TEMP_FILE" \
-    "$PUSHGATEWAY_BASE_URL/job/$job_name/instance/$HOST"
+    "$PUSHGATEWAY_BASE_URL/job/$job_name/instance/$HOSTNAME"
   
   # Check if push was successful
   if [ $? -eq 0 ]; then
