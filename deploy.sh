@@ -10,21 +10,21 @@ set -e  # Exit immediately if a command exits with a non-zero status
 # Check command line arguments
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
     echo "Error: Please specify environment and host, with optional subdomain"
-    echo "Usage: $0 [prod|staging] [eu|us|staging] [subdomain]"
+    echo "Usage: $0 [prod|staging] [eu|us|staging|masters] [subdomain]"
     exit 1
 fi
 
 # Validate first argument (environment)
 if [ "$1" != "prod" ] && [ "$1" != "staging" ]; then
     echo "Error: First argument must be either 'prod' or 'staging'"
-    echo "Usage: $0 [prod|staging] [eu|us|staging] [subdomain]"
+    echo "Usage: $0 [prod|staging] [eu|us|staging|masters] [subdomain]"
     exit 1
 fi
 
 # Validate second argument (host)
-if [ "$2" != "eu" ] && [ "$2" != "us" ] && [ "$2" != "staging" ]; then
-    echo "Error: Second argument must be either 'eu', 'us', or 'staging'"
-    echo "Usage: $0 [prod|staging] [eu|us|staging] [subdomain]"
+if [ "$2" != "eu" ] && [ "$2" != "us" ] && [ "$2" != "staging" ] && [ "$2" != "masters" ]; then
+    echo "Error: Second argument must be either 'eu', 'us', 'staging', or 'masters'"
+    echo "Usage: $0 [prod|staging] [eu|us|staging|masters] [subdomain]"
     exit 1
 fi
 
@@ -65,6 +65,9 @@ if [ "$HOST" == "staging" ]; then
 elif [ "$HOST" == "us" ]; then
     print_header "DEPLOYING TO US HOST"
     SERVER_HOST=$SERVER_HOST_US
+elif [ "$HOST" == "masters" ]; then
+    print_header "DEPLOYING TO MASTERS HOST"
+    SERVER_HOST=$SERVER_HOST_MASTERS
 else
     print_header "DEPLOYING TO EU HOST"
     SERVER_HOST=$SERVER_HOST_EU
