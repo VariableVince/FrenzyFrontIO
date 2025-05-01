@@ -18,6 +18,9 @@ RUN curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/c
     && dpkg -i cloudflared.deb \
     && rm cloudflared.deb
 
+# Install apache2-utils
+RUN apt-get update && apt-get install -y apache2-utils
+
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
