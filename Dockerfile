@@ -38,6 +38,10 @@ COPY . .
 # Build the client-side application
 RUN npm run build-prod
 
+# So we can see which commit was used to build the container
+# openfront.io/commit.txt
+RUN echo $GIT_COMMIT > static/commit.txt
+
 # Copy Nginx configuration and ensure it's used instead of the default
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
