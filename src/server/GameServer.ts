@@ -57,6 +57,8 @@ export class GameServer {
 
   private _hasPrestarted = false;
 
+  private kickedClients: Set<ClientID> = new Set();
+
   constructor(
     public readonly id: string,
     readonly log_: Logger,
@@ -103,6 +105,12 @@ export class GameServer {
   }
 
   public addClient(client: Client, lastTurn: number) {
+    if (this.kickedClients.has(client.clientID)) {
+      this.log.warn(`cannot add client, already kicked`, {
+        clientID: client.clientID,
+      });
+      return;
+    }
     this.log.info("client (re)joining game", {
       clientID: client.clientID,
       persistentID: client.persistentID,
@@ -490,6 +498,31 @@ export class GameServer {
 
   public isPublic(): boolean {
     return this.gameConfig.gameType == GameType.Public;
+  }
+
+  public kickClient(clientID: ClientID): void {
+    if (this.kickedClients.has(clientID)) {
+      this.log.warn(`cannot kick client, already kicked`, {
+        clientID,
+      });
+      return;
+    }
+    const client = this.activeClients.find((c) => c.clientID === clientID);
+    if (client) {
+      this.log.info("Kicking client from game", {
+        clientID: client.clientID,
+        persistentID: client.persistentID,
+      });
+      client.ws.close(1000, "Kicked from game");
+      this.activeClients = this.activeClients.filter(
+        (c) => c.clientID !== clientID,
+      );
+      this.kickedClients.add(clientID);
+    } else {
+      this.log.warn(`cannot kick client, not found in game`, {
+        clientID,
+      });
+    }
   }
 
   private handleSynchronization() {
