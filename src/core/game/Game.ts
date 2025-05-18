@@ -348,6 +348,8 @@ export interface Unit {
 
   // Health
   hasHealth(): boolean;
+  retreating(): boolean;
+  orderBoatRetreat(): void;
   health(): number;
   modifyHealth(delta: number): void;
 
