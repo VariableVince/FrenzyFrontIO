@@ -296,7 +296,7 @@ export class GameServer {
         clientID: c.clientID,
         flag: c.flag,
       })),
-    });
+    } satisfies GameStartInfo);
 
     this.endTurnIntervalID = setInterval(
       () => this.endTurn(),
