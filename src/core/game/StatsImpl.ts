@@ -118,7 +118,7 @@ export class StatsImpl implements Stats {
     if (p === undefined) return;
     if (p.units === undefined) p.units = { [type]: [0] };
     if (p.units[type] === undefined) p.units[type] = [0];
-    while (p.units[type].length < index) p.units[type].push(0);
+    while (p.units[type].length <= index) p.units[type].push(0);
     p.units[type][index] += value;
   }
 
