@@ -18,7 +18,7 @@ export class TradeShipExecution implements Execution {
   private active = true;
   private mg: Game;
   private origOwner: Player;
-  private tradeShip: Unit;
+  private tradeShip: Unit | undefined;
   private wasCaptured = false;
   private pathFinder: PathFinder;
 
@@ -35,7 +35,7 @@ export class TradeShipExecution implements Execution {
   }
 
   tick(ticks: number): void {
-    if (this.tradeShip === null) {
+    if (this.tradeShip === undefined) {
       const spawn = this.origOwner.canBuild(
         UnitType.TradeShip,
         this.srcPort.tile(),
@@ -126,7 +126,7 @@ export class TradeShipExecution implements Execution {
 
   private complete() {
     this.active = false;
-    this.tradeShip.delete(false);
+    this.tradeShip!.delete(false);
     const gold = this.mg
       .config()
       .tradeShipGold(
@@ -134,11 +134,11 @@ export class TradeShipExecution implements Execution {
       );
 
     if (this.wasCaptured) {
-      this.tradeShip.owner().addGold(gold);
+      this.tradeShip!.owner().addGold(gold);
       this.mg.displayMessage(
         `Received ${renderNumber(gold)} gold from ship captured from ${this.origOwner.displayName()}`,
         MessageType.SUCCESS,
-        this.tradeShip.owner().id(),
+        this.tradeShip!.owner().id(),
       );
     } else {
       this.srcPort.owner().addGold(gold);
