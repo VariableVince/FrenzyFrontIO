@@ -359,7 +359,8 @@
     "you_won": "You Won!",
     "other_won": "{player} has won!",
     "exit": "Exit Game",
-    "keep": "Keep Playing"
+    "keep": "Keep Playing",
+    "wishlist": "Wishlist on Steam!"
   },
   "leaderboard": {
     "title": "Leaderboard",
