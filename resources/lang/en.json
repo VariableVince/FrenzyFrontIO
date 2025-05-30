@@ -20,6 +20,9 @@
     "advertise": "Advertise",
     "wiki": "Wiki"
   },
+  "news": {
+    "title": "Version 23 released!"
+  },
   "help_modal": {
     "hotkeys": "Hotkeys",
     "table_key": "Key",
