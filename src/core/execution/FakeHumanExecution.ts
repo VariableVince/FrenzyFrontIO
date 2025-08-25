@@ -20,6 +20,7 @@ import { GameID } from "../Schemas";
 import { calculateBoundingBox, flattenedEmojiTable, simpleHash } from "../Util";
 import { ConstructionExecution } from "./ConstructionExecution";
 import { EmojiExecution } from "./EmojiExecution";
+import { structureSpawnTileValue } from "./nation/structureSpawnTileValue";
 import { NukeExecution } from "./NukeExecution";
 import { SpawnExecution } from "./SpawnExecution";
 import { TransportShipExecution } from "./TransportShipExecution";
@@ -486,7 +487,8 @@ export class FakeHumanExecution implements Execution {
   }
 
   private structureSpawnTile(type: UnitType): TileRef | null {
-    if (this.player === null) throw new Error("not initialized");
+    if (this.mg === undefined) throw new Error("Not initialized");
+    if (this.player === null) throw new Error("Not initialized");
     const tiles =
       type === UnitType.Port
         ? Array.from(this.player.borderTiles()).filter((t) =>
@@ -494,7 +496,7 @@ export class FakeHumanExecution implements Execution {
           )
         : Array.from(this.player.tiles());
     if (tiles.length === 0) return null;
-    const valueFunction = this.structureSpawnTileValue(type);
+    const valueFunction = structureSpawnTileValue(this.mg, this.player, type);
     let bestTile: TileRef | null = null;
     let bestValue = 0;
     const sampledTiles = this.arraySampler(tiles);
@@ -521,69 +523,6 @@ export class FakeHumanExecution implements Execution {
         remaining.delete(t);
         yield t;
       }
-    }
-  }
-
-  private structureSpawnTileValue(type: UnitType): (tile: TileRef) => number {
-    if (this.player === null) throw new Error("not initialized");
-    const borderTiles = this.player.borderTiles();
-    const mg = this.mg;
-    const otherUnits = this.player.units(type);
-    // Prefer spacing structures out of atom bomb range
-    const borderSpacing = this.mg
-      .config()
-      .nukeMagnitudes(UnitType.AtomBomb).outer;
-    const structureSpacing = borderSpacing * 2;
-    switch (type) {
-      case UnitType.Port:
-        return (tile) => {
-          let w = 0;
-
-          // Prefer to be far away from other structures of the same type
-          const otherTiles: Set<TileRef> = new Set(
-            otherUnits.map((u) => u.tile()),
-          );
-          otherTiles.delete(tile);
-          const closestOther = closestTwoTiles(mg, otherTiles, [tile]);
-          if (closestOther !== null) {
-            const d = mg.manhattanDist(closestOther.x, tile);
-            w += Math.min(d, structureSpacing);
-          }
-
-          return w;
-        };
-      case UnitType.City:
-      case UnitType.Factory:
-      case UnitType.MissileSilo:
-        return (tile) => {
-          let w = 0;
-
-          // Prefer higher elevations
-          w += mg.magnitude(tile);
-
-          // Prefer to be away from the border
-          const closestBorder = closestTwoTiles(mg, borderTiles, [tile]);
-          if (closestBorder !== null) {
-            const d = mg.manhattanDist(closestBorder.x, tile);
-            w += Math.min(d, borderSpacing);
-          }
-
-          // Prefer to be away from other structures of the same type
-          const otherTiles: Set<TileRef> = new Set(
-            otherUnits.map((u) => u.tile()),
-          );
-          otherTiles.delete(tile);
-          const closestOther = closestTwoTiles(mg, otherTiles, [tile]);
-          if (closestOther !== null) {
-            const d = mg.manhattanDist(closestOther.x, tile);
-            w += Math.min(d, structureSpacing);
-          }
-
-          // TODO: Cities and factories should consider train range limits
-          return w;
-        };
-      default:
-        throw new Error(`Value function not implemented for ${type}`);
     }
   }
 
