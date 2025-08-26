@@ -30,7 +30,9 @@ export function structureSpawnTileValue(
         }
 
         // Prefer to be away from other structures of the same type
-        const otherTiles: Set<TileRef> = new Set(otherUnits.map((u) => u.tile()));
+        const otherTiles: Set<TileRef> = new Set(
+          otherUnits.map((u) => u.tile()),
+        );
         otherTiles.delete(tile);
         const closestOther = closestTwoTiles(mg, otherTiles, [tile]);
         if (closestOther !== null) {
@@ -47,7 +49,9 @@ export function structureSpawnTileValue(
         let w = 0;
 
         // Prefer to be away from other structures of the same type
-        const otherTiles: Set<TileRef> = new Set(otherUnits.map((u) => u.tile()));
+        const otherTiles: Set<TileRef> = new Set(
+          otherUnits.map((u) => u.tile()),
+        );
         otherTiles.delete(tile);
         const closestOther = closestTwoTiles(mg, otherTiles, [tile]);
         if (closestOther !== null) {
@@ -82,12 +86,15 @@ export function structureSpawnTileValue(
             neighbors.add(neighbor);
           }
           for (const neighbor of neighbors) {
-            w += borderSpacing * (Relation.Friendly - player.relation(neighbor));
+            w +=
+              borderSpacing * (Relation.Friendly - player.relation(neighbor));
           }
         }
 
         // Prefer to be away from other structures of the same type
-        const otherTiles: Set<TileRef> = new Set(otherUnits.map((u) => u.tile()));
+        const otherTiles: Set<TileRef> = new Set(
+          otherUnits.map((u) => u.tile()),
+        );
         otherTiles.delete(tile);
         const closestOther = closestTwoTiles(mg, otherTiles, [tile]);
         if (closestOther !== null) {
@@ -125,7 +132,9 @@ export function structureSpawnTileValue(
         }
 
         // Prefer to be away from other structures of the same type
-        const otherTiles: Set<TileRef> = new Set(otherUnits.map((u) => u.tile()));
+        const otherTiles: Set<TileRef> = new Set(
+          otherUnits.map((u) => u.tile()),
+        );
         otherTiles.delete(tile);
         const closestOther = closestTwoTiles(mg, otherTiles, [tile]);
         if (closestOther !== null) {

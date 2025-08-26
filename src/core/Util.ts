@@ -270,11 +270,10 @@ export const emojiTable = [
   ["↙️", "⬇️", "↘️", "❤️", "💔"],
   ["💰", "⚓", "⛵", "🏡", "🛡️"],
 ] as const;
-
-export type Emoji = (typeof emojiTable)[number][number];
-
 // 2d to 1d array
 export const flattenedEmojiTable = emojiTable.flat();
+
+export type Emoji = (typeof flattenedEmojiTable)[number];
 
 /**
  * JSON.stringify replacer function that converts bigint values to strings.

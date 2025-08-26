@@ -13,33 +13,17 @@ import { AllianceExtensionExecution } from "../alliance/AllianceExtensionExecuti
 import { AttackExecution } from "../AttackExecution";
 import { EmojiExecution } from "../EmojiExecution";
 
-const emojiId = (e: typeof flattenedEmojiTable[number]) => flattenedEmojiTable.indexOf(e);
-const EMOJI_ASSIST_ACCEPT = ([
-  "👍",
-  "⛵",
-  "🤝",
-  "🎯",
-] as const).map(emojiId);
-const EMOJI_RELATION_TOO_LOW = ([
-  "🥱",
-  "🤦‍♂️",
-] as const).map(emojiId);
-const EMOJI_TARGET_ME = ([
-  "🥺",
-  "💀",
-] as const).map(emojiId);
-const EMOJI_TARGET_ALLY = ([
-  "🕊️",
-  "👎",
-] as const).map(emojiId);
-export const EMOJI_HECKLE = ([
-  "🤡",
-  "😡",
-] as const).map(emojiId);
+const emojiId = (e: (typeof flattenedEmojiTable)[number]) =>
+  flattenedEmojiTable.indexOf(e);
+const EMOJI_ASSIST_ACCEPT = (["👍", "⛵", "🤝", "🎯"] as const).map(emojiId);
+const EMOJI_RELATION_TOO_LOW = (["🥱", "🤦‍♂️"] as const).map(emojiId);
+const EMOJI_TARGET_ME = (["🥺", "💀"] as const).map(emojiId);
+const EMOJI_TARGET_ALLY = (["🕊️", "👎"] as const).map(emojiId);
+export const EMOJI_HECKLE = (["🤡", "😡"] as const).map(emojiId);
 
 export class BotBehavior {
   private enemy: Player | null = null;
-  private enemyUpdated: Tick;
+  private enemyUpdated: Tick | undefined;
 
   constructor(
     private random: PseudoRandom,
@@ -98,7 +82,7 @@ export class BotBehavior {
 
   forgetOldEnemies() {
     // Forget old enemies
-    if (this.game.ticks() - this.enemyUpdated > 100) {
+    if (this.game.ticks() - (this.enemyUpdated ?? 0) > 100) {
       this.clearEnemy();
     }
   }
