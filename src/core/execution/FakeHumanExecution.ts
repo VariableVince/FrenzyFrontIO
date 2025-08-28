@@ -1,6 +1,5 @@
 import {
   Cell,
-  Difficulty,
   Execution,
   Game,
   Gold,
@@ -237,53 +236,6 @@ export class FakeHumanExecution implements Execution {
     } else {
       this.maybeSendBoatAttack(enemy);
     }
-  }
-
-  private shouldAttack(other: Player): boolean {
-    if (this.player === null) throw new Error("not initialized");
-
-    if (this.player.isOnSameTeam(other)) {
-      return false;
-    }
-
-    const shouldAttack = this.attackChance(other);
-
-    // Consider betrayal for allies
-    if (shouldAttack && this.player.isAlliedWith(other)) {
-      return this.maybeConsiderBetrayal(other);
-    }
-
-    return shouldAttack;
-  }
-
-  private attackChance(other: Player): boolean {
-    if (this.player === null) throw new Error("not initialized");
-
-    if (this.player.isAlliedWith(other)) {
-      return this.shouldDiscourageAttack(other)
-        ? this.random.chance(200)
-        : this.random.chance(50);
-    } else {
-      return this.shouldDiscourageAttack(other) ? this.random.chance(4) : true;
-    }
-  }
-
-  private shouldDiscourageAttack(other: Player) {
-    if (other.isTraitor()) {
-      return false;
-    }
-    const difficulty = this.mg.config().gameConfig().difficulty;
-    if (
-      difficulty === Difficulty.Hard ||
-      difficulty === Difficulty.Impossible
-    ) {
-      return false;
-    }
-    if (other.type() !== PlayerType.Human) {
-      return false;
-    }
-    // Only discourage attacks on Humans who are not traitors on easy or medium difficulty.
-    return true;
   }
 
   private maybeSendEmoji(enemy: Player) {
