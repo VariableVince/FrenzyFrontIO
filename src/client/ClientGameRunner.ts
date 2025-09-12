@@ -8,7 +8,7 @@ import {
   PlayerRecord,
   ServerMessage,
 } from "../core/Schemas";
-import { createPartialGameRecord } from "../core/Util";
+import { createPartialGameRecord, replacer } from "../core/Util";
 import { ServerConfig } from "../core/configuration/Config";
 import { getConfig } from "../core/configuration/ConfigLoader";
 import { PlayerActions, UnitType } from "../core/game/Game";
@@ -82,14 +82,18 @@ export function joinLobby(
 
   const onmessage = (message: ServerMessage) => {
     if (message.type === "prestart") {
-      console.log(`lobby: game prestarting: ${JSON.stringify(message)}`);
+      console.log(
+        `lobby: game prestarting: ${JSON.stringify(message, replacer)}`,
+      );
       terrainLoad = loadTerrainMap(message.gameMap, terrainMapFileLoader);
       onPrestart();
     }
     if (message.type === "start") {
       // Trigger prestart for singleplayer games
       onPrestart();
-      console.log(`lobby: game started: ${JSON.stringify(message, null, 2)}`);
+      console.log(
+        `lobby: game started: ${JSON.stringify(message, replacer, 2)}`,
+      );
       onJoin();
       // For multiplayer games, GameStartInfo is not known until game starts.
       lobbyConfig.gameStartInfo = message.gameStartInfo;
