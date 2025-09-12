@@ -244,6 +244,7 @@ export class JoinPrivateLobbyModal extends LitElement {
     const gitCommitPromise = fetch(`/commit.txt`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
+      cache: "no-cache",
     });
 
     const [archiveResponse, gitCommitResponse] = await Promise.all([
