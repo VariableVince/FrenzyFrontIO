@@ -5,6 +5,7 @@ import {
   GameID,
   GameRecord,
   GameStartInfo,
+  PlayerPattern,
   PlayerRecord,
   ServerMessage,
 } from "../core/Schemas";
@@ -49,7 +50,7 @@ import { createRenderer, GameRenderer } from "./graphics/GameRenderer";
 
 export interface LobbyConfig {
   serverConfig: ServerConfig;
-  patternName: string | undefined;
+  pattern: PlayerPattern | undefined;
   flag: string;
   playerName: string;
   clientID: ClientID;
