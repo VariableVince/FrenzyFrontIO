@@ -179,12 +179,6 @@ class Client {
       }
     });
 
-    // const ctModal = document.querySelector("chat-modal") as ChatModal;
-    // ctModal instanceof ChatModal;
-    // document.getElementById("chat-button").addEventListener("click", () => {
-    //   ctModal.open();
-    // });
-
     const hlpModal = document.querySelector("help-modal") as HelpModal;
     if (!hlpModal || !(hlpModal instanceof HelpModal)) {
       console.warn("Help modal element not found");
