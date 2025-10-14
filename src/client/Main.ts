@@ -15,6 +15,7 @@ import { FlagInput } from "./FlagInput";
 import { FlagInputModal } from "./FlagInputModal";
 import { GameStartingModal } from "./GameStartingModal";
 import "./GoogleAdElement";
+import { GutterAds } from "./GutterAds";
 import { HelpModal } from "./HelpModal";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinPrivateLobbyModal } from "./JoinPrivateLobbyModal";
@@ -50,6 +51,12 @@ declare global {
       session: {
         newPageView: () => void;
       };
+    };
+    fusetag: {
+      registerZone: (id: string) => void;
+      destroyZone: (id: string) => void;
+      pageInit: (options?: any) => void;
+      que: Array<() => void>;
     };
     ramp: {
       que: Array<() => void>;
@@ -93,6 +100,8 @@ class Client {
   private userSettings: UserSettings = new UserSettings();
   private patternsModal: TerritoryPatternsModal;
   private tokenLoginModal: TokenLoginModal;
+
+  private gutterAds: GutterAds;
 
   constructor() {}
 
@@ -160,6 +169,11 @@ class Client {
         this.gameStop();
       }
     });
+
+    const gutterAds = document.querySelector("gutter-ads");
+    if (!(gutterAds instanceof GutterAds))
+      throw new Error("Missing gutter-ads");
+    this.gutterAds = gutterAds;
 
     document.addEventListener("join-lobby", this.handleJoinLobby.bind(this));
     document.addEventListener("leave-lobby", this.handleLeaveLobby.bind(this));
@@ -410,6 +424,8 @@ class Client {
         updateSliderProgress(slider);
         slider.addEventListener("input", () => updateSliderProgress(slider));
       });
+
+    this.initializeFuseTag();
   }
 
   private handleHash() {
@@ -569,6 +585,7 @@ class Client {
         ) as GameStartingModal;
         startingModal instanceof GameStartingModal;
         startingModal.show();
+        this.gutterAds.hide();
       },
       () => {
         this.joinModal.close();
@@ -601,6 +618,7 @@ class Client {
     console.log("leaving lobby, cancelling game");
     this.gameStop();
     this.gameStop = null;
+    this.gutterAds.hide();
     this.publicLobby.leaveLobby();
   }
 
@@ -611,6 +629,29 @@ class Client {
     if (this.eventBus) {
       this.eventBus.emit(new SendKickPlayerIntentEvent(target));
     }
+  }
+
+  private initializeFuseTag() {
+    const tryInitFuseTag = (): boolean => {
+      if (window.fusetag && typeof window.fusetag.pageInit === "function") {
+        console.log("initializing fuse tag");
+        window.fusetag.que.push(() => {
+          window.fusetag.pageInit({
+            blockingFuseIds: ["lhs_sticky_vrec", "rhs_sticky_vrec"],
+          });
+          this.gutterAds.show();
+        });
+        return true;
+      } else {
+        return false;
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (tryInitFuseTag()) {
+        clearInterval(interval);
+      }
+    }, 100);
   }
 }
 
