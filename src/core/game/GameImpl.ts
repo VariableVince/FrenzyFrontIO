@@ -4,6 +4,7 @@ import { AllPlayersStats, ClientID, Winner } from "../Schemas";
 import { simpleHash } from "../Util";
 import { AllianceImpl } from "./AllianceImpl";
 import { AllianceRequestImpl } from "./AllianceRequestImpl";
+import { FrenzyManager } from "./frenzy/FrenzyManager";
 import {
   Alliance,
   AllianceRequest,
@@ -13,6 +14,7 @@ import {
   EmojiMessage,
   Execution,
   Game,
+  GameFork,
   GameMode,
   GameUpdates,
   HumansVsNations,
@@ -85,6 +87,9 @@ export class GameImpl implements Game {
   // Used to assign unique IDs to each new alliance
   private nextAllianceID: number = 0;
 
+  // Frenzy mode manager
+  private _frenzyManager: FrenzyManager | null = null;
+
   constructor(
     private _humans: PlayerInfo[],
     private _nations: Nation[],
@@ -102,6 +107,12 @@ export class GameImpl implements Game {
       this.populateTeams();
     }
     this.addPlayers();
+
+    // Initialize Frenzy fork if enabled
+    if (_config.gameConfig().gameFork === GameFork.Frenzy) {
+      this._frenzyManager = new FrenzyManager(this);
+      this._frenzyManager.init();
+    }
   }
 
   private populateTeams() {
@@ -347,6 +358,19 @@ export class GameImpl implements Game {
 
   executeNextTick(): GameUpdates {
     this.updates = createGameUpdatesMap();
+
+    // Update Frenzy mode if active
+    if (this._frenzyManager) {
+      // Assume 10 ticks per second, so deltaTime = 0.1 seconds
+      this._frenzyManager.tick(0.1);
+
+      // Add Frenzy state update
+      this.addUpdate({
+        type: GameUpdateType.Frenzy,
+        ...this._frenzyManager.createUpdate(),
+      });
+    }
+
     this.execs.forEach((e) => {
       if (
         (!this.inSpawnPhase() || e.activeDuringSpawnPhase()) &&
@@ -894,6 +918,11 @@ export class GameImpl implements Game {
   railNetwork(): RailNetwork {
     return this._railNetwork;
   }
+
+  frenzyManager(): FrenzyManager | null {
+    return this._frenzyManager;
+  }
+
   conquerPlayer(conqueror: Player, conquered: Player) {
     if (conquered.isDisconnected() && conqueror.isOnSameTeam(conquered)) {
       const ships = conquered

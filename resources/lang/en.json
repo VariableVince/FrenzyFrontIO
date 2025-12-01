@@ -255,6 +255,7 @@
   },
   "host_modal": {
     "title": "Private Lobby",
+    "fork": "Game Fork",
     "mode": "Mode",
     "team_count": "Number of Teams",
     "options_title": "Options",
@@ -307,6 +308,10 @@
   "game_mode": {
     "ffa": "Free for All",
     "teams": "Teams"
+  },
+  "game_fork": {
+    "classic": "Classic",
+    "frenzy": "Frenzy"
   },
   "select_lang": {
     "title": "Select Language"

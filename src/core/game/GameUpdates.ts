@@ -47,6 +47,7 @@ export enum GameUpdateType {
   RailroadEvent,
   ConquestEvent,
   EmbargoEvent,
+  Frenzy,
 }
 
 export type GameUpdate =
@@ -68,7 +69,8 @@ export type GameUpdate =
   | BonusEventUpdate
   | RailroadUpdate
   | ConquestUpdate
-  | EmbargoUpdate;
+  | EmbargoUpdate
+  | FrenzyUpdate;
 
 export interface BonusEventUpdate {
   type: GameUpdateType.BonusEvent;
@@ -268,4 +270,20 @@ export interface EmbargoUpdate {
   event: "start" | "stop";
   playerID: number;
   embargoedID: number;
+}
+
+export interface FrenzyUpdate {
+  type: GameUpdateType.Frenzy;
+  units: Array<{
+    id: number;
+    playerId: string;
+    x: number;
+    y: number;
+    health: number;
+  }>;
+  coreBuildings: Array<{
+    playerId: string;
+    x: number;
+    y: number;
+  }>;
 }

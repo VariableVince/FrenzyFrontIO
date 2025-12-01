@@ -1,6 +1,7 @@
 import { Config } from "../configuration/Config";
 import { AllPlayersStats, ClientID } from "../Schemas";
 import { getClanTag } from "../Util";
+import { FrenzyManager } from "./frenzy/FrenzyManager";
 import { GameMap, TileRef } from "./GameMap";
 import {
   GameUpdate,
@@ -101,6 +102,7 @@ export enum GameMapType {
   Achiran = "Achiran",
   BaikalNukeWars = "Baikal (Nuke Wars)",
   FourIslands = "Four Islands",
+  CircleMap = "Circle Map",
 }
 
 export type GameMapName = keyof typeof GameMapType;
@@ -143,6 +145,7 @@ export const mapCategories: Record<string, GameMapType[]> = {
     GameMapType.Achiran,
     GameMapType.BaikalNukeWars,
     GameMapType.FourIslands,
+    GameMapType.CircleMap,
   ],
 };
 
@@ -153,6 +156,13 @@ export enum GameType {
 }
 export const isGameType = (value: unknown): value is GameType =>
   isEnumValue(GameType, value);
+
+export enum GameFork {
+  Classic = "Classic",
+  Frenzy = "Frenzy",
+}
+export const isGameFork = (value: unknown): value is GameFork =>
+  isEnumValue(GameFork, value);
 
 export enum GameMode {
   FFA = "Free For All",
@@ -744,6 +754,9 @@ export interface Game extends GameMap {
   addUpdate(update: GameUpdate): void;
   railNetwork(): RailNetwork;
   conquerPlayer(conqueror: Player, conquered: Player): void;
+
+  // Frenzy mode
+  frenzyManager(): FrenzyManager | null;
 }
 
 export interface PlayerActions {

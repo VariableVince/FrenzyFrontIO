@@ -1,0 +1,29 @@
+{
+  "name": "Circle Map",
+  "nations": [
+    {
+      "coordinates": [400, 200],
+      "flag": "",
+      "name": "Northland",
+      "strength": 2
+    },
+    {
+      "coordinates": [600, 400],
+      "flag": "",
+      "name": "Eastland",
+      "strength": 2
+    },
+    {
+      "coordinates": [400, 600],
+      "flag": "",
+      "name": "Southland",
+      "strength": 2
+    },
+    {
+      "coordinates": [200, 400],
+      "flag": "",
+      "name": "Westland",
+      "strength": 2
+    }
+  ]
+}

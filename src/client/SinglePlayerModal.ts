@@ -5,6 +5,7 @@ import { translateText } from "../client/Utils";
 import {
   Difficulty,
   Duos,
+  GameFork,
   GameMapSize,
   GameMapType,
   GameMode,
@@ -46,6 +47,7 @@ export class SinglePlayerModal extends LitElement {
   @state() private instantBuild: boolean = false;
   @state() private randomSpawn: boolean = false;
   @state() private useRandomMap: boolean = false;
+  @state() private gameFork: GameFork = GameFork.Frenzy;
   @state() private gameMode: GameMode = GameMode.FFA;
   @state() private teamCount: TeamCountConfig = 2;
 
@@ -495,6 +497,10 @@ export class SinglePlayerModal extends LitElement {
     this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
   }
 
+  private handleGameForkSelection(value: GameFork) {
+    this.gameFork = value;
+  }
+
   private handleGameModeSelection(value: GameMode) {
     this.gameMode = value;
   }
@@ -574,6 +580,7 @@ export class SinglePlayerModal extends LitElement {
                 ? GameMapSize.Compact
                 : GameMapSize.Normal,
               gameType: GameType.Singleplayer,
+              gameFork: this.gameFork,
               gameMode: this.gameMode,
               playerTeams: this.teamCount,
               difficulty: this.selectedDifficulty,

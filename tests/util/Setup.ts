@@ -3,6 +3,7 @@ import path from "path";
 import {
   Difficulty,
   Game,
+  GameFork,
   GameMapSize,
   GameMapType,
   GameMode,
@@ -58,6 +59,7 @@ export async function setup(
   const gameConfig: GameConfig = {
     gameMap: GameMapType.Asia,
     gameMapSize: GameMapSize.Normal,
+    gameFork: GameFork.Frenzy,
     gameMode: GameMode.FFA,
     gameType: GameType.Singleplayer,
     difficulty: Difficulty.Medium,

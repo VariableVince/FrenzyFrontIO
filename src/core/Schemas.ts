@@ -10,6 +10,7 @@ import {
   AllPlayers,
   Difficulty,
   Duos,
+  GameFork,
   GameMapSize,
   GameMapType,
   GameMode,
@@ -160,6 +161,7 @@ export const GameConfigSchema = z.object({
   donateGold: z.boolean(), // Configures donations to humans only
   donateTroops: z.boolean(), // Configures donations to humans only
   gameType: z.enum(GameType),
+  gameFork: z.enum(GameFork),
   gameMode: z.enum(GameMode),
   gameMapSize: z.enum(GameMapSize),
   disableNPCs: z.boolean(),

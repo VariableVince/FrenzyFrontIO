@@ -6,6 +6,7 @@ import { getServerConfigFromClient } from "../core/configuration/ConfigLoader";
 import {
   Difficulty,
   Duos,
+  GameFork,
   GameMapSize,
   GameMapType,
   GameMode,
@@ -39,6 +40,7 @@ export class HostLobbyModal extends LitElement {
   @state() private selectedMap: GameMapType = GameMapType.World;
   @state() private selectedDifficulty: Difficulty = Difficulty.Medium;
   @state() private disableNPCs = false;
+  @state() private gameFork: GameFork = GameFork.Frenzy;
   @state() private gameMode: GameMode = GameMode.FFA;
   @state() private teamCount: TeamCountConfig = 2;
   @state() private bots: number = 400;
@@ -727,6 +729,11 @@ export class HostLobbyModal extends LitElement {
     this.putGameConfig();
   }
 
+  private async handleGameForkSelection(value: GameFork) {
+    this.gameFork = value;
+    this.putGameConfig();
+  }
+
   private async handleGameModeSelection(value: GameMode) {
     this.gameMode = value;
     this.putGameConfig();
@@ -753,6 +760,7 @@ export class HostLobbyModal extends LitElement {
             : GameMapSize.Normal,
           difficulty: this.selectedDifficulty,
           bots: this.bots,
+          gameFork: this.gameFork,
           infiniteGold: this.infiniteGold,
           donateGold: this.donateGold,
           infiniteTroops: this.infiniteTroops,

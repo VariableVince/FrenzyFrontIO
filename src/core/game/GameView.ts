@@ -473,6 +473,22 @@ export class GameView implements GameMap {
 
   private _map: GameMap;
 
+  // Frenzy state synced from server
+  private _frenzyState: {
+    units: Array<{
+      id: number;
+      playerId: string;
+      x: number;
+      y: number;
+      health: number;
+    }>;
+    coreBuildings: Array<{
+      playerId: string;
+      x: number;
+      y: number;
+    }>;
+  } | null = null;
+
   constructor(
     public worker: WorkerClient,
     private _config: Config,
@@ -541,6 +557,15 @@ export class GameView implements GameMap {
 
     this._myPlayer ??= this.playerByClientID(this._myClientID);
 
+    // Update Frenzy state if available
+    const frenzyUpdates = gu.updates[GameUpdateType.Frenzy];
+    if (frenzyUpdates && frenzyUpdates.length > 0) {
+      this._frenzyState = {
+        units: frenzyUpdates[0].units,
+        coreBuildings: frenzyUpdates[0].coreBuildings,
+      };
+    }
+
     for (const unit of this._units.values()) {
       unit._wasUpdated = false;
       unit.lastPos = unit.lastPos.slice(-1);
@@ -602,6 +627,10 @@ export class GameView implements GameMap {
 
   myPlayer(): PlayerView | null {
     return this._myPlayer;
+  }
+
+  frenzyManager() {
+    return this._frenzyState;
   }
 
   player(id: PlayerID): PlayerView {

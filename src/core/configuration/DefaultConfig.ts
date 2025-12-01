@@ -55,6 +55,7 @@ const numPlayersConfig = {
   [GameMapType.BetweenTwoSeas]: [70, 50, 40],
   [GameMapType.BlackSea]: [50, 30, 30],
   [GameMapType.Britannia]: [50, 30, 20],
+  [GameMapType.CircleMap]: [20, 15, 10],
   [GameMapType.DeglaciatedAntarctica]: [50, 40, 30],
   [GameMapType.EastAsia]: [50, 30, 20],
   [GameMapType.Europe]: [100, 70, 50],

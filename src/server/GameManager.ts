@@ -2,6 +2,7 @@ import { Logger } from "winston";
 import { ServerConfig } from "../core/configuration/Config";
 import {
   Difficulty,
+  GameFork,
   GameMapSize,
   GameMapType,
   GameMode,
@@ -49,6 +50,7 @@ export class GameManager {
         donateTroops: false,
         gameMap: GameMapType.World,
         gameType: GameType.Private,
+        gameFork: GameFork.Frenzy,
         gameMapSize: GameMapSize.Normal,
         difficulty: Difficulty.Medium,
         disableNPCs: false,

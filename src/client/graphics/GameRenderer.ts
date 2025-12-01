@@ -14,6 +14,7 @@ import { ChatModal } from "./layers/ChatModal";
 import { ControlPanel } from "./layers/ControlPanel";
 import { EmojiTable } from "./layers/EmojiTable";
 import { EventsDisplay } from "./layers/EventsDisplay";
+import { FrenzyLayer } from "./layers/FrenzyLayer";
 import { FxLayer } from "./layers/FxLayer";
 import { GameLeftSidebar } from "./layers/GameLeftSidebar";
 import { GameRightSidebar } from "./layers/GameRightSidebar";
@@ -248,6 +249,7 @@ export function createRenderer(
     new NukeTrajectoryPreviewLayer(game, eventBus, transformHandler),
     new StructureIconsLayer(game, eventBus, uiState, transformHandler),
     new NameLayer(game, transformHandler, eventBus),
+    new FrenzyLayer(game, transformHandler),
     eventsDisplay,
     chatDisplay,
     buildMenu,

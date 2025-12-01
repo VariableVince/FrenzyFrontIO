@@ -2,6 +2,7 @@ import { getServerConfigFromServer } from "../core/configuration/ConfigLoader";
 import {
   Difficulty,
   Duos,
+  GameFork,
   GameMapName,
   GameMapSize,
   GameMapType,
@@ -88,6 +89,7 @@ export class MapPlaylist {
       gameMap: map,
       maxPlayers: config.lobbyMaxPlayers(map, mode, playerTeams),
       gameType: GameType.Public,
+      gameFork: GameFork.Frenzy,
       gameMapSize: GameMapSize.Normal,
       difficulty: Difficulty.Medium,
       infiniteGold: false,
