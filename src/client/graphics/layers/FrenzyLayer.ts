@@ -31,7 +31,9 @@ export class FrenzyLayer implements Layer {
     }
 
     const frenzyState = this.game.frenzyManager();
-    if (!frenzyState) return;
+    if (!frenzyState) {
+      return; // No state yet, skip rendering
+    }
 
     // Render core buildings
     for (const building of frenzyState.coreBuildings) {

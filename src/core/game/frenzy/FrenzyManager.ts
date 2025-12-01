@@ -29,49 +29,71 @@ export class FrenzyManager {
    * Initialize core buildings at player spawn positions
    */
   init() {
-    const players = this.game.players();
+    console.log(
+      `[FrenzyManager] Initialized, will place HQs when players spawn`,
+    );
+  }
 
-    for (const player of players) {
-      // Get spawn position from player's first tile (center of territory)
-      const tiles = Array.from(player.tiles());
-      if (tiles.length === 0) {
-        console.warn(
-          `[FrenzyManager] Player ${player.name()} has no tiles yet`,
-        );
-        continue;
-      }
-
-      // Use first tile as spawn position (in classic mode this is where they spawned)
-      const spawnTile = tiles[0];
-      const spawnPos = {
-        x: this.game.x(spawnTile),
-        y: this.game.y(spawnTile),
-      };
-
-      this.coreBuildings.set(player.id(), {
-        playerId: player.id(),
-        x: spawnPos.x,
-        y: spawnPos.y,
-        spawnTimer: this.config.spawnInterval,
-        spawnInterval: this.config.spawnInterval,
-        unitCount: 0,
-      });
-
-      // Spawn initial units
-      for (let i = 0; i < this.config.startingUnits; i++) {
-        this.spawnUnit(player.id(), spawnPos.x, spawnPos.y);
-      }
+  /**
+   * Called when a player spawns to create their HQ
+   */
+  onPlayerSpawn(playerId: string) {
+    // Check if already has HQ
+    if (this.coreBuildings.has(playerId)) {
+      return;
     }
 
+    const player = this.game.player(playerId);
+    const tiles = Array.from(player.tiles());
+
+    if (tiles.length === 0) {
+      console.warn(`[FrenzyManager] Player ${player.name()} has no tiles yet`);
+      return;
+    }
+
+    // Place HQ at the center of player's starting territory
+    const spawnTile = tiles[0];
+    const spawnPos = {
+      x: this.game.x(spawnTile),
+      y: this.game.y(spawnTile),
+    };
+
     console.log(
-      `[FrenzyManager] Initialized ${this.coreBuildings.size} core buildings`,
+      `[FrenzyManager] Creating HQ for ${player.name()} at (${Math.round(spawnPos.x)}, ${Math.round(spawnPos.y)})`,
     );
+
+    this.coreBuildings.set(playerId, {
+      playerId: playerId,
+      x: spawnPos.x,
+      y: spawnPos.y,
+      spawnTimer: this.config.spawnInterval,
+      spawnInterval: this.config.spawnInterval,
+      unitCount: 0,
+    });
+
+    // Spawn initial units
+    for (let i = 0; i < this.config.startingUnits; i++) {
+      this.spawnUnit(playerId, spawnPos.x, spawnPos.y);
+    }
   }
 
   /**
    * Main tick function called every game tick
    */
   tick(deltaTime: number) {
+    // Only spawn units after spawn phase is complete
+    if (this.game.inSpawnPhase()) {
+      return;
+    }
+
+    // Check for newly spawned players and create their HQs
+    for (const player of this.game.players()) {
+      const tiles = player.tiles();
+      if (tiles.size > 0 && !this.coreBuildings.has(player.id())) {
+        this.onPlayerSpawn(player.id());
+      }
+    }
+
     this.updateSpawnTimers(deltaTime);
     this.updateUnits(deltaTime);
     this.updateCombat(deltaTime);
@@ -119,14 +141,49 @@ export class FrenzyManager {
 
   private updateUnits(deltaTime: number) {
     for (const unit of this.units) {
-      // Find target (move toward map center for now - will improve AI later)
-      const mapCenter = {
-        x: this.game.width() / 2,
-        y: this.game.height() / 2,
-      };
+      // Units move toward their player's border to push it outward
+      const player = this.game.player(unit.playerId);
+      const tiles = Array.from(player.tiles());
 
-      const dx = mapCenter.x - unit.x;
-      const dy = mapCenter.y - unit.y;
+      // Skip if player has no territory yet
+      if (tiles.length === 0) {
+        continue;
+      }
+
+      const borderTiles = tiles.filter((tile) => {
+        // Find tiles on the border (have at least one non-owned neighbor)
+        const neighbors = this.game.neighbors(tile);
+        return neighbors.some((n) => this.game.owner(n).id() !== player.id());
+      });
+
+      let targetPos: { x: number; y: number };
+
+      if (borderTiles.length > 0) {
+        // Move toward nearest border tile
+        const closestBorder = borderTiles.reduce((closest, tile) => {
+          const tileX = this.game.x(tile);
+          const tileY = this.game.y(tile);
+          const distCurrent = Math.hypot(tileX - unit.x, tileY - unit.y);
+          const distClosest = Math.hypot(
+            this.game.x(closest) - unit.x,
+            this.game.y(closest) - unit.y,
+          );
+          return distCurrent < distClosest ? tile : closest;
+        });
+        targetPos = {
+          x: this.game.x(closestBorder),
+          y: this.game.y(closestBorder),
+        };
+      } else {
+        // Fallback: move toward map center if no borders found
+        targetPos = {
+          x: this.game.width() / 2,
+          y: this.game.height() / 2,
+        };
+      }
+
+      const dx = targetPos.x - unit.x;
+      const dy = targetPos.y - unit.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist > 10) {

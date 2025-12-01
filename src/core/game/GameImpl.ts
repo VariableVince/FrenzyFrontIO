@@ -359,8 +359,8 @@ export class GameImpl implements Game {
   executeNextTick(): GameUpdates {
     this.updates = createGameUpdatesMap();
 
-    // Update Frenzy mode if active
-    if (this._frenzyManager) {
+    // Update Frenzy mode if active (only after spawn phase)
+    if (this._frenzyManager && !this.inSpawnPhase()) {
       // Assume 10 ticks per second, so deltaTime = 0.1 seconds
       this._frenzyManager.tick(0.1);
 
