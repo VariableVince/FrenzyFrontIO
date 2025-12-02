@@ -97,6 +97,7 @@ export class FrenzyManager {
     this.updateSpawnTimers(deltaTime);
     this.updateUnits(deltaTime);
     this.updateCombat(deltaTime);
+    this.captureTerritory();
     this.removeDeadUnits();
     this.rebuildSpatialGrid();
   }
@@ -239,6 +240,9 @@ export class FrenzyManager {
   }
 
   private updateCombat(deltaTime: number) {
+    // Track which units are in combat to apply mutual damage
+    const combatPairs = new Map<number, number>();
+
     for (const unit of this.units) {
       const enemies = this.spatialGrid
         .getNearby(unit.x, unit.y, this.config.combatRange)
@@ -255,7 +259,50 @@ export class FrenzyManager {
           return distToEnemy < distToClosest ? enemy : closest;
         }, enemies[0]);
 
+        // Deal damage to enemy
         nearest.health -= this.config.unitDPS * deltaTime;
+
+        // Track that this unit is in combat (for mutual damage)
+        combatPairs.set(unit.id, nearest.id);
+      }
+    }
+  }
+
+  /**
+   * Units capture territory they're standing on
+   */
+  private captureTerritory() {
+    for (const unit of this.units) {
+      // Find the tile this unit is on
+      const tileX = Math.floor(unit.x);
+      const tileY = Math.floor(unit.y);
+
+      // Check if tile is valid
+      if (!this.game.isValidCoord(tileX, tileY)) {
+        continue;
+      }
+
+      const tile = this.game.ref(tileX, tileY);
+
+      if (this.game.isWater(tile)) {
+        continue;
+      }
+
+      const currentOwner = this.game.owner(tile);
+      if (currentOwner.id() === unit.playerId) {
+        continue; // Already own this tile
+      }
+
+      // Check if this tile borders our territory
+      const neighbors = this.game.neighbors(tile);
+      const bordersOurTerritory = neighbors.some(
+        (n) => this.game.owner(n).id() === unit.playerId,
+      );
+
+      if (bordersOurTerritory) {
+        // Capture the tile
+        const player = this.game.player(unit.playerId);
+        player.conquer(tile);
       }
     }
   }
