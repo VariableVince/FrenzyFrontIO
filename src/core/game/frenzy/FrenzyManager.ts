@@ -272,6 +272,7 @@ export class FrenzyManager {
    * Units capture territory they're standing on
    */
   private captureTerritory() {
+    let captureCount = 0;
     for (const unit of this.units) {
       // Find the tile this unit is on
       const tileX = Math.floor(unit.x);
@@ -303,7 +304,12 @@ export class FrenzyManager {
         // Capture the tile
         const player = this.game.player(unit.playerId);
         player.conquer(tile);
+        captureCount++;
       }
+    }
+
+    if (captureCount > 0) {
+      console.log(`[FrenzyManager] Captured ${captureCount} tiles this tick`);
     }
   }
 

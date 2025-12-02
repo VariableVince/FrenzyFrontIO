@@ -3,6 +3,7 @@ import {
   Difficulty,
   Execution,
   Game,
+  GameFork,
   Gold,
   Nation,
   Player,
@@ -140,7 +141,7 @@ export class FakeHumanExecution implements Execution {
 
   tick(ticks: number) {
     // In Frenzy mode, NPCs don't send attacks - units handle expansion
-    if (this.mg.fork() === "frenzy") {
+    if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
       return;
     }
 

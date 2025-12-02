@@ -1,4 +1,4 @@
-import { Execution, Game } from "../game/Game";
+import { Execution, Game, GameFork } from "../game/Game";
 import { PseudoRandom } from "../PseudoRandom";
 import { ClientID, GameID, Intent, Turn } from "../Schemas";
 import { simpleHash } from "../Util";
@@ -56,7 +56,7 @@ export class Executor {
     switch (intent.type) {
       case "attack": {
         // In Frenzy mode, attacks are handled by units, not player intents
-        if (this.mg.fork() === "frenzy") {
+        if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
           return new NoOpExecution();
         }
         return new AttackExecution(

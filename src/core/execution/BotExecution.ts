@@ -1,4 +1,4 @@
-import { Execution, Game, Player } from "../game/Game";
+import { Execution, Game, GameFork, Player } from "../game/Game";
 import { PseudoRandom } from "../PseudoRandom";
 import { simpleHash } from "../Util";
 import { BotBehavior } from "./utils/BotBehavior";
@@ -35,7 +35,7 @@ export class BotExecution implements Execution {
 
   tick(ticks: number) {
     // In Frenzy mode, bots don't send attacks - units handle expansion
-    if (this.mg.fork() === "frenzy") {
+    if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
       return;
     }
 
