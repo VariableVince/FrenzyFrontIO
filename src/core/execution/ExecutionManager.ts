@@ -57,6 +57,16 @@ export class Executor {
       case "attack": {
         // In Frenzy mode, attacks are handled by units, not player intents
         if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+          const frenzyManager = this.mg.frenzyManager();
+          if (frenzyManager) {
+            const totalTroops = Math.max(player.troops(), 1);
+            const requestedTroops = intent.troops ?? 0;
+            const ratio = Math.min(
+              Math.max(requestedTroops / totalTroops, 0),
+              1,
+            );
+            frenzyManager.queueAttackOrder(player.id(), intent.targetID, ratio);
+          }
           return new NoOpExecution();
         }
         return new AttackExecution(

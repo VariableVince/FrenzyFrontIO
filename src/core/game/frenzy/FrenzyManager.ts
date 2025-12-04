@@ -1,12 +1,15 @@
-import { Game, PlayerID } from "../Game";
+import { Game, Player, PlayerID, TerraNullius } from "../Game";
 import { TileRef } from "../GameMap";
 import {
   CoreBuilding,
   DEFAULT_FRENZY_CONFIG,
   FrenzyConfig,
+  FrenzyProjectile,
   FrenzyUnit,
 } from "./FrenzyTypes";
 import { SpatialHashGrid } from "./SpatialHashGrid";
+
+const ATTACK_ORDER_TTL_TICKS = 150; // ~15 seconds at 10 ticks/sec
 
 /**
  * FrenzyManager handles all unit-based warfare logic for Frenzy mode
@@ -16,7 +19,11 @@ export class FrenzyManager {
   private coreBuildings: Map<PlayerID, CoreBuilding> = new Map();
   private spatialGrid: SpatialHashGrid;
   private nextUnitId = 1;
+  private nextProjectileId = 1;
+  private projectiles: FrenzyProjectile[] = [];
   private config: FrenzyConfig;
+  private defeatedPlayers = new Set<PlayerID>();
+  private attackOrders: Map<PlayerID, FrenzyAttackOrder> = new Map();
 
   constructor(
     private game: Game,
@@ -81,6 +88,9 @@ export class FrenzyManager {
       playerId: playerId,
       x: spawnPos.x,
       y: spawnPos.y,
+      tile: spawnTile,
+      tileX: this.game.x(spawnTile),
+      tileY: this.game.y(spawnTile),
       spawnTimer: this.config.spawnInterval,
       spawnInterval: this.config.spawnInterval,
       unitCount: 0,
@@ -113,6 +123,7 @@ export class FrenzyManager {
     const territoryCache = this.buildTerritorySnapshots();
     this.updateUnits(deltaTime, territoryCache);
     this.updateCombat(deltaTime);
+    this.updateProjectiles(deltaTime);
     this.captureTerritory();
     this.removeDeadUnits();
     this.rebuildSpatialGrid();
@@ -150,6 +161,7 @@ export class FrenzyManager {
       health: this.config.unitHealth,
       targetX: x,
       targetY: y,
+      weaponCooldown: Math.random() * this.config.fireInterval,
     };
 
     this.units.push(unit);
@@ -160,7 +172,15 @@ export class FrenzyManager {
     deltaTime: number,
     territories: Map<PlayerID, PlayerTerritorySnapshot>,
   ) {
+    const unitCounts = this.buildUnitCounts();
+    this.cleanupAttackOrders(unitCounts);
+    const attackPlans = this.buildAttackPlans(unitCounts, territories);
+    const attackAllocations = new Map<PlayerID, number>();
+
     for (const unit of this.units) {
+      if (this.defeatedPlayers.has(unit.playerId)) {
+        continue;
+      }
       const territory = territories.get(unit.playerId);
       if (!territory) {
         continue;
@@ -261,6 +281,15 @@ export class FrenzyManager {
         };
       }
 
+      const attackPlan = attackPlans.get(unit.playerId);
+      if (attackPlan) {
+        const assigned = attackAllocations.get(unit.playerId) ?? 0;
+        if (assigned < attackPlan.quota) {
+          attackAllocations.set(unit.playerId, assigned + 1);
+          targetPos = attackPlan.target;
+        }
+      }
+
       const dx = targetPos.x - unit.x;
       const dy = targetPos.y - unit.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -287,6 +316,138 @@ export class FrenzyManager {
         unit.vy = 0;
       }
     }
+  }
+
+  queueAttackOrder(
+    playerId: PlayerID,
+    targetPlayerId: PlayerID | null,
+    ratio: number,
+  ) {
+    if (!targetPlayerId) {
+      return;
+    }
+    if (targetPlayerId === playerId) {
+      return;
+    }
+    if (!this.game.hasPlayer(targetPlayerId)) {
+      return;
+    }
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+
+    const clampedRatio = Math.min(Math.max(ratio, 0), 1);
+    if (clampedRatio <= 0) {
+      this.attackOrders.delete(playerId);
+      return;
+    }
+    this.attackOrders.set(playerId, {
+      playerId,
+      targetPlayerId,
+      ratio: clampedRatio,
+      createdAtTick: this.game.ticks(),
+    });
+  }
+
+  private buildUnitCounts(): Map<PlayerID, number> {
+    const counts = new Map<PlayerID, number>();
+    for (const unit of this.units) {
+      if (this.defeatedPlayers.has(unit.playerId)) {
+        continue;
+      }
+      counts.set(unit.playerId, (counts.get(unit.playerId) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  private cleanupAttackOrders(unitCounts: Map<PlayerID, number>) {
+    for (const [playerId, order] of this.attackOrders) {
+      const aliveUnits = unitCounts.get(playerId) ?? 0;
+      if (aliveUnits === 0 || this.defeatedPlayers.has(playerId)) {
+        this.attackOrders.delete(playerId);
+        continue;
+      }
+      if (
+        order.targetPlayerId &&
+        (this.defeatedPlayers.has(order.targetPlayerId) ||
+          !this.game.hasPlayer(order.targetPlayerId))
+      ) {
+        this.attackOrders.delete(playerId);
+        continue;
+      }
+      if (this.game.ticks() - order.createdAtTick > ATTACK_ORDER_TTL_TICKS) {
+        this.attackOrders.delete(playerId);
+      }
+    }
+  }
+
+  private buildAttackPlans(
+    unitCounts: Map<PlayerID, number>,
+    territories: Map<PlayerID, PlayerTerritorySnapshot>,
+  ): Map<PlayerID, FrenzyAttackPlan> {
+    const plans = new Map<PlayerID, FrenzyAttackPlan>();
+    for (const [playerId, order] of this.attackOrders) {
+      const units = unitCounts.get(playerId) ?? 0;
+      if (units === 0) {
+        continue;
+      }
+      const target = this.resolveAttackTarget(playerId, order, territories);
+      if (!target) {
+        this.attackOrders.delete(playerId);
+        continue;
+      }
+      const desired = Math.floor(units * order.ratio);
+      const quota = Math.min(units, Math.max(1, desired));
+      if (quota === 0) {
+        continue;
+      }
+      plans.set(playerId, {
+        target,
+        quota,
+      });
+    }
+    return plans;
+  }
+
+  private resolveAttackTarget(
+    attackerId: PlayerID,
+    order: FrenzyAttackOrder,
+    territories: Map<PlayerID, PlayerTerritorySnapshot>,
+  ): { x: number; y: number } | null {
+    if (!order.targetPlayerId) {
+      return null;
+    }
+
+    const targetTerritory = territories.get(order.targetPlayerId);
+    if (!targetTerritory) {
+      return null;
+    }
+
+    const attackerTerritory = territories.get(attackerId);
+    if (attackerTerritory && targetTerritory.borderTiles.length > 0) {
+      const origin = attackerTerritory.centroid;
+      let closestTile: TileRef | null = null;
+      let closestDist = Infinity;
+
+      for (const tile of targetTerritory.borderTiles) {
+        const tileX = this.game.x(tile);
+        const tileY = this.game.y(tile);
+        const dist = Math.hypot(tileX - origin.x, tileY - origin.y);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestTile = tile;
+        }
+      }
+
+      if (closestTile !== null) {
+        return {
+          x: this.game.x(closestTile),
+          y: this.game.y(closestTile),
+        };
+      }
+    }
+
+    return targetTerritory.centroid;
   }
 
   private buildTerritorySnapshots(): Map<PlayerID, PlayerTerritorySnapshot> {
@@ -360,6 +521,10 @@ export class FrenzyManager {
     const combatPairs = new Map<number, number>();
 
     for (const unit of this.units) {
+      if (this.defeatedPlayers.has(unit.playerId)) {
+        continue;
+      }
+      unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
       const enemies = this.spatialGrid
         .getNearby(unit.x, unit.y, this.config.combatRange)
         .filter((u) => u.playerId !== unit.playerId);
@@ -380,8 +545,47 @@ export class FrenzyManager {
 
         // Track that this unit is in combat (for mutual damage)
         combatPairs.set(unit.id, nearest.id);
+
+        if (unit.weaponCooldown <= 0) {
+          this.spawnProjectile(unit, nearest);
+          unit.weaponCooldown = this.config.fireInterval;
+        }
       }
     }
+  }
+
+  private spawnProjectile(attacker: FrenzyUnit, target: FrenzyUnit) {
+    const dx = target.x - attacker.x;
+    const dy = target.y - attacker.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = this.config.projectileSpeed;
+    const vx = (dx / dist) * speed;
+    const vy = (dy / dist) * speed;
+    const travelTime = Math.max(dist / speed, 0.15);
+
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: attacker.x,
+      y: attacker.y,
+      vx,
+      vy,
+      age: 0,
+      life: travelTime,
+    });
+  }
+
+  private updateProjectiles(deltaTime: number) {
+    const active: FrenzyProjectile[] = [];
+    for (const projectile of this.projectiles) {
+      projectile.age += deltaTime;
+      projectile.x += projectile.vx * deltaTime;
+      projectile.y += projectile.vy * deltaTime;
+      if (projectile.age < projectile.life) {
+        active.push(projectile);
+      }
+    }
+    this.projectiles = active;
   }
 
   /**
@@ -394,8 +598,12 @@ export class FrenzyManager {
     let borderingCount = 0;
 
     const captureRadius = Math.max(1, Math.floor(this.config.captureRadius));
+    const radiusSquared = captureRadius * captureRadius;
 
     for (const unit of this.units) {
+      if (this.defeatedPlayers.has(unit.playerId)) {
+        continue;
+      }
       unitCount++;
       const player = this.game.player(unit.playerId);
 
@@ -405,6 +613,9 @@ export class FrenzyManager {
 
       for (let dx = -captureRadius; dx <= captureRadius; dx++) {
         for (let dy = -captureRadius; dy <= captureRadius; dy++) {
+          if (dx * dx + dy * dy > radiusSquared) {
+            continue; // Skip tiles outside circular capture zone
+          }
           const tileX = centerX + dx;
           const tileY = centerY + dy;
 
@@ -441,6 +652,7 @@ export class FrenzyManager {
             }
             // Capture the tile
             player.conquer(tile);
+            this.checkForHQCapture(currentOwner, tileX, tileY, unit.playerId);
             captureCount++;
           }
         }
@@ -482,6 +694,68 @@ export class FrenzyManager {
       }
     }
     this.units = kept;
+  }
+
+  private checkForHQCapture(
+    previousOwner: Player | TerraNullius,
+    tileX: number,
+    tileY: number,
+    conquerorId: PlayerID,
+  ) {
+    if (!previousOwner.isPlayer()) {
+      return;
+    }
+    const defenderId = previousOwner.id();
+    if (!defenderId || this.defeatedPlayers.has(defenderId)) {
+      return;
+    }
+    const building = this.coreBuildings.get(defenderId);
+    if (!building) {
+      return;
+    }
+    const radius = Math.max(0, Math.floor(this.config.hqCaptureRadius));
+    const radiusSquared = radius * radius;
+    const dx = tileX - building.tileX;
+    const dy = tileY - building.tileY;
+
+    if (dx * dx + dy * dy > radiusSquared) {
+      return;
+    }
+
+    this.defeatPlayer(defenderId, conquerorId);
+  }
+
+  private defeatPlayer(loserId: PlayerID, winnerId: PlayerID) {
+    if (this.defeatedPlayers.has(loserId)) {
+      return;
+    }
+    this.defeatedPlayers.add(loserId);
+    this.coreBuildings.delete(loserId);
+
+    console.log(
+      `[FrenzyManager] HQ captured: ${winnerId} eliminated ${loserId}`,
+    );
+
+    const loser = this.getPlayerIfExists(loserId);
+    const winner = this.getPlayerIfExists(winnerId);
+    if (loser && winner && loserId !== winnerId) {
+      const tiles = Array.from(loser.tiles());
+      for (const tile of tiles) {
+        winner.conquer(tile);
+      }
+    }
+
+    this.units = this.units.filter((unit) => unit.playerId !== loserId);
+    this.projectiles = this.projectiles.filter(
+      (projectile) => projectile.playerId !== loserId,
+    );
+  }
+
+  private getPlayerIfExists(playerId: PlayerID): Player | null {
+    if (!this.game.hasPlayer(playerId)) {
+      return null;
+    }
+    return this.game.player(playerId);
   }
 
   private rebuildSpatialGrid() {
@@ -532,6 +806,13 @@ export class FrenzyManager {
         spawnInterval: b.spawnInterval,
         unitCount: b.unitCount,
       })),
+      projectiles: this.projectiles.map((p) => ({
+        id: p.id,
+        playerId: p.playerId,
+        x: p.x,
+        y: p.y,
+      })),
+      projectileSize: this.config.projectileSize,
     };
   }
 }
@@ -539,4 +820,16 @@ export class FrenzyManager {
 interface PlayerTerritorySnapshot {
   borderTiles: TileRef[];
   centroid: { x: number; y: number };
+}
+
+interface FrenzyAttackOrder {
+  playerId: PlayerID;
+  targetPlayerId: PlayerID | null;
+  ratio: number;
+  createdAtTick: number;
+}
+
+interface FrenzyAttackPlan {
+  target: { x: number; y: number };
+  quota: number;
 }
