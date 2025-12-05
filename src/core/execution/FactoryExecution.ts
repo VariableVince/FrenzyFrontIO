@@ -1,4 +1,4 @@
-import { Execution, Game, Player, Unit, UnitType } from "../game/Game";
+import { Execution, Game, GameFork, Player, Unit, UnitType } from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { TrainStationExecution } from "./TrainStationExecution";
 
@@ -25,6 +25,22 @@ export class FactoryExecution implements Execution {
       }
       this.factory = this.player.buildUnit(UnitType.Factory, spawnTile, {});
       this.createStation();
+
+      // Register factory as unit spawner in Frenzy mode
+      if (this.game.config().gameConfig().gameFork === GameFork.Frenzy) {
+        const frenzyManager = this.game.frenzyManager();
+        if (frenzyManager && this.factory) {
+          const factoryTile = this.factory.tile();
+          if (factoryTile) {
+            frenzyManager.registerFactory(
+              this.player.id(),
+              factoryTile,
+              this.game.x(factoryTile),
+              this.game.y(factoryTile),
+            );
+          }
+        }
+      }
     }
     if (!this.factory.isActive()) {
       this.active = false;

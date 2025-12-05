@@ -298,6 +298,14 @@ export class NukeExecution implements Execution {
       }
     }
 
+    // Apply damage to Frenzy units
+    const frenzyManager = this.mg.frenzyManager();
+    if (frenzyManager) {
+      const centerX = this.mg.x(this.dst);
+      const centerY = this.mg.y(this.dst);
+      frenzyManager.applyAreaDamage(centerX, centerY, magnitude.outer, 1000);
+    }
+
     this.redrawBuildings(magnitude.outer + SPRITE_RADIUS);
     this.active = false;
     this.nuke.setReachedTarget();

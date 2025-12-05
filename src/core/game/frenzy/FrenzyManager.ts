@@ -3,6 +3,7 @@ import { TileRef } from "../GameMap";
 import {
   CoreBuilding,
   DEFAULT_FRENZY_CONFIG,
+  FactorySpawner,
   FrenzyConfig,
   FrenzyProjectile,
   FrenzyUnit,
@@ -18,6 +19,7 @@ const ATTACK_ORDER_TTL_TICKS = 150; // ~15 seconds at 10 ticks/sec
 export class FrenzyManager {
   private units: FrenzyUnit[] = [];
   private coreBuildings: Map<PlayerID, CoreBuilding> = new Map();
+  private factories: Map<TileRef, FactorySpawner> = new Map();
   private spatialGrid: SpatialHashGrid;
   private nextUnitId = 1;
   private nextProjectileId = 1;
@@ -131,6 +133,7 @@ export class FrenzyManager {
   }
 
   private updateSpawnTimers(deltaTime: number) {
+    // Spawn from HQs
     for (const [playerId, building] of this.coreBuildings) {
       building.spawnTimer -= deltaTime;
 
@@ -140,6 +143,29 @@ export class FrenzyManager {
       ) {
         this.spawnUnit(playerId, building.x, building.y);
         building.spawnTimer = building.spawnInterval;
+      }
+    }
+
+    // Spawn from factories
+    for (const [tile, factory] of this.factories) {
+      // Check if factory still exists and is owned by same player
+      const owner = this.game.owner(tile);
+      if (!owner.isPlayer() || owner.id() !== factory.playerId) {
+        this.factories.delete(tile);
+        continue;
+      }
+
+      const building = this.coreBuildings.get(factory.playerId);
+      if (!building) continue;
+
+      factory.spawnTimer -= deltaTime;
+
+      if (
+        factory.spawnTimer <= 0 &&
+        building.unitCount < this.config.maxUnitsPerPlayer
+      ) {
+        this.spawnUnit(factory.playerId, factory.x, factory.y);
+        factory.spawnTimer = factory.spawnInterval;
       }
     }
   }
@@ -197,6 +223,10 @@ export class FrenzyManager {
 
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
+        continue;
+      }
+      // Defense posts don't move
+      if (unit.unitType === FrenzyUnitType.DefensePost) {
         continue;
       }
       const territory = territories.get(unit.playerId);
@@ -798,6 +828,41 @@ export class FrenzyManager {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.DefensePost);
+  }
+
+  /**
+   * Register a factory as a unit spawner
+   */
+  registerFactory(playerId: PlayerID, tile: TileRef, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    if (this.factories.has(tile)) {
+      return; // Already registered
+    }
+    this.factories.set(tile, {
+      playerId,
+      x,
+      y,
+      tile,
+      spawnTimer: this.config.spawnInterval,
+      spawnInterval: this.config.spawnInterval,
+    });
+  }
+
+  /**
+   * Apply area damage to all units within a radius (for nukes/bombs)
+   */
+  applyAreaDamage(centerX: number, centerY: number, radius: number, damage: number) {
+    const radiusSquared = radius * radius;
+    for (const unit of this.units) {
+      const dx = unit.x - centerX;
+      const dy = unit.y - centerY;
+      const distSquared = dx * dx + dy * dy;
+      if (distSquared <= radiusSquared) {
+        unit.health -= damage;
+      }
+    }
   }
 
   /**

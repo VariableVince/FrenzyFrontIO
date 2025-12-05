@@ -50,6 +50,15 @@ export interface CoreBuilding {
   unitCount: number;
 }
 
+export interface FactorySpawner {
+  playerId: PlayerID;
+  x: number;
+  y: number;
+  tile: TileRef;
+  spawnTimer: number;
+  spawnInterval: number;
+}
+
 export interface FrenzyConfig {
   spawnInterval: number; // Seconds between spawns (default: 4.0)
   maxUnitsPerPlayer: number; // Hard cap (default: 60)
