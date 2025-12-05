@@ -2,7 +2,7 @@ import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { translateText } from "../../../client/Utils";
 import { EventBus } from "../../../core/EventBus";
-import { Gold } from "../../../core/game/Game";
+import { GameFork, Gold } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
 import { ClientID } from "../../../core/Schemas";
 import { AttackRatioEvent } from "../../InputHandler";
@@ -34,6 +34,12 @@ export class ControlPanel extends LitElement implements Layer {
 
   @state()
   private _gold: Gold;
+
+  @state()
+  private _unitCount: number = 0;
+
+  @state()
+  private _landSize: number = 0;
 
   private _troopRateIsIncreasing: boolean = true;
 
@@ -85,10 +91,26 @@ export class ControlPanel extends LitElement implements Layer {
       this.updateTroopIncrease();
     }
 
-    this._maxTroops = this.game.config().maxTroops(player);
-    this._gold = player.gold();
-    this._troops = player.troops();
-    this.troopRate = this.game.config().troopIncreaseRate(player) * 10;
+    const isFrenzy =
+      this.game.config().gameConfig().gameFork === GameFork.Frenzy;
+
+    if (isFrenzy) {
+      const frenzy = this.game.frenzyManager();
+      const myId = player.id();
+      this._unitCount = frenzy
+        ? frenzy.units.filter((u) => u.playerId === myId).length
+        : 0;
+      this._landSize = player.numTilesOwned();
+      this._gold = player.gold();
+      this._troops = this._unitCount;
+      this._maxTroops = this.game.config().maxTroops(player);
+      this.troopRate = 0;
+    } else {
+      this._maxTroops = this.game.config().maxTroops(player);
+      this._gold = player.gold();
+      this._troops = player.troops();
+      this.troopRate = this.game.config().troopIncreaseRate(player) * 10;
+    }
     this.requestUpdate();
   }
 

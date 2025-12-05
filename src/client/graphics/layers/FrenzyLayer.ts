@@ -44,6 +44,13 @@ export class FrenzyLayer implements Layer {
     for (const unit of frenzyState.units) {
       this.renderUnit(context, unit);
     }
+
+    const projectileSize = Math.max(0.5, frenzyState.projectileSize ?? 2);
+
+    // Render projectiles last so they sit on top
+    for (const projectile of frenzyState.projectiles) {
+      this.renderProjectile(context, projectile, projectileSize);
+    }
   }
 
   private renderTestMarker(context: CanvasRenderingContext2D) {
@@ -110,20 +117,68 @@ export class FrenzyLayer implements Layer {
     const x = unit.x - this.game.width() / 2;
     const y = unit.y - this.game.height() / 2;
 
-    // Strategic icon: triangle pointing up
-    const size = 12;
+    const isDefensePost = unit.unitType === "defensePost";
 
-    // Fill
-    context.fillStyle = player.territoryColor().toRgbString();
+    if (isDefensePost) {
+      // Defense post: shield icon (larger, different shape)
+      const size = 16;
+
+      // Draw shield shape
+      context.fillStyle = player.territoryColor().toRgbString();
+      context.beginPath();
+      context.moveTo(x, y - size / 2); // Top center
+      context.lineTo(x + size / 2, y - size / 4); // Top right
+      context.lineTo(x + size / 2, y + size / 4); // Bottom right curve start
+      context.quadraticCurveTo(x, y + size / 2 + 2, x, y + size / 2); // Bottom point
+      context.quadraticCurveTo(x, y + size / 2 + 2, x - size / 2, y + size / 4); // Left curve
+      context.lineTo(x - size / 2, y - size / 4); // Top left
+      context.closePath();
+      context.fill();
+
+      // White border for visibility
+      context.strokeStyle = "#fff";
+      context.lineWidth = 2;
+      context.stroke();
+
+      // Black outline
+      context.strokeStyle = "#000";
+      context.lineWidth = 1;
+      context.stroke();
+    } else {
+      // Regular soldier: triangle pointing up
+      const size = 12;
+
+      // Fill
+      context.fillStyle = player.territoryColor().toRgbString();
+      context.beginPath();
+      context.moveTo(x, y - size / 2); // Top point
+      context.lineTo(x - size / 2, y + size / 2); // Bottom left
+      context.lineTo(x + size / 2, y + size / 2); // Bottom right
+      context.closePath();
+      context.fill();
+
+      // Black outline for visibility
+      context.strokeStyle = "#000";
+      context.lineWidth = 1;
+      context.stroke();
+    }
+  }
+
+  private renderProjectile(
+    context: CanvasRenderingContext2D,
+    projectile: any,
+    diameter: number,
+  ) {
+    const x = projectile.x - this.game.width() / 2;
+    const y = projectile.y - this.game.height() / 2;
+
+    const radius = Math.max(0.5, diameter / 2);
+    context.fillStyle = "#facc15"; // warm yellow like SupCom strategic view
     context.beginPath();
-    context.moveTo(x, y - size / 2); // Top point
-    context.lineTo(x - size / 2, y + size / 2); // Bottom left
-    context.lineTo(x + size / 2, y + size / 2); // Bottom right
-    context.closePath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
     context.fill();
 
-    // Black outline for visibility
-    context.strokeStyle = "#000";
+    context.strokeStyle = "rgba(0, 0, 0, 0.35)";
     context.lineWidth = 1;
     context.stroke();
   }

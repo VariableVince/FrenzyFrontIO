@@ -1,9 +1,15 @@
 import { PlayerID } from "../Game";
+import { TileRef } from "../GameMap";
 
 /**
  * Frenzy Mode: Strategic unit-based warfare with continuous movement
  * and flowing territory boundaries
  */
+
+export enum FrenzyUnitType {
+  Soldier = "soldier",
+  DefensePost = "defensePost",
+}
 
 export interface FrenzyUnit {
   id: number;
@@ -13,14 +19,32 @@ export interface FrenzyUnit {
   vx: number; // Velocity
   vy: number;
   health: number;
+  maxHealth: number;
   targetX: number;
   targetY: number;
+  weaponCooldown: number;
+  unitType: FrenzyUnitType;
+  fireInterval: number; // Unit-specific fire interval
+}
+
+export interface FrenzyProjectile {
+  id: number;
+  playerId: PlayerID;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  age: number;
+  life: number;
 }
 
 export interface CoreBuilding {
   playerId: PlayerID;
   x: number;
   y: number;
+  tile: TileRef;
+  tileX: number;
+  tileY: number;
   spawnTimer: number; // Seconds until next spawn
   spawnInterval: number;
   unitCount: number;
@@ -40,6 +64,12 @@ export interface FrenzyConfig {
   radialAlignmentWeight: number; // Strength of radial bias toward centroid (default: 0.75)
   borderAdvanceDistance: number; // How far past the border to push targets (default: 12px)
   stopDistance: number; // Distance to stop before reaching target (default: 2px)
+  projectileSpeed: number; // Speed of visual shells (default: 140px/s)
+  fireInterval: number; // Seconds between volleys per unit (default: 0.5s)
+  projectileSize: number; // Diameter of visual shells in pixels (default: 4px)
+  hqCaptureRadius: number; // Tiles around HQ that must fall before defeat (default: 2 tiles)
+  defensePostHealthMultiplier: number; // Defense posts have multiplied HP (default: 2.0)
+  defensePostFireRateMultiplier: number; // Defense posts fire faster (default: 2.0)
 }
 
 export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
@@ -47,15 +77,21 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   maxUnitsPerPlayer: 60,
   startingUnits: 5,
   unitHealth: 100,
-  unitSpeed: 15,
+  unitSpeed: 5,
   unitDPS: 15,
   influenceRadius: 18,
   combatRange: 25,
   separationRadius: 10,
-  captureRadius: 5,
+  captureRadius: 10,
   radialAlignmentWeight: 0.75,
-  borderAdvanceDistance: 12,
+  borderAdvanceDistance: 1,
   stopDistance: 2,
+  projectileSpeed: 20,
+  fireInterval: 1,
+  projectileSize: 2,
+  hqCaptureRadius: 2,
+  defensePostHealthMultiplier: 2.0,
+  defensePostFireRateMultiplier: 2.0,
 };
 
 export enum Stance {

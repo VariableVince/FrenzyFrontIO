@@ -280,6 +280,7 @@ export interface FrenzyUpdate {
     x: number;
     y: number;
     health: number;
+    unitType: string;
   }>;
   coreBuildings: Array<{
     playerId: string;
@@ -289,4 +290,11 @@ export interface FrenzyUpdate {
     spawnInterval?: number;
     unitCount?: number;
   }>;
+  projectiles: Array<{
+    id: number;
+    playerId: string;
+    x: number;
+    y: number;
+  }>;
+  projectileSize: number;
 }

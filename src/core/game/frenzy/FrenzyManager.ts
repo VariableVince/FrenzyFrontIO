@@ -6,6 +6,7 @@ import {
   FrenzyConfig,
   FrenzyProjectile,
   FrenzyUnit,
+  FrenzyUnitType,
 } from "./FrenzyTypes";
 import { SpatialHashGrid } from "./SpatialHashGrid";
 
@@ -143,13 +144,27 @@ export class FrenzyManager {
     }
   }
 
-  private spawnUnit(playerId: PlayerID, x: number, y: number) {
+  private spawnUnit(
+    playerId: PlayerID,
+    x: number,
+    y: number,
+    unitType: FrenzyUnitType = FrenzyUnitType.Soldier,
+  ) {
     const building = this.coreBuildings.get(playerId);
     if (!building) return;
 
     // Add small random offset so units don't stack
     const offsetX = (Math.random() - 0.5) * 20;
     const offsetY = (Math.random() - 0.5) * 20;
+
+    // Calculate health and fire interval based on unit type
+    let health = this.config.unitHealth;
+    let fireInterval = this.config.fireInterval;
+
+    if (unitType === FrenzyUnitType.DefensePost) {
+      health *= this.config.defensePostHealthMultiplier;
+      fireInterval /= this.config.defensePostFireRateMultiplier;
+    }
 
     const unit: FrenzyUnit = {
       id: this.nextUnitId++,
@@ -158,10 +173,13 @@ export class FrenzyManager {
       y: y + offsetY,
       vx: 0,
       vy: 0,
-      health: this.config.unitHealth,
+      health,
+      maxHealth: health,
       targetX: x,
       targetY: y,
-      weaponCooldown: Math.random() * this.config.fireInterval,
+      weaponCooldown: Math.random() * fireInterval,
+      unitType,
+      fireInterval,
     };
 
     this.units.push(unit);
@@ -548,7 +566,7 @@ export class FrenzyManager {
 
         if (unit.weaponCooldown <= 0) {
           this.spawnProjectile(unit, nearest);
-          unit.weaponCooldown = this.config.fireInterval;
+          unit.weaponCooldown = unit.fireInterval;
         }
       }
     }
@@ -766,6 +784,23 @@ export class FrenzyManager {
   }
 
   /**
+   * Spawn a defense post at the given location
+   */
+  spawnDefensePost(playerId: PlayerID, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    const building = this.coreBuildings.get(playerId);
+    if (!building) {
+      return;
+    }
+    if (building.unitCount >= this.config.maxUnitsPerPlayer) {
+      return;
+    }
+    this.spawnUnit(playerId, x, y, FrenzyUnitType.DefensePost);
+  }
+
+  /**
    * Get all units for rendering
    */
   getUnits(): readonly FrenzyUnit[] {
@@ -797,6 +832,7 @@ export class FrenzyManager {
         x: u.x,
         y: u.y,
         health: u.health,
+        unitType: u.unitType,
       })),
       coreBuildings: Array.from(this.coreBuildings.values()).map((b) => ({
         playerId: b.playerId,

@@ -481,12 +481,20 @@ export class GameView implements GameMap {
       x: number;
       y: number;
       health: number;
+      unitType: string;
     }>;
     coreBuildings: Array<{
       playerId: string;
       x: number;
       y: number;
     }>;
+    projectiles: Array<{
+      id: number;
+      playerId: string;
+      x: number;
+      y: number;
+    }>;
+    projectileSize: number;
   } | null = null;
 
   constructor(
@@ -561,8 +569,13 @@ export class GameView implements GameMap {
     const frenzyUpdates = gu.updates[GameUpdateType.Frenzy];
     if (frenzyUpdates && frenzyUpdates.length > 0) {
       this._frenzyState = {
-        units: frenzyUpdates[0].units,
+        units: frenzyUpdates[0].units.map((u: any) => ({
+          ...u,
+          unitType: u.unitType ?? "soldier",
+        })),
         coreBuildings: frenzyUpdates[0].coreBuildings,
+        projectiles: frenzyUpdates[0].projectiles,
+        projectileSize: frenzyUpdates[0].projectileSize,
       };
     }
 

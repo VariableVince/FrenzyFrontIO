@@ -84,6 +84,14 @@ const CONFIG_FIELDS: ConfigField[] = [
     description: "How far around a unit tiles can flip",
   },
   {
+    key: "hqCaptureRadius",
+    label: "HQ Capture Radius (tiles)",
+    min: 1,
+    max: 8,
+    step: 1,
+    description: "How close enemies must get to defeat a player",
+  },
+  {
     key: "radialAlignmentWeight",
     label: "Radial Bias",
     min: 0,
@@ -107,7 +115,33 @@ const CONFIG_FIELDS: ConfigField[] = [
     step: 0.5,
     description: "How close units travel to their target",
   },
+  {
+    key: "projectileSpeed",
+    label: "Projectile Speed (px/s)",
+    min: 10,
+    max: 600,
+    step: 5,
+    description: "How fast shells travel on screen",
+  },
+  {
+    key: "projectileSize",
+    label: "Shell Size (px)",
+    min: 0.5,
+    max: 12,
+    step: 0.5,
+    description: "Diameter of visual shells",
+  },
+  {
+    key: "fireInterval",
+    label: "Fire Interval (s)",
+    min: 0.05,
+    max: 3,
+    step: 0.05,
+    description: "Lower numbers = more frequent shots",
+  },
 ];
+
+const CUSTOM_DEFAULTS_STORAGE_KEY = "frenzy-dev-config-defaults";
 
 const DEV_PANEL_ENABLED = shouldEnableDevPanel();
 
@@ -117,6 +151,7 @@ export class FrenzyDevPanel extends LitElement {
   @state() private config: FrenzyConfig = { ...DEFAULT_FRENZY_CONFIG };
   @state() private lastAppliedAt: number | null = null;
   @state() private canRestart = false;
+  @state() private lastSavedAt: number | null = null;
 
   private readonly handleJoinLobby = (event: Event) => {
     if (!DEV_PANEL_ENABLED) return;
@@ -137,6 +172,7 @@ export class FrenzyDevPanel extends LitElement {
       this.style.display = "none";
       return;
     }
+    this.loadSavedDefaults();
     document.addEventListener("join-lobby", this.handleJoinLobby);
   }
 
@@ -148,8 +184,8 @@ export class FrenzyDevPanel extends LitElement {
   static styles = css`
     :host {
       position: fixed;
-      bottom: 16px;
-      left: 16px;
+      top: 80px;
+      right: 16px;
       z-index: 9999;
       font-family:
         "Inter",
@@ -264,6 +300,11 @@ export class FrenzyDevPanel extends LitElement {
       color: #e2e8f0;
     }
 
+    .save-defaults {
+      background: #facc15;
+      color: #78350f;
+    }
+
     .restart {
       background: #f97316;
       color: #0f172a;
@@ -303,6 +344,9 @@ export class FrenzyDevPanel extends LitElement {
                   <button class="apply" @click=${this.applyConfig}>
                     Apply
                   </button>
+                  <button class="save-defaults" @click=${this.saveAsDefaults}>
+                    Save Defaults
+                  </button>
                   <button class="reset" @click=${this.resetDefaults}>
                     Reset
                   </button>
@@ -314,9 +358,18 @@ export class FrenzyDevPanel extends LitElement {
                     Restart
                   </button>
                 </div>
-                ${this.lastAppliedAt
+                ${this.lastAppliedAt || this.lastSavedAt
                   ? html`<div class="status">
-                      Applied ${timeSince(this.lastAppliedAt)} ago
+                      ${this.lastAppliedAt
+                        ? html`<div>
+                            Applied ${timeSince(this.lastAppliedAt)} ago
+                          </div>`
+                        : html``}
+                      ${this.lastSavedAt
+                        ? html`<div>
+                            Defaults saved ${timeSince(this.lastSavedAt)} ago
+                          </div>`
+                        : html``}
                     </div>`
                   : html``}
               </div>
@@ -394,7 +447,21 @@ export class FrenzyDevPanel extends LitElement {
   }
 
   private resetDefaults() {
-    this.config = { ...DEFAULT_FRENZY_CONFIG };
+    const saved = readSavedDefaults();
+    if (saved) {
+      this.config = { ...saved.config };
+      this.lastSavedAt = saved.savedAt;
+    } else {
+      this.config = { ...DEFAULT_FRENZY_CONFIG };
+      this.lastSavedAt = null;
+    }
+  }
+
+  private saveAsDefaults() {
+    const snapshot = persistDefaults(this.config);
+    if (snapshot) {
+      this.lastSavedAt = snapshot.savedAt;
+    }
   }
 
   private requestRestart() {
@@ -414,6 +481,17 @@ export class FrenzyDevPanel extends LitElement {
 
   private toggleCollapse() {
     this.isCollapsed = !this.isCollapsed;
+  }
+
+  private loadSavedDefaults() {
+    const saved = readSavedDefaults();
+    if (saved) {
+      this.config = { ...saved.config };
+      this.lastSavedAt = saved.savedAt;
+    } else {
+      this.config = { ...DEFAULT_FRENZY_CONFIG };
+      this.lastSavedAt = null;
+    }
   }
 }
 
@@ -452,4 +530,65 @@ function shouldEnableDevPanel(): boolean {
     console.warn("Unable to read frenzy dev panel flag", error);
     return false;
   }
+}
+
+interface StoredDefaultsSnapshot {
+  config: FrenzyConfig;
+  savedAt: number;
+}
+
+function readSavedDefaults(): StoredDefaultsSnapshot | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_DEFAULTS_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    const merged = sanitizeConfig((parsed as any).config ?? {});
+    const savedAt =
+      typeof (parsed as any).savedAt === "number"
+        ? (parsed as any).savedAt
+        : Date.now();
+    return { config: merged, savedAt };
+  } catch (error) {
+    console.warn("Unable to read saved Frenzy defaults", error);
+    return null;
+  }
+}
+
+function persistDefaults(config: FrenzyConfig): StoredDefaultsSnapshot | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const snapshot: StoredDefaultsSnapshot = {
+      config: sanitizeConfig(config),
+      savedAt: Date.now(),
+    };
+    window.localStorage.setItem(
+      CUSTOM_DEFAULTS_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+    return snapshot;
+  } catch (error) {
+    console.warn("Unable to store Frenzy defaults", error);
+    return null;
+  }
+}
+
+function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
+  const merged: FrenzyConfig = { ...DEFAULT_FRENZY_CONFIG };
+  (Object.keys(partial) as Array<keyof FrenzyConfig>).forEach((key) => {
+    const value = partial[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      merged[key] = value;
+    }
+  });
+  return merged;
 }

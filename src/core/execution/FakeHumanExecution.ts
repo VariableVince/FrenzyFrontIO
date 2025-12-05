@@ -140,13 +140,12 @@ export class FakeHumanExecution implements Execution {
   }
 
   tick(ticks: number) {
-    // In Frenzy mode, NPCs don't send attacks - units handle expansion
-    if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
-      return;
-    }
+    const isFrenzyMode =
+      this.mg.config().gameConfig().gameFork === GameFork.Frenzy;
 
-    // Ship tracking
+    // Ship tracking (not in Frenzy mode)
     if (
+      !isFrenzyMode &&
       this.player !== null &&
       this.player.isAlive() &&
       this.mg.config().gameConfig().difficulty !== Difficulty.Easy
@@ -194,8 +193,10 @@ export class FakeHumanExecution implements Execution {
         this.expandRatio,
       );
 
-      // Send an attack on the first tick
-      this.behavior.forceSendAttack(this.mg.terraNullius());
+      // Send an attack on the first tick (not in Frenzy mode)
+      if (!isFrenzyMode) {
+        this.behavior.forceSendAttack(this.mg.terraNullius());
+      }
       return;
     }
 
@@ -204,6 +205,12 @@ export class FakeHumanExecution implements Execution {
     this.behavior.handleAllianceExtensionRequests();
     this.handleUnits();
     this.handleEmbargoesToHostileNations();
+
+    // In Frenzy mode, NPCs don't send attacks - units handle expansion
+    if (isFrenzyMode) {
+      return;
+    }
+
     this.considerMIRV();
     this.maybeAttack();
   }

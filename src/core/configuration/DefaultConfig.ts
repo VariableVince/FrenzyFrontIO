@@ -4,6 +4,7 @@ import {
   Difficulty,
   Duos,
   Game,
+  GameFork,
   GameMapType,
   GameMode,
   GameType,
@@ -502,10 +503,7 @@ export class DefaultConfig implements Config {
         };
       case UnitType.DefensePost:
         return {
-          cost: this.costWrapper(
-            (numUnits: number) => Math.min(250_000, (numUnits + 1) * 50_000),
-            UnitType.DefensePost,
-          ),
+          cost: this.costWrapper(() => 25_000, UnitType.DefensePost),
           territoryBound: true,
           constructionDuration: this.instantBuild() ? 0 : 5 * 10,
         };
@@ -900,6 +898,14 @@ export class DefaultConfig implements Config {
   }
 
   goldAdditionRate(player: Player): Gold {
+    // In Frenzy mode, gold scales with land size
+    if (this._gameConfig.gameFork === GameFork.Frenzy) {
+      const tiles = player.numTilesOwned();
+      // Base: 1 gold per 100 tiles per tick
+      const goldPerTick = Math.max(1, Math.floor(tiles / 100));
+      return BigInt(goldPerTick);
+    }
+
     if (player.type() === PlayerType.Bot) {
       return 50n;
     }

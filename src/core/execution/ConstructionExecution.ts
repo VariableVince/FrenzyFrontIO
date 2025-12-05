@@ -1,6 +1,7 @@
 import {
   Execution,
   Game,
+  GameFork,
   Gold,
   Player,
   Tick,
@@ -122,7 +123,17 @@ export class ConstructionExecution implements Execution {
         this.mg.addExecution(new MissileSiloExecution(player, this.tile));
         break;
       case UnitType.DefensePost:
-        this.mg.addExecution(new DefensePostExecution(player, this.tile));
+        // In Frenzy mode, spawn a defense post unit instead of the structure
+        if (
+          this.mg.config().gameConfig().gameFork === GameFork.Frenzy &&
+          this.mg.frenzyManager()
+        ) {
+          const tileX = this.mg.x(this.tile);
+          const tileY = this.mg.y(this.tile);
+          this.mg.frenzyManager()!.spawnDefensePost(player.id(), tileX, tileY);
+        } else {
+          this.mg.addExecution(new DefensePostExecution(player, this.tile));
+        }
         break;
       case UnitType.SAMLauncher:
         this.mg.addExecution(new SAMLauncherExecution(player, this.tile));
