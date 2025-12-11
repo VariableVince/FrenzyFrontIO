@@ -34,10 +34,8 @@ export class BotExecution implements Execution {
   }
 
   tick(ticks: number) {
-    // In Frenzy mode, bots don't send attacks - units handle expansion
-    if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
-      return;
-    }
+    const isFrenzyMode =
+      this.mg.config().gameConfig().gameFork === GameFork.Frenzy;
 
     if (ticks % this.attackRate !== this.attackTick) return;
 
@@ -56,13 +54,21 @@ export class BotExecution implements Execution {
         this.expandRatio,
       );
 
-      // Send an attack on the first tick
-      this.behavior.sendAttack(this.mg.terraNullius());
+      // Send an attack on the first tick (not in Frenzy mode)
+      if (!isFrenzyMode) {
+        this.behavior.sendAttack(this.mg.terraNullius());
+      }
       return;
     }
 
     this.behavior.handleAllianceRequests();
     this.behavior.handleAllianceExtensionRequests();
+
+    // In Frenzy mode, bots don't send attacks - units handle expansion
+    if (isFrenzyMode) {
+      return;
+    }
+
     this.maybeAttack();
   }
 
