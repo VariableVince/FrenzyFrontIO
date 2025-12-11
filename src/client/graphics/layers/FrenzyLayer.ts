@@ -73,7 +73,7 @@ export class FrenzyLayer implements Layer {
     const y = building.y - this.game.height() / 2;
 
     // Draw city icon (larger than units)
-    const size = 24;
+    const size = 12;  // Halved from 24
 
     // Outer circle (glow)
     context.fillStyle = player.territoryColor().alpha(0.5).toRgbString();
@@ -121,7 +121,7 @@ export class FrenzyLayer implements Layer {
 
     if (isDefensePost) {
       // Defense post: shield icon (larger, different shape)
-      const size = 16;
+      const size = 8;  // Halved from 16
 
       // Draw shield shape
       context.fillStyle = player.territoryColor().toRgbString();
@@ -146,7 +146,7 @@ export class FrenzyLayer implements Layer {
       context.stroke();
     } else {
       // Regular soldier: triangle pointing up
-      const size = 12;
+      const size = 6;  // Halved from 12
 
       // Fill
       context.fillStyle = player.territoryColor().toRgbString();

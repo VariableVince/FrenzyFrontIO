@@ -86,18 +86,18 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   maxUnitsPerPlayer: 60,
   startingUnits: 5,
   unitHealth: 100,
-  unitSpeed: 5,
+  unitSpeed: 2.5,          // Halved from 5
   unitDPS: 15,
-  influenceRadius: 18,
-  combatRange: 25,
-  separationRadius: 10,
-  captureRadius: 10,
+  influenceRadius: 9,      // Halved from 18
+  combatRange: 12.5,       // Halved from 25
+  separationRadius: 5,     // Halved from 10
+  captureRadius: 10,       // Keep unchanged
   radialAlignmentWeight: 0.75,
-  borderAdvanceDistance: 1,
-  stopDistance: 2,
-  projectileSpeed: 20,
+  borderAdvanceDistance: 0.5, // Halved from 1
+  stopDistance: 1,         // Halved from 2
+  projectileSpeed: 10,     // Halved from 20
   fireInterval: 1,
-  projectileSize: 2,
+  projectileSize: 1,       // Halved from 2
   hqCaptureRadius: 2,
   defensePostHealthMultiplier: 2.0,
   defensePostFireRateMultiplier: 2.0,
