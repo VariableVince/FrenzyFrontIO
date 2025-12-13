@@ -74,6 +74,8 @@ export class SendAttackIntentEvent implements GameEvent {
     public readonly targetID: PlayerID | null,
     public readonly troops: number,
     public readonly defensiveStance: number = 1.0,
+    public readonly targetX?: number,
+    public readonly targetY?: number,
   ) {}
 }
 
@@ -143,6 +145,10 @@ export class SendDeleteUnitIntentEvent implements GameEvent {
 
 export class SendDefensiveStanceIntentEvent implements GameEvent {
   constructor(public readonly stance: number) {}
+}
+
+export class SendUpgradeHQIntentEvent implements GameEvent {
+  constructor() {}
 }
 
 export class CancelAttackIntentEvent implements GameEvent {
@@ -260,6 +266,10 @@ export class Transport {
 
     this.eventBus.on(SendDefensiveStanceIntentEvent, (e) =>
       this.onSendDefensiveStanceIntent(e),
+    );
+
+    this.eventBus.on(SendUpgradeHQIntentEvent, (e) =>
+      this.onSendUpgradeHQIntent(e),
     );
 
     this.eventBus.on(SendKickPlayerIntentEvent, (e) =>
@@ -467,6 +477,8 @@ export class Transport {
       targetID: event.targetID,
       troops: event.troops,
       defensiveStance: event.defensiveStance,
+      targetX: event.targetX,
+      targetY: event.targetY,
     });
   }
 
@@ -644,6 +656,13 @@ export class Transport {
       type: "defensive_stance",
       clientID: this.lobbyConfig.clientID,
       stance: event.stance,
+    });
+  }
+
+  private onSendUpgradeHQIntent(event: SendUpgradeHQIntentEvent) {
+    this.sendIntent({
+      type: "upgrade_hq",
+      clientID: this.lobbyConfig.clientID,
     });
   }
 

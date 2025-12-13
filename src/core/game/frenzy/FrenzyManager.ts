@@ -157,6 +157,7 @@ export class FrenzyManager {
       spawnTimer: this.config.spawnInterval,
       spawnInterval: this.config.spawnInterval,
       unitCount: 0,
+      tier: 1,
     });
 
     // Spawn initial units
@@ -326,7 +327,10 @@ export class FrenzyManager {
       if (needsNewTarget && territory) {
         // Calculate new target with attack target bias if attacking
         const attackTargetId = isAttackingUnit ? attackOrder?.targetPlayerId : undefined;
-        const newTarget = this.calculateUnitTarget(unit, territory, attackTargetId ?? undefined);
+        const clickPos = isAttackingUnit && attackOrder?.targetX !== undefined && attackOrder?.targetY !== undefined
+          ? { x: attackOrder.targetX, y: attackOrder.targetY }
+          : undefined;
+        const newTarget = this.calculateUnitTarget(unit, territory, attackTargetId ?? undefined, isAttackingUnit, clickPos);
         unit.targetX = newTarget.x;
         unit.targetY = newTarget.y;
       }
@@ -363,6 +367,8 @@ export class FrenzyManager {
     unit: FrenzyUnit,
     territory: PlayerTerritorySnapshot,
     attackTargetPlayerId?: PlayerID,
+    isAttackingUnit: boolean = false,
+    clickPos?: { x: number; y: number },
   ): { x: number; y: number } {
     const { borderTiles, centroid } = territory;
 
@@ -371,7 +377,8 @@ export class FrenzyManager {
     const hqPos = playerHQ ? { x: playerHQ.x, y: playerHQ.y } : centroid;
     
     // Get defensive stance (0 = near HQ, 0.5 = fire range, 1 = offensive/border)
-    const defensiveStance = this.getPlayerDefensiveStance(unit.playerId);
+    // Attacking units always use offensive stance (1.0)
+    const defensiveStance = isAttackingUnit ? 1.0 : this.getPlayerDefensiveStance(unit.playerId);
 
     if (borderTiles.length === 0) {
       // Fallback: move toward map center if no borders found
@@ -455,6 +462,19 @@ export class FrenzyManager {
           const hqAlignment = (hqDirX * tileDirX + hqDirY * tileDirY) / (hqDirLen * tileDirLen);
           // Boost score for tiles aligned with HQ direction
           alignmentBoost *= Math.max(0.5, 1 + hqAlignment * 0.5);
+        }
+        
+        // If attacking with a click position, add bonus for tiles in that direction
+        if (clickPos) {
+          const clickDirX = clickPos.x - unit.x;
+          const clickDirY = clickPos.y - unit.y;
+          const clickDirLen = Math.hypot(clickDirX, clickDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const clickAlignment = (clickDirX * tileDirX + clickDirY * tileDirY) / (clickDirLen * tileDirLen);
+          // Boost score for tiles aligned with click direction
+          alignmentBoost *= Math.max(0.5, 1 + clickAlignment * 0.5);
         }
 
         const score = dist / alignmentBoost;
@@ -569,6 +589,8 @@ export class FrenzyManager {
     playerId: PlayerID,
     targetPlayerId: PlayerID | null,
     ratio: number,
+    targetX?: number,
+    targetY?: number,
   ) {
     if (!targetPlayerId) {
       return;
@@ -593,6 +615,8 @@ export class FrenzyManager {
       targetPlayerId,
       ratio: clampedRatio,
       createdAtTick: this.game.ticks(),
+      targetX,
+      targetY,
     });
   }
 
@@ -1133,6 +1157,42 @@ export class FrenzyManager {
   }
 
   /**
+   * Get the HQ tier for a player
+   */
+  getHQTier(playerId: PlayerID): number {
+    const building = this.coreBuildings.get(playerId);
+    return building?.tier ?? 1;
+  }
+
+  /**
+   * Upgrade the HQ for a player
+   * @returns true if upgrade was successful, false otherwise
+   */
+  upgradeHQ(playerId: PlayerID): boolean {
+    const building = this.coreBuildings.get(playerId);
+    if (!building) {
+      return false;
+    }
+    
+    const player = this.game.player(playerId);
+    if (!player) {
+      return false;
+    }
+    
+    const upgradeCost = BigInt(100_000);
+    if (player.gold() < upgradeCost) {
+      return false;
+    }
+    
+    // Deduct gold and upgrade tier
+    player.removeGold(upgradeCost);
+    building.tier += 1;
+    
+    console.log(`[FrenzyManager] Player ${player.name()} upgraded HQ to tier ${building.tier}`);
+    return true;
+  }
+
+  /**
    * Get unit count for a player
    */
   getUnitCount(playerId: PlayerID): number {
@@ -1159,6 +1219,7 @@ export class FrenzyManager {
         spawnTimer: b.spawnTimer,
         spawnInterval: b.spawnInterval,
         unitCount: b.unitCount,
+        tier: b.tier,
       })),
       projectiles: this.projectiles.map((p) => ({
         id: p.id,
@@ -1184,6 +1245,8 @@ interface FrenzyAttackOrder {
   targetPlayerId: PlayerID | null;
   ratio: number;
   createdAtTick: number;
+  targetX?: number; // Click location X for targeting bias
+  targetY?: number; // Click location Y for targeting bias
 }
 
 interface FrenzyAttackPlan {

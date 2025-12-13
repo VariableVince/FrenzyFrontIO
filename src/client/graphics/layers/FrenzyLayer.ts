@@ -92,6 +92,17 @@ export class FrenzyLayer implements Layer {
     context.lineWidth = 2;
     context.stroke();
 
+    // Draw tier indicator for upgraded HQs (tier 2+)
+    const tier = building.tier ?? 1;
+    if (tier >= 2) {
+      const tierText = this.getTierRoman(tier);
+      context.fillStyle = "#fff";
+      context.font = "bold 8px sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(tierText, x, y);
+    }
+
     // Spawn progress indicator (ring around building)
     const spawnProgress =
       1 - (building.spawnTimer ?? 0) / (building.spawnInterval ?? 1);
@@ -108,6 +119,11 @@ export class FrenzyLayer implements Layer {
       );
       context.stroke();
     }
+  }
+
+  private getTierRoman(tier: number): string {
+    const romans = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+    return romans[tier - 1] || tier.toString();
   }
 
   private renderUnit(context: CanvasRenderingContext2D, unit: any) {

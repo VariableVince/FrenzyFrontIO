@@ -496,6 +496,55 @@ export const deleteUnitElement: MenuElement = {
   },
 };
 
+const HQ_UPGRADE_COST = BigInt(100_000);
+
+export const upgradeHQElement: MenuElement = {
+  id: "upgrade_hq",
+  name: "upgrade_hq",
+  displayed: (params: MenuElementParams) => {
+    // Only show in Frenzy mode when clicking on own HQ
+    const frenzyState = params.game.frenzyManager();
+    if (!frenzyState) return false;
+    
+    const myHQ = frenzyState.coreBuildings.find(
+      (b) => b.playerId === params.myPlayer.id(),
+    );
+    if (!myHQ) return false;
+    
+    // Check if the click is near the HQ (within 20 pixels)
+    const tileX = params.game.x(params.tile);
+    const tileY = params.game.y(params.tile);
+    const dist = Math.hypot(tileX - myHQ.x, tileY - myHQ.y);
+    return dist <= 20;
+  },
+  disabled: (params: MenuElementParams) => {
+    return params.myPlayer.gold() < HQ_UPGRADE_COST;
+  },
+  text: "⬆",
+  fontSize: "24px",
+  color: "#FFD700",
+  tooltipKeys: [
+    {
+      key: "radial_menu.upgrade_hq_title",
+      className: "title",
+    },
+    {
+      key: "radial_menu.upgrade_hq_description",
+      className: "description",
+    },
+  ],
+  tooltipItems: [
+    {
+      text: `Cost: ${renderNumber(HQ_UPGRADE_COST)}`,
+      className: "cost",
+    },
+  ],
+  action: (params: MenuElementParams) => {
+    params.playerActionHandler.handleUpgradeHQ();
+    params.closeMenu();
+  },
+};
+
 export const buildMenuElement: MenuElement = {
   id: Slot.Build,
   name: "build",
@@ -558,6 +607,7 @@ export const centerButtonElement: CenterButtonElement = {
       params.playerActionHandler.handleAttack(
         params.myPlayer,
         params.selected?.id() ?? null,
+        params.tile,
       );
     }
     params.closeMenu();
@@ -581,10 +631,28 @@ export const rootMenuElement: MenuElement = {
       tileOwner.isPlayer() &&
       (tileOwner as PlayerView).id() === params.myPlayer.id();
 
+    // Check if clicking on own HQ in Frenzy mode
+    let isClickingOnHQ = false;
+    const frenzyState = params.game.frenzyManager();
+    if (frenzyState) {
+      const myHQ = frenzyState.coreBuildings.find(
+        (b) => b.playerId === params.myPlayer.id(),
+      );
+      if (myHQ) {
+        const tileX = params.game.x(params.tile);
+        const tileY = params.game.y(params.tile);
+        const dist = Math.hypot(tileX - myHQ.x, tileY - myHQ.y);
+        isClickingOnHQ = dist <= 20;
+      }
+    }
+
+    // In own territory: show upgrade HQ if clicking on HQ, otherwise show delete unit
+    const ownTerritoryFirstItem = isClickingOnHQ ? upgradeHQElement : deleteUnitElement;
+
     const menuItems: (MenuElement | null)[] = [
       infoMenuElement,
       ...(isOwnTerritory
-        ? [deleteUnitElement, ally, buildMenuElement]
+        ? [ownTerritoryFirstItem, ally, buildMenuElement]
         : [boatMenuElement, ally, attackMenuElement]),
     ];
 

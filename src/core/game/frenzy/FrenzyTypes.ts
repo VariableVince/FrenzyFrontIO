@@ -51,6 +51,7 @@ export interface CoreBuilding {
   spawnTimer: number; // Seconds until next spawn
   spawnInterval: number;
   unitCount: number;
+  tier: number; // HQ tier level (1 = base, 2+ = upgraded)
 }
 
 export interface FactorySpawner {

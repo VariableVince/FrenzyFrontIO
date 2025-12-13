@@ -49,7 +49,8 @@ export type Intent =
   | UpgradeStructureIntent
   | DeleteUnitIntent
   | KickPlayerIntent
-  | DefensiveStanceIntent;
+  | DefensiveStanceIntent
+  | UpgradeHQIntent;
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
@@ -84,6 +85,7 @@ export type KickPlayerIntent = z.infer<typeof KickPlayerIntentSchema>;
 export type DefensiveStanceIntent = z.infer<
   typeof DefensiveStanceIntentSchema
 >;
+export type UpgradeHQIntent = z.infer<typeof UpgradeHQIntentSchema>;
 
 export type Turn = z.infer<typeof TurnSchema>;
 export type GameConfig = z.infer<typeof GameConfigSchema>;
@@ -240,6 +242,8 @@ export const AttackIntentSchema = BaseIntentSchema.extend({
   targetID: ID.nullable(),
   troops: z.number().nonnegative().nullable(),
   defensiveStance: z.number().min(0).max(1).optional(),
+  targetX: z.number().optional(),
+  targetY: z.number().optional(),
 });
 
 export const SpawnIntentSchema = BaseIntentSchema.extend({
@@ -360,6 +364,10 @@ export const DefensiveStanceIntentSchema = BaseIntentSchema.extend({
   stance: z.number().min(0).max(1),
 });
 
+export const UpgradeHQIntentSchema = BaseIntentSchema.extend({
+  type: z.literal("upgrade_hq"),
+});
+
 const IntentSchema = z.discriminatedUnion("type", [
   AttackIntentSchema,
   CancelAttackIntentSchema,
@@ -384,6 +392,7 @@ const IntentSchema = z.discriminatedUnion("type", [
   DeleteUnitIntentSchema,
   KickPlayerIntentSchema,
   DefensiveStanceIntentSchema,
+  UpgradeHQIntentSchema,
 ]);
 
 //

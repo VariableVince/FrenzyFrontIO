@@ -1,7 +1,7 @@
 import { EventBus } from "../../../core/EventBus";
 import { PlayerActions, PlayerID } from "../../../core/game/Game";
 import { TileRef } from "../../../core/game/GameMap";
-import { PlayerView } from "../../../core/game/GameView";
+import { GameView, PlayerView } from "../../../core/game/GameView";
 import {
   SendAllianceRequestIntentEvent,
   SendAttackIntentEvent,
@@ -14,6 +14,7 @@ import {
   SendEmojiIntentEvent,
   SendSpawnIntentEvent,
   SendTargetPlayerIntentEvent,
+  SendUpgradeHQIntentEvent,
 } from "../../Transport";
 import { UIState } from "../UIState";
 
@@ -21,6 +22,7 @@ export class PlayerActionHandler {
   constructor(
     private eventBus: EventBus,
     private uiState: UIState,
+    private game: GameView,
   ) {}
 
   async getPlayerActions(
@@ -30,12 +32,16 @@ export class PlayerActionHandler {
     return await player.actions(tile);
   }
 
-  handleAttack(player: PlayerView, targetId: string | null) {
+  handleAttack(player: PlayerView, targetId: string | null, tile?: TileRef) {
+    const targetX = tile !== undefined ? this.game.x(tile) : undefined;
+    const targetY = tile !== undefined ? this.game.y(tile) : undefined;
     this.eventBus.emit(
       new SendAttackIntentEvent(
         targetId,
         this.uiState.attackRatio * player.troops(),
         this.uiState.defensiveStance,
+        targetX,
+        targetY,
       ),
     );
   }
@@ -99,5 +105,9 @@ export class PlayerActionHandler {
 
   handleDeleteUnit(unitId: number) {
     this.eventBus.emit(new SendDeleteUnitIntentEvent(unitId));
+  }
+
+  handleUpgradeHQ() {
+    this.eventBus.emit(new SendUpgradeHQIntentEvent());
   }
 }

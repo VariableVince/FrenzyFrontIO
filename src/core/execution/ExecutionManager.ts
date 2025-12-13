@@ -65,9 +65,14 @@ export class Executor {
               Math.max(requestedTroops / totalTroops, 0),
               1,
             );
-            const defensiveStance = intent.defensiveStance ?? 1.0;
-            frenzyManager.setPlayerDefensiveStance(player.id(), defensiveStance);
-            frenzyManager.queueAttackOrder(player.id(), intent.targetID, ratio);
+            // Attack order overrides defensive stance - attacking units are always offensive
+            frenzyManager.queueAttackOrder(
+              player.id(),
+              intent.targetID,
+              ratio,
+              intent.targetX,
+              intent.targetY,
+            );
           }
           return new NoOpExecution();
         }
@@ -145,6 +150,16 @@ export class Executor {
           const frenzyManager = this.mg.frenzyManager();
           if (frenzyManager) {
             frenzyManager.setPlayerDefensiveStance(player.id(), intent.stance);
+          }
+        }
+        return new NoOpExecution();
+      }
+      case "upgrade_hq": {
+        // Upgrade HQ in Frenzy mode
+        if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+          const frenzyManager = this.mg.frenzyManager();
+          if (frenzyManager) {
+            frenzyManager.upgradeHQ(player.id());
           }
         }
         return new NoOpExecution();

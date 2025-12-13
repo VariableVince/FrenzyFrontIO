@@ -491,11 +491,16 @@ export class ClientGameRunner {
     this.myPlayer.actions(tile).then((actions) => {
       if (this.myPlayer === null) return;
       if (actions.canAttack) {
+        // Get click coordinates for attack targeting
+        const targetX = this.gameView.x(tile);
+        const targetY = this.gameView.y(tile);
         this.eventBus.emit(
           new SendAttackIntentEvent(
             this.gameView.owner(tile).id(),
             this.myPlayer.troops() * this.renderer.uiState.attackRatio,
             this.renderer.uiState.defensiveStance,
+            targetX,
+            targetY,
           ),
         );
       } else if (this.canAutoBoat(actions, tile)) {

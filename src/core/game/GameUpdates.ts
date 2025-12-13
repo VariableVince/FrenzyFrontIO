@@ -289,6 +289,7 @@ export interface FrenzyUpdate {
     spawnTimer?: number;
     spawnInterval?: number;
     unitCount?: number;
+    tier?: number;
   }>;
   projectiles: Array<{
     id: number;

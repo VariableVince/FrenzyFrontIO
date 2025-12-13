@@ -487,6 +487,7 @@ export class GameView implements GameMap {
       playerId: string;
       x: number;
       y: number;
+      tier?: number;
     }>;
     projectiles: Array<{
       id: number;

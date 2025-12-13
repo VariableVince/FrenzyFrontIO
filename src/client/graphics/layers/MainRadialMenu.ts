@@ -66,6 +66,7 @@ export class MainRadialMenu extends LitElement implements Layer {
     this.playerActionHandler = new PlayerActionHandler(
       this.eventBus,
       this.uiState,
+      this.game,
     );
 
     this.chatIntegration = new ChatIntegration(this.game, this.eventBus);

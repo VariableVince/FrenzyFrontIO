@@ -1,5 +1,5 @@
 import { Howl } from "howler";
-import of4 from "../../../proprietary/sounds/music/of4.mp3";
+import of4 from "../../../proprietary/sounds/music/enveloped-mission-4-operation-alpha-116601.mp3";
 import openfront from "../../../proprietary/sounds/music/openfront.mp3";
 import war from "../../../proprietary/sounds/music/war.mp3";
 import kaChingSound from "../../../resources/sounds/effects/ka-ching.mp3";
@@ -23,7 +23,7 @@ class SoundManager {
         onend: this.playNext.bind(this),
         volume: 0,
       }),
-      new Howl({
+/*       new Howl({
         src: [openfront],
         loop: false,
         onend: this.playNext.bind(this),
@@ -34,7 +34,7 @@ class SoundManager {
         loop: false,
         onend: this.playNext.bind(this),
         volume: 0,
-      }),
+      }), */
     ];
     this.loadSoundEffect(SoundEffect.KaChing, kaChingSound);
   }
