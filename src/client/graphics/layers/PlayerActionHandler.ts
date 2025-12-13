@@ -35,6 +35,7 @@ export class PlayerActionHandler {
       new SendAttackIntentEvent(
         targetId,
         this.uiState.attackRatio * player.troops(),
+        this.uiState.defensiveStance,
       ),
     );
   }

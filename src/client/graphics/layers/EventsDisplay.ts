@@ -745,7 +745,9 @@ export class EventsDisplay extends LitElement implements Layer {
     if (!myPlayer) return;
 
     // Launch counterattack with the same number of troops as the incoming attack
-    this.eventBus.emit(new SendAttackIntentEvent(attacker.id(), attack.troops));
+    // Use stored defensive stance or default to offensive (1.0)
+    const defensiveStance = Number(localStorage.getItem("settings.defensiveStance") ?? "1.0");
+    this.eventBus.emit(new SendAttackIntentEvent(attacker.id(), attack.troops, defensiveStance));
   }
 
   private renderIncomingAttacks() {

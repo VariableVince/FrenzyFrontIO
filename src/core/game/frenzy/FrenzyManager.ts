@@ -1,4 +1,4 @@
-import { Game, Player, PlayerID, TerraNullius } from "../Game";
+import { Game, Player, PlayerID, PlayerType, TerraNullius } from "../Game";
 import { TileRef } from "../GameMap";
 import {
   CoreBuilding,
@@ -27,6 +27,9 @@ export class FrenzyManager {
   private config: FrenzyConfig;
   private defeatedPlayers = new Set<PlayerID>();
   private attackOrders: Map<PlayerID, FrenzyAttackOrder> = new Map();
+  
+  // Defensive stance per player: 0 = stay near HQ, 0.5 = fire range, 1 = offensive (border)
+  private playerDefensiveStance: Map<PlayerID, number> = new Map();
 
   // Performance: Cache territory data and only rebuild periodically
   private territoryCache: Map<PlayerID, PlayerTerritorySnapshot> = new Map();
@@ -42,6 +45,55 @@ export class FrenzyManager {
   ) {
     this.config = { ...DEFAULT_FRENZY_CONFIG, ...config };
     this.spatialGrid = new SpatialHashGrid(50); // 50px cell size
+  }
+
+  /**
+   * Set the defensive stance for a player
+   * @param playerId The player ID
+   * @param stance 0 = defensive (near HQ), 0.5 = balanced (fire range), 1 = offensive (border)
+   */
+  setPlayerDefensiveStance(playerId: PlayerID, stance: number) {
+    const newStance = Math.max(0, Math.min(1, stance));
+    const oldStance = this.playerDefensiveStance.get(playerId);
+    
+    // Only update if stance actually changed
+    if (oldStance !== undefined && Math.abs(oldStance - newStance) < 0.01) {
+      return;
+    }
+    
+    this.playerDefensiveStance.set(playerId, newStance);
+    
+    // Force all units of this player to retarget
+    for (const unit of this.units) {
+      if (unit.playerId === playerId && unit.unitType !== FrenzyUnitType.DefensePost) {
+        // Reset target to force recalculation
+        unit.targetX = unit.x;
+        unit.targetY = unit.y;
+      }
+    }
+  }
+
+  /**
+   * Get the defensive stance for a player.
+   * For bots/FakeHumans, returns a random value if not explicitly set.
+   * For human players, defaults to 1.0 (offensive).
+   */
+  getPlayerDefensiveStance(playerId: PlayerID): number {
+    const existingStance = this.playerDefensiveStance.get(playerId);
+    if (existingStance !== undefined) {
+      return existingStance;
+    }
+    
+    // For bots and fake humans, use random stance
+    const player = this.game.player(playerId);
+    if (player && (player.type() === PlayerType.Bot || player.type() === PlayerType.FakeHuman)) {
+      const randomStance = Math.random();
+      this.playerDefensiveStance.set(playerId, randomStance);
+      return randomStance;
+    }
+    
+    // Default for human players
+    return 1.0;
   }
 
   updateConfig(overrides: Partial<FrenzyConfig>) {
@@ -314,6 +366,13 @@ export class FrenzyManager {
   ): { x: number; y: number } {
     const { borderTiles, centroid } = territory;
 
+    // Get player's HQ position for defensive stance calculations
+    const playerHQ = this.coreBuildings.get(unit.playerId);
+    const hqPos = playerHQ ? { x: playerHQ.x, y: playerHQ.y } : centroid;
+    
+    // Get defensive stance (0 = near HQ, 0.5 = fire range, 1 = offensive/border)
+    const defensiveStance = this.getPlayerDefensiveStance(unit.playerId);
+
     if (borderTiles.length === 0) {
       // Fallback: move toward map center if no borders found
       return {
@@ -408,33 +467,95 @@ export class FrenzyManager {
     }
 
     if (bestTile !== null) {
-      const base = {
+      // Calculate the offensive position (at or beyond border)
+      const borderPos = {
         x: this.game.x(bestTile),
         y: this.game.y(bestTile),
       };
+      
+      let offensivePos: { x: number; y: number };
       if (this.config.borderAdvanceDistance > 0) {
-        const dirX = base.x - cx;
-        const dirY = base.y - cy;
+        const dirX = borderPos.x - cx;
+        const dirY = borderPos.y - cy;
         const dirLen = Math.hypot(dirX, dirY) || 1;
-        return {
+        offensivePos = {
           x: Math.max(
             0,
             Math.min(
               this.game.width(),
-              base.x + (dirX / dirLen) * this.config.borderAdvanceDistance,
+              borderPos.x + (dirX / dirLen) * this.config.borderAdvanceDistance,
             ),
           ),
           y: Math.max(
             0,
             Math.min(
               this.game.height(),
-              base.y + (dirY / dirLen) * this.config.borderAdvanceDistance,
+              borderPos.y + (dirY / dirLen) * this.config.borderAdvanceDistance,
             ),
           ),
         };
       } else {
-        return base;
+        offensivePos = borderPos;
       }
+      
+      // Calculate positions based on defensive stance
+      // Stance 0: stay at fire range distance from all borders (defensive)
+      // Stance 0.5: push into neutral territory, but stay at fire range from enemy borders
+      // Stance 1: offensive position (at/beyond all borders)
+      
+      // Fire range position: pull back from border by combat range distance
+      const fireRange = this.config.combatRange ?? 25;
+      const dirToBorderX = borderPos.x - hqPos.x;
+      const dirToBorderY = borderPos.y - hqPos.y;
+      const dirToBorderLen = Math.hypot(dirToBorderX, dirToBorderY) || 1;
+      
+      // Fire range position is border position minus fire range in the direction from HQ
+      const fireRangePos = {
+        x: borderPos.x - (dirToBorderX / dirToBorderLen) * fireRange,
+        y: borderPos.y - (dirToBorderY / dirToBorderLen) * fireRange,
+      };
+      
+      // Check if the target tile is enemy or neutral (unoccupied)
+      const targetOwner = this.game.owner(bestTile);
+      const isEnemyTerritory = targetOwner.isPlayer();
+      
+      // Interpolate based on stance and target type
+      let targetPos: { x: number; y: number };
+      
+      if (defensiveStance <= 0.5) {
+        if (isEnemyTerritory) {
+          // Against enemies: always stay at fire range for stance 0-0.5
+          targetPos = fireRangePos;
+        } else {
+          // Against neutral: interpolate from fire range (0) to border (0.5)
+          const t = defensiveStance * 2; // 0 to 1 for stance 0 to 0.5
+          targetPos = {
+            x: fireRangePos.x + (borderPos.x - fireRangePos.x) * t,
+            y: fireRangePos.y + (borderPos.y - fireRangePos.y) * t,
+          };
+        }
+      } else {
+        // Stance 0.5 to 1: interpolate towards offensive position
+        const t = (defensiveStance - 0.5) * 2; // 0 to 1 for stance 0.5 to 1
+        if (isEnemyTerritory) {
+          // Against enemies: interpolate from fire range to offensive
+          targetPos = {
+            x: fireRangePos.x + (offensivePos.x - fireRangePos.x) * t,
+            y: fireRangePos.y + (offensivePos.y - fireRangePos.y) * t,
+          };
+        } else {
+          // Against neutral: interpolate from border to offensive
+          targetPos = {
+            x: borderPos.x + (offensivePos.x - borderPos.x) * t,
+            y: borderPos.y + (offensivePos.y - borderPos.y) * t,
+          };
+        }
+      }
+      
+      return {
+        x: Math.max(0, Math.min(this.game.width(), targetPos.x)),
+        y: Math.max(0, Math.min(this.game.height(), targetPos.y)),
+      };
     }
 
     // No valid enemy tiles found, move toward map center

@@ -73,6 +73,7 @@ export class SendAttackIntentEvent implements GameEvent {
   constructor(
     public readonly targetID: PlayerID | null,
     public readonly troops: number,
+    public readonly defensiveStance: number = 1.0,
   ) {}
 }
 
@@ -138,6 +139,10 @@ export class SendEmbargoAllIntentEvent implements GameEvent {
 
 export class SendDeleteUnitIntentEvent implements GameEvent {
   constructor(public readonly unitId: number) {}
+}
+
+export class SendDefensiveStanceIntentEvent implements GameEvent {
+  constructor(public readonly stance: number) {}
 }
 
 export class CancelAttackIntentEvent implements GameEvent {
@@ -251,6 +256,10 @@ export class Transport {
 
     this.eventBus.on(SendDeleteUnitIntentEvent, (e) =>
       this.onSendDeleteUnitIntent(e),
+    );
+
+    this.eventBus.on(SendDefensiveStanceIntentEvent, (e) =>
+      this.onSendDefensiveStanceIntent(e),
     );
 
     this.eventBus.on(SendKickPlayerIntentEvent, (e) =>
@@ -457,6 +466,7 @@ export class Transport {
       clientID: this.lobbyConfig.clientID,
       targetID: event.targetID,
       troops: event.troops,
+      defensiveStance: event.defensiveStance,
     });
   }
 
@@ -626,6 +636,14 @@ export class Transport {
       type: "delete_unit",
       clientID: this.lobbyConfig.clientID,
       unitId: event.unitId,
+    });
+  }
+
+  private onSendDefensiveStanceIntent(event: SendDefensiveStanceIntentEvent) {
+    this.sendIntent({
+      type: "defensive_stance",
+      clientID: this.lobbyConfig.clientID,
+      stance: event.stance,
     });
   }
 

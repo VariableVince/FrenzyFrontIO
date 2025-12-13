@@ -65,6 +65,8 @@ export class Executor {
               Math.max(requestedTroops / totalTroops, 0),
               1,
             );
+            const defensiveStance = intent.defensiveStance ?? 1.0;
+            frenzyManager.setPlayerDefensiveStance(player.id(), defensiveStance);
             frenzyManager.queueAttackOrder(player.id(), intent.targetID, ratio);
           }
           return new NoOpExecution();
@@ -137,6 +139,16 @@ export class Executor {
         );
       case "mark_disconnected":
         return new MarkDisconnectedExecution(player, intent.isDisconnected);
+      case "defensive_stance": {
+        // Set defensive stance in Frenzy mode
+        if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+          const frenzyManager = this.mg.frenzyManager();
+          if (frenzyManager) {
+            frenzyManager.setPlayerDefensiveStance(player.id(), intent.stance);
+          }
+        }
+        return new NoOpExecution();
+      }
       default:
         throw new Error(`intent type ${intent} not found`);
     }

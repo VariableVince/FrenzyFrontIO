@@ -180,6 +180,16 @@ export class UserSettingModal extends LitElement {
     }
   }
 
+  private sliderDefensiveStance(e: CustomEvent<{ value: number }>) {
+    const value = e.detail?.value;
+    if (typeof value === "number") {
+      const ratio = value / 100;
+      localStorage.setItem("settings.defensiveStance", ratio.toString());
+    } else {
+      console.warn("Slider event missing detail.value", e);
+    }
+  }
+
   private sliderTroopRatio(e: CustomEvent<{ value: number }>) {
     const value = e.detail?.value;
     if (typeof value === "number") {
@@ -363,6 +373,17 @@ export class UserSettingModal extends LitElement {
         .checked=${this.userSettings.performanceOverlay()}
         @change=${this.togglePerformanceOverlay}
       ></setting-toggle>
+
+      <!-- 🛡️ Defensive Stance -->
+      <setting-slider
+        label="${translateText("user_setting.defensive_stance_label")}"
+        description="${translateText("user_setting.defensive_stance_desc")}"
+        min="0"
+        max="100"
+        .value=${Number(localStorage.getItem("settings.defensiveStance") ?? "1.0") *
+        100}
+        @change=${this.sliderDefensiveStance}
+      ></setting-slider>
 
       <!-- ⚔️ Attack Ratio -->
       <setting-slider

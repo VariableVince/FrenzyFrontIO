@@ -6,6 +6,7 @@ import { GameFork, Gold } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
 import { ClientID } from "../../../core/Schemas";
 import { AttackRatioEvent } from "../../InputHandler";
+import { SendDefensiveStanceIntentEvent } from "../../Transport";
 import { renderNumber, renderTroops } from "../../Utils";
 import { UIState } from "../UIState";
 import { Layer } from "./Layer";
@@ -19,6 +20,9 @@ export class ControlPanel extends LitElement implements Layer {
 
   @state()
   private attackRatio: number = 0.2;
+
+  @state()
+  private defensiveStance: number = 1.0; // 0 = stay near HQ, 0.5 = fire range, 1 = offensive
 
   @state()
   private _maxTroops: number;
@@ -50,6 +54,14 @@ export class ControlPanel extends LitElement implements Layer {
       localStorage.getItem("settings.attackRatio") ?? "0.2",
     );
     this.uiState.attackRatio = this.attackRatio;
+
+    this.defensiveStance = Number(
+      localStorage.getItem("settings.defensiveStance") ?? "1.0",
+    );
+    this.uiState.defensiveStance = this.defensiveStance;
+    // Send initial stance to server
+    this.eventBus.emit(new SendDefensiveStanceIntentEvent(this.defensiveStance));
+
     this.eventBus.on(AttackRatioEvent, (event) => {
       let newAttackRatio =
         (parseInt(
@@ -127,6 +139,26 @@ export class ControlPanel extends LitElement implements Layer {
     this.uiState.attackRatio = newRatio;
   }
 
+  onDefensiveStanceChange(newStance: number) {
+    this.uiState.defensiveStance = newStance;
+    localStorage.setItem("settings.defensiveStance", newStance.toString());
+    // Send to server so units update immediately
+    this.eventBus.emit(new SendDefensiveStanceIntentEvent(newStance));
+  }
+
+  /**
+   * Returns a label for the current defensive stance
+   */
+  private getDefensiveStanceLabel(): string {
+    if (this.defensiveStance <= 0.25) {
+      return translateText("control_panel.stance_defensive");
+    } else if (this.defensiveStance <= 0.75) {
+      return translateText("control_panel.stance_balanced");
+    } else {
+      return translateText("control_panel.stance_offensive");
+    }
+  }
+
   renderLayer(context: CanvasRenderingContext2D) {
     // Render any necessary canvas elements
   }
@@ -180,6 +212,12 @@ export class ControlPanel extends LitElement implements Layer {
         .attackRatio::-moz-range-thumb {
           border-color: rgb(239 68 68);
         }
+        .defensiveStance::-webkit-slider-thumb {
+          border-color: rgb(34 197 94);
+        }
+        .defensiveStance::-moz-range-thumb {
+          border-color: rgb(34 197 94);
+        }
       </style>
       <div
         class="${this._isVisible
@@ -208,6 +246,52 @@ export class ControlPanel extends LitElement implements Layer {
               >${translateText("control_panel.gold")}:</span
             >
             <span translate="no">${renderNumber(this._gold)}</span>
+          </div>
+        </div>
+
+        <!-- Defensive Stance Slider -->
+        <div class="relative mb-2 sm:mb-4">
+          <label class="block text-white mb-1">
+            ${translateText("control_panel.defensive_stance")}:
+            <span class="text-sm">
+              ${this.getDefensiveStanceLabel()}
+            </span>
+          </label>
+          <div class="relative h-8">
+            <!-- Background track -->
+            <div
+              class="absolute left-0 right-0 top-3 h-2 bg-white/20 rounded"
+            ></div>
+            <!-- Tick marks for fixed positions -->
+            <div class="absolute left-0 right-0 top-3 h-2 flex justify-between px-0">
+              <div class="w-0.5 h-2 bg-white/40"></div>
+              <div class="w-0.5 h-2 bg-white/40"></div>
+              <div class="w-0.5 h-2 bg-white/40"></div>
+            </div>
+            <!-- Fill track -->
+            <div
+              class="absolute left-0 top-3 h-2 bg-green-500/60 rounded transition-all duration-300"
+              style="width: ${this.defensiveStance * 100}%"
+            ></div>
+            <!-- Range input -->
+            <input
+              id="defensive-stance"
+              type="range"
+              min="0"
+              max="100"
+              .value=${(this.defensiveStance * 100).toString()}
+              @input=${(e: Event) => {
+                const rawValue = parseInt((e.target as HTMLInputElement).value);
+                this.defensiveStance = rawValue / 100;
+                this.onDefensiveStanceChange(this.defensiveStance);
+              }}
+              class="absolute left-0 right-0 top-2 m-0 h-4 cursor-pointer defensiveStance"
+            />
+          </div>
+          <div class="flex justify-between text-xs text-white/60 mt-1">
+            <span>${translateText("control_panel.stance_defensive")}</span>
+            <span>${translateText("control_panel.stance_balanced")}</span>
+            <span>${translateText("control_panel.stance_offensive")}</span>
           </div>
         </div>
 
