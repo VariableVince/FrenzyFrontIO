@@ -195,9 +195,10 @@ export class FrenzyManager {
     const building = this.coreBuildings.get(playerId);
     if (!building) return;
 
-    // Add small random offset so units don't stack
-    const offsetX = (Math.random() - 0.5) * 20;
-    const offsetY = (Math.random() - 0.5) * 20;
+    // Add small random offset so units don't stack (but not for defense posts)
+    const isDefensePost = unitType === FrenzyUnitType.DefensePost;
+    const offsetX = isDefensePost ? 0 : (Math.random() - 0.5) * 20;
+    const offsetY = isDefensePost ? 0 : (Math.random() - 0.5) * 20;
 
     // Calculate health and fire interval based on unit type
     let health = this.config.unitHealth;
@@ -205,6 +206,7 @@ export class FrenzyManager {
 
     if (unitType === FrenzyUnitType.DefensePost) {
       health *= this.config.defensePostHealthMultiplier;
+      // Slower fire rate for defense posts (like Obelisk from C&C)
       fireInterval /= this.config.defensePostFireRateMultiplier;
     }
 
@@ -665,8 +667,15 @@ export class FrenzyManager {
       unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
       
       const unitPlayer = this.game.player(unit.playerId);
+      const isDefensePost = unit.unitType === FrenzyUnitType.DefensePost;
+      
+      // Defense posts have extended range
+      const combatRange = isDefensePost 
+        ? this.config.combatRange * this.config.defensePostRangeMultiplier
+        : this.config.combatRange;
+        
       const enemies = this.spatialGrid
-        .getNearby(unit.x, unit.y, this.config.combatRange)
+        .getNearby(unit.x, unit.y, combatRange)
         .filter((u) => {
           if (u.playerId === unit.playerId) return false;
           // Don't attack allies
@@ -686,15 +695,25 @@ export class FrenzyManager {
           return distToEnemy < distToClosest ? enemy : closest;
         }, enemies[0]);
 
-        // Deal damage to enemy
-        nearest.health -= this.config.unitDPS * deltaTime;
+        // Defense posts deal burst damage on shot, regular units deal DPS
+        if (isDefensePost) {
+          // Defense post damage is dealt when weapon fires (burst damage)
+          if (unit.weaponCooldown <= 0) {
+            nearest.health -= this.config.defensePostDamage;
+            this.spawnBeamProjectile(unit, nearest);
+            unit.weaponCooldown = unit.fireInterval;
+          }
+        } else {
+          // Regular unit DPS
+          nearest.health -= this.config.unitDPS * deltaTime;
 
-        // Track that this unit is in combat (for mutual damage)
-        combatPairs.set(unit.id, nearest.id);
+          // Track that this unit is in combat (for mutual damage)
+          combatPairs.set(unit.id, nearest.id);
 
-        if (unit.weaponCooldown <= 0) {
-          this.spawnProjectile(unit, nearest);
-          unit.weaponCooldown = unit.fireInterval;
+          if (unit.weaponCooldown <= 0) {
+            this.spawnProjectile(unit, nearest);
+            unit.weaponCooldown = unit.fireInterval;
+          }
         }
       }
     }
@@ -718,6 +737,25 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
+    });
+  }
+
+  private spawnBeamProjectile(attacker: FrenzyUnit, target: FrenzyUnit) {
+    // Beam projectile for defense posts - instant hit, visual effect only
+    const beamLife = 0.3; // Beam visible for 0.3 seconds
+    
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: target.x, // End point (target)
+      y: target.y,
+      vx: 0, // No movement
+      vy: 0,
+      age: 0,
+      life: beamLife,
+      isBeam: true,
+      startX: attacker.x, // Start point (defense post)
+      startY: attacker.y,
     });
   }
 
@@ -1006,6 +1044,9 @@ export class FrenzyManager {
         playerId: p.playerId,
         x: p.x,
         y: p.y,
+        isBeam: p.isBeam,
+        startX: p.startX,
+        startY: p.startY,
       })),
       projectileSize: this.config.projectileSize,
     };

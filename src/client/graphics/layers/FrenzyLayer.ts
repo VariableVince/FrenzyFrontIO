@@ -120,8 +120,8 @@ export class FrenzyLayer implements Layer {
     const isDefensePost = unit.unitType === "defensePost";
 
     if (isDefensePost) {
-      // Defense post: shield icon (larger, different shape)
-      const size = 8;  // Halved from 16
+      // Defense post: shield icon (50% smaller than before)
+      const size = 4;  // Reduced from 8 for 50% smaller
 
       // Draw shield shape
       context.fillStyle = player.territoryColor().toRgbString();
@@ -137,12 +137,12 @@ export class FrenzyLayer implements Layer {
 
       // White border for visibility
       context.strokeStyle = "#fff";
-      context.lineWidth = 2;
+      context.lineWidth = 1;
       context.stroke();
 
       // Black outline
       context.strokeStyle = "#000";
-      context.lineWidth = 1;
+      context.lineWidth = 0.5;
       context.stroke();
     } else {
       // Regular soldier: triangle pointing up
@@ -172,6 +172,12 @@ export class FrenzyLayer implements Layer {
     const x = projectile.x - this.game.width() / 2;
     const y = projectile.y - this.game.height() / 2;
 
+    // Check if this is a beam (defense post red laser)
+    if (projectile.isBeam && projectile.startX !== undefined && projectile.startY !== undefined) {
+      this.renderBeam(context, projectile);
+      return;
+    }
+
     const radius = Math.max(1, diameter / 2);
     
     // Plasma projectile effect with glowing core
@@ -191,6 +197,50 @@ export class FrenzyLayer implements Layer {
     context.fillStyle = "#ffffff";
     context.beginPath();
     context.arc(x, y, radius * 0.5, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  private renderBeam(context: CanvasRenderingContext2D, projectile: any) {
+    const startX = projectile.startX - this.game.width() / 2;
+    const startY = projectile.startY - this.game.height() / 2;
+    const endX = projectile.x - this.game.width() / 2;
+    const endY = projectile.y - this.game.height() / 2;
+
+    // Red beam like C&C Obelisk of Light
+    // Outer glow (wider, semi-transparent)
+    context.strokeStyle = "rgba(255, 0, 0, 0.3)";
+    context.lineWidth = 6;
+    context.lineCap = "round";
+    context.beginPath();
+    context.moveTo(startX, startY);
+    context.lineTo(endX, endY);
+    context.stroke();
+
+    // Middle glow
+    context.strokeStyle = "rgba(255, 50, 50, 0.6)";
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(startX, startY);
+    context.lineTo(endX, endY);
+    context.stroke();
+
+    // Inner bright core (white-red)
+    context.strokeStyle = "rgba(255, 200, 200, 0.9)";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.moveTo(startX, startY);
+    context.lineTo(endX, endY);
+    context.stroke();
+
+    // Impact flash at target
+    const gradient = context.createRadialGradient(endX, endY, 0, endX, endY, 4);
+    gradient.addColorStop(0, "rgba(255, 255, 200, 0.9)");
+    gradient.addColorStop(0.5, "rgba(255, 100, 50, 0.6)");
+    gradient.addColorStop(1, "rgba(255, 0, 0, 0)");
+    
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.arc(endX, endY, 4, 0, Math.PI * 2);
     context.fill();
   }
 }

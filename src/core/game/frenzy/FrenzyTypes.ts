@@ -36,6 +36,9 @@ export interface FrenzyProjectile {
   vy: number;
   age: number;
   life: number;
+  isBeam?: boolean; // True for defense post red beam
+  startX?: number; // Beam origin X
+  startY?: number; // Beam origin Y
 }
 
 export interface CoreBuilding {
@@ -78,7 +81,9 @@ export interface FrenzyConfig {
   projectileSize: number; // Diameter of visual shells in pixels (default: 4px)
   hqCaptureRadius: number; // Tiles around HQ that must fall before defeat (default: 2 tiles)
   defensePostHealthMultiplier: number; // Defense posts have multiplied HP (default: 2.0)
-  defensePostFireRateMultiplier: number; // Defense posts fire faster (default: 2.0)
+  defensePostFireRateMultiplier: number; // Defense posts fire rate multiplier (default: 0.25 = slow like Obelisk)
+  defensePostRangeMultiplier: number; // Defense posts have extended range (default: 1.5 = 50% more)
+  defensePostDamage: number; // Defense post damage per shot (default: 100 = one-shot tier 1)
 }
 
 export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
@@ -100,7 +105,9 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   projectileSize: 1,       // Halved from 2
   hqCaptureRadius: 2,
   defensePostHealthMultiplier: 2.0,
-  defensePostFireRateMultiplier: 2.0,
+  defensePostFireRateMultiplier: 0.25, // Slow fire rate like Obelisk
+  defensePostRangeMultiplier: 1.5, // 50% more range
+  defensePostDamage: 100, // One-shot tier 1 units
 };
 
 export enum Stance {

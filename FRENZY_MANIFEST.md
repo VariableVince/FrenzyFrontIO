@@ -490,6 +490,188 @@ Bottom left: Strategic focus toggle
 Minimap: Optional overlay (toggle button)
 ```
 
+## Economy & Technology System (Age of Empires Style Tiers)
+
+### Design Philosophy
+
+Inspired by Age of Empires tier progression combined with Supreme Commander's visual economy:
+
+- **Global Tier System**: Upgrade your civilization tier at the HQ (like aging up in AoE)
+- **Visual & Explicit**: Tier level shown prominently, income rates visible
+- **Mobile-Friendly**: Use existing radial menu - no new panels
+- **Streaming Economy**: Income/expense shown as rates, not just totals
+- **Strategic Depth**: Meaningful choice - spend gold on units OR save for tier upgrade
+
+### Tier System
+
+#### Four Tiers (Like Ages in AoE)
+
+| Tier | Name | Cost | Unlock |
+|------|------|------|--------|
+| **Tier 1** | Militia | Start | Basic units, HQ only |
+| **Tier 2** | Soldiers | 100g | Barracks, +25% unit health |
+| **Tier 3** | Warriors | 250g | Factory, +50% damage, +1 income/s |
+| **Tier 4** | Elites | 500g | Fortress, +100% all stats, +3 income/s |
+
+#### Tier Upgrade Mechanics
+
+- **Location**: Upgrade at HQ only (like Town Center in AoE)
+- **Cost**: Gold (accumulated from income)
+- **Time**: Instant (or short delay ~3s for dramatic effect)
+- **Effect**: Immediately unlocks new buildings and buffs all existing units
+- **Visual**: HQ appearance changes, units get visual upgrade
+
+### Visual HUD Design (No New Panels)
+
+#### Top Resource Bar
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚡ 156 (+12/s)  │  ⚔️ 47/60  │  🏰 Tier 2 - Soldiers           │
+│  [====----]      │            │  Next: 250g → Tier 3            │
+└─────────────────────────────────────────────────────────────────┘
+
+Components:
+- Gold: Current amount + income rate
+- Units: Current / Cap
+- Tier: Current tier name + cost to next tier
+```
+
+#### HQ Radial Menu (Tier Upgrade Replaces Delete)
+
+When player taps their HQ:
+
+```
+           [Upgrade Tier]
+            250g → T3
+              ↑
+    [Rally]   ●   [Info]
+      ←    (HQ)    →
+              ↓
+           [Cancel]
+```
+
+- **Upgrade Tier**: Shows cost, grayed out if can't afford
+- **Rally**: Set rally point for spawned units (future feature)
+- **Info**: Show HQ stats/income breakdown
+- **Cancel**: Close menu
+
+Old "Delete Building" removed - HQ is indestructible anyway.
+
+### Tier Visual Progression
+
+#### HQ Appearance by Tier
+
+```
+Tier 1: Simple flag/tent icon
+Tier 2: Small fortress
+Tier 3: Castle with towers
+Tier 4: Grand citadel with banners
+```
+
+#### Unit Appearance by Tier
+
+```
+Tier 1: Small triangle, basic color
+Tier 2: Slightly larger, brighter color
+Tier 3: Larger with shield outline
+Tier 4: Largest, glowing aura effect
+```
+
+### Buildings Unlocked by Tier
+
+| Building | Tier Required | Effect |
+|----------|---------------|--------|
+| **HQ** | 1 | Spawns units, upgrades tier |
+| **Barracks** | 2 | Additional spawn point, +1 unit cap |
+| **Factory** | 3 | Spawns faster, +2 income/s |
+| **Fortress** | 4 | Defensive structure, area damage |
+
+### Streaming Economy Display
+
+#### Rate-Based (Supreme Commander Style)
+
+```
+Gold: 156  [+12/s]
+       [████████████░░░░░░░░]
+       Current    ↑ Visual fill rate
+```
+
+- Shows income as rate per second
+- Bar fills visually based on income rate
+- Tap for breakdown: HQ (+5/s), Territory (+4/s), Factories (+3/s)
+
+### Implementation Roadmap
+
+#### Phase 1: Remove Panel & Old Economy Code
+
+1. **Remove FrenzyUpgradePanel** - Delete the separate panel component
+2. **Remove FrenzyEconomy.ts** - Delete old upgrade tracks
+3. **Simplify EconomyManager** - Track only gold + tier level
+4. **Update top bar** - Show gold + income rate + current tier
+
+#### Phase 2: Radial Menu Tier Upgrade
+
+1. **Modify HQ radial menu** - Replace "Delete" with "Upgrade Tier"
+2. **Upgrade action** - Deduct gold, increment tier, apply buffs
+3. **Visual feedback** - Flash/celebration when tier increases
+4. **Sound effect** - Triumphant sound on tier up
+
+#### Phase 3: Tier Effects
+
+1. **Unit stat scaling** - Health/damage based on tier
+2. **Income bonuses** - Higher tiers = more passive income
+3. **Building unlocks** - Check tier before allowing construction
+4. **Visual updates** - HQ and unit appearance changes
+
+#### Phase 4: Building System
+
+1. **Barracks** (Tier 2) - Secondary spawn point
+2. **Factory** (Tier 3) - Fast spawner + income
+3. **Fortress** (Tier 4) - Defensive turret building
+
+### Tier Upgrade Data
+
+```typescript
+interface TierDefinition {
+  tier: number;
+  name: string;
+  cost: number;           // Gold to upgrade TO this tier
+  healthMultiplier: number;
+  damageMultiplier: number;
+  incomeBonus: number;    // Added to base income
+  unlockedBuildings: string[];
+}
+
+const TIERS: TierDefinition[] = [
+  { tier: 1, name: "Militia",   cost: 0,   healthMultiplier: 1.0, damageMultiplier: 1.0, incomeBonus: 0, unlockedBuildings: ["hq"] },
+  { tier: 2, name: "Soldiers",  cost: 100, healthMultiplier: 1.25, damageMultiplier: 1.0, incomeBonus: 0, unlockedBuildings: ["barracks"] },
+  { tier: 3, name: "Warriors",  cost: 250, healthMultiplier: 1.5, damageMultiplier: 1.5, incomeBonus: 1, unlockedBuildings: ["factory"] },
+  { tier: 4, name: "Elites",    cost: 500, healthMultiplier: 2.0, damageMultiplier: 2.0, incomeBonus: 3, unlockedBuildings: ["fortress"] },
+];
+```
+
+### Strategic Considerations
+
+#### Early Aggression vs. Fast Tier
+
+- **Rush Strategy**: Stay Tier 1, spam units, attack before enemy tiers up
+- **Boom Strategy**: Minimize units, save gold, rush to Tier 3-4
+- **Balanced**: Tier 2 quickly, then pressure while saving for Tier 3
+
+#### Tier Timing
+
+- Tier 2 (~100g): Reachable in ~30-60 seconds
+- Tier 3 (~250g): Reachable in ~2-3 minutes
+- Tier 4 (~500g): Late game, significant investment
+
+### Mobile Touch Considerations
+
+- **Radial menu**: Natural for touch, easy thumb access
+- **Upgrade button**: Large, prominent in radial menu
+- **Tier display**: Always visible in top bar
+- **One-tap upgrade**: No confirmation needed (gold cost is visible)
+
 ## Open Questions & Decisions
 
 ### Answered:
@@ -499,16 +681,19 @@ Minimap: Optional overlay (toggle button)
 ✓ Visual style: Strategic icons (Supreme Commander style)
 ✓ Movement: Continuous, not tile-based
 ✓ Mobile support: Required
+✓ Economy UI: Integrated HUD, not separate panel
+✓ Tech System: Global tier upgrades at HQ (Age of Empires style)
+✓ Upgrade UI: Radial menu on HQ - replaces delete button
+✓ Building Types: HQ → Barracks (T2) → Factory (T3) → Fortress (T4)
 
 ### Still To Decide:
 
 1. **Unit Variety**: Single unit type or introduce variants later (fast scouts, heavy tanks)?
-2. **Resource System**: Pure time-based spawning or add resource collection?
-3. **Building Types**: Only Core or add secondary structures (barracks, factories)?
-4. **Terrain Effects**: Should mountains/forests affect combat or movement?
-5. **Fog of War**: Hide unscouted areas or full visibility?
-6. **Bot AI**: How do bots decide where to attack? (probably expand toward center/enemies)
-7. **Alliances in Frenzy**: Keep same alliance mechanics as classic mode?
+2. **Terrain Effects**: Should mountains/forests affect combat or movement?
+3. **Fog of War**: Hide unscouted areas or full visibility?
+4. **Bot AI**: How do bots decide where to attack? (probably expand toward center/enemies)
+5. **Alliances in Frenzy**: Keep same alliance mechanics as classic mode?
+6. **Tier Upgrade Time**: Instant or short delay (~3s)?
 
 ## Compatibility with Classic Mode
 
