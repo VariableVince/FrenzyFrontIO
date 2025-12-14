@@ -630,6 +630,7 @@
   "control_panel": {
     "gold": "Gold",
     "troops": "Troops",
+    "units": "Units",
     "attack_ratio": "Attack Ratio",
     "defensive_stance": "Unit Stance",
     "stance_defensive": "Safe",

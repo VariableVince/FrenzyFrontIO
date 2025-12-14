@@ -1,15 +1,23 @@
 .c-button {
-  background: var(--primaryColor);
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
   color: #fff;
   cursor: pointer;
   outline: none;
   display: inline-block;
   font-size: 16px;
-  border: 1px solid transparent;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  border-top-color: rgba(255, 150, 150, 0.4);
+  border-bottom-color: rgba(100, 20, 20, 0.6);
   text-align: center;
   padding: 0.8rem 1rem;
-  border-radius: 8px;
+  border-radius: 4px;
   transition: var(--transition);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 
   @media (min-width: 1024px) {
     font-size: 18px;
@@ -19,26 +27,33 @@
 .c-button:hover,
 .c-button:active,
 .c-button:focus {
-  background: var(--primaryColorHover);
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 15px rgba(220, 38, 38, 0.4);
   transition: var(--transition);
 }
 
 .c-button:disabled {
-  background: var(--primaryColorDisabled);
+  background: linear-gradient(180deg, #4a2020 0%, #2d1515 100%);
   opacity: 0.7;
   cursor: not-allowed;
   transition: var(--transition);
+  box-shadow: none;
 }
 
 .c-button--secondary {
-  background: var(--secondaryColor);
-  color: var(--fontColor);
+  background: linear-gradient(180deg, #2a1a1a 0%, #1a0f0f 100%);
+  color: #f0f0f0;
+  border: 1px solid rgba(220, 38, 38, 0.4);
 }
 
 .c-button--secondary:hover,
 .c-button--secondary:active,
 .c-button--secondary:focus {
-  background: var(--secondaryColorHover);
+  background: linear-gradient(180deg, #3d2020 0%, #2a1515 100%);
+  border-color: rgba(220, 38, 38, 0.6);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
 }
 
 .c-button--block {
@@ -57,28 +72,28 @@
 }
 
 .dark .c-button {
-  background: var(--primaryColorDark);
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
   color: var(--fontColorLight);
 }
 
 .dark .c-button:hover,
 .dark .c-button:active,
 .dark .c-button:focus {
-  background: var(--primaryColorHoverDark);
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
 }
 
 .dark .c-button:disabled {
-  background: var(--primaryColorDisabledDark);
+  background: linear-gradient(180deg, #4a2020 0%, #2d1515 100%);
   opacity: 0.7;
 }
 
 .dark .c-button--secondary {
-  background: var(--secondaryColorDark);
+  background: linear-gradient(180deg, #2a1a1a 0%, #1a0f0f 100%);
   color: var(--fontColorDark);
 }
 
 .dark .c-button--secondary:hover,
 .dark .c-button--secondary:active,
 .dark .c-button--secondary:focus {
-  background: var(--secondaryColorHoverDark);
+  background: linear-gradient(180deg, #3d2020 0%, #2a1515 100%);
 }

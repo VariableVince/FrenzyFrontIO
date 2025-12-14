@@ -45,6 +45,9 @@ export class ControlPanel extends LitElement implements Layer {
   @state()
   private _landSize: number = 0;
 
+  @state()
+  private _isFrenzy: boolean = false;
+
   private _troopRateIsIncreasing: boolean = true;
 
   private _lastTroopIncreaseRate: number;
@@ -105,12 +108,16 @@ export class ControlPanel extends LitElement implements Layer {
 
     const isFrenzy =
       this.game.config().gameConfig().gameFork === GameFork.Frenzy;
+    this._isFrenzy = isFrenzy;
 
     if (isFrenzy) {
       const frenzy = this.game.frenzyManager();
       const myId = player.id();
+      // Count only mobile units (soldiers), not defense posts
       this._unitCount = frenzy
-        ? frenzy.units.filter((u) => u.playerId === myId).length
+        ? frenzy.units.filter(
+            (u) => u.playerId === myId && u.unitType !== "defensePost",
+          ).length
         : 0;
       this._landSize = player.numTilesOwned();
       this._gold = player.gold();
@@ -230,17 +237,19 @@ export class ControlPanel extends LitElement implements Layer {
         <div class="block bg-black/30 text-white mb-4 p-2 rounded">
           <div class="flex justify-between mb-1">
             <span class="font-bold"
-              >${translateText("control_panel.troops")}:</span
+              >${translateText(this._isFrenzy ? "control_panel.units" : "control_panel.troops")}:</span
             >
             <span translate="no"
-              >${renderTroops(this._troops)} / ${renderTroops(this._maxTroops)}
-              <span
-                class="${this._troopRateIsIncreasing
-                  ? "text-green-500"
-                  : "text-yellow-500"}"
-                translate="no"
-                >(+${renderTroops(this.troopRate)})</span
-              ></span
+              >${this._isFrenzy ? this._troops : renderTroops(this._troops)} / ${this._isFrenzy ? this._maxTroops : renderTroops(this._maxTroops)}
+              ${this._isFrenzy
+                ? ""
+                : html`<span
+                    class="${this._troopRateIsIncreasing
+                      ? "text-green-500"
+                      : "text-yellow-500"}"
+                    translate="no"
+                    >(+${renderTroops(this.troopRate)})</span
+                  >`}</span
             >
           </div>
           <div class="flex justify-between">
