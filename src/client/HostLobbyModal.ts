@@ -43,7 +43,7 @@ export class HostLobbyModal extends LitElement {
   @state() private gameFork: GameFork = GameFork.Frenzy;
   @state() private gameMode: GameMode = GameMode.FFA;
   @state() private teamCount: TeamCountConfig = 2;
-  @state() private bots: number = 400;
+  @state() private bots: number = 80;
   @state() private infiniteGold: boolean = false;
   @state() private donateGold: boolean = false;
   @state() private infiniteTroops: boolean = false;
@@ -336,7 +336,7 @@ export class HostLobbyModal extends LitElement {
                     type="range"
                     id="bots-count"
                     min="0"
-                    max="400"
+                    max="80"
                     step="1"
                     @input=${this.handleBotsChange}
                     @change=${this.handleBotsChange}

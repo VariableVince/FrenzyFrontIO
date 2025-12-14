@@ -488,6 +488,7 @@ export class GameView implements GameMap {
       x: number;
       y: number;
       tier?: number;
+      maxUnits?: number;
     }>;
     projectiles: Array<{
       id: number;
@@ -496,6 +497,7 @@ export class GameView implements GameMap {
       y: number;
     }>;
     projectileSize: number;
+    maxUnitsPerPlayer: number;
   } | null = null;
 
   constructor(
@@ -574,9 +576,13 @@ export class GameView implements GameMap {
           ...u,
           unitType: u.unitType ?? "soldier",
         })),
-        coreBuildings: frenzyUpdates[0].coreBuildings,
+        coreBuildings: frenzyUpdates[0].coreBuildings.map((b: any) => ({
+          ...b,
+          maxUnits: b.maxUnits,
+        })),
         projectiles: frenzyUpdates[0].projectiles,
         projectileSize: frenzyUpdates[0].projectileSize,
+        maxUnitsPerPlayer: frenzyUpdates[0].maxUnitsPerPlayer,
       };
     }
 

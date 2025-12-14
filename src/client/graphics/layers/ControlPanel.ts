@@ -115,7 +115,9 @@ export class ControlPanel extends LitElement implements Layer {
       this._landSize = player.numTilesOwned();
       this._gold = player.gold();
       this._troops = this._unitCount;
-      this._maxTroops = this.game.config().maxTroops(player);
+      // Get max units from the player's core building in frenzy state
+      const myBuilding = frenzy?.coreBuildings.find((b) => b.playerId === myId);
+      this._maxTroops = myBuilding?.maxUnits ?? frenzy?.maxUnitsPerPlayer ?? 60;
       this.troopRate = 0;
     } else {
       this._maxTroops = this.game.config().maxTroops(player);

@@ -38,7 +38,7 @@ export class SinglePlayerModal extends LitElement {
   @state() private selectedMap: GameMapType = GameMapType.World;
   @state() private selectedDifficulty: Difficulty = Difficulty.Medium;
   @state() private disableNPCs: boolean = false;
-  @state() private bots: number = 400;
+  @state() private bots: number = 80;
   @state() private infiniteGold: boolean = false;
   @state() private infiniteTroops: boolean = false;
   @state() private compactMap: boolean = false;
@@ -243,7 +243,7 @@ export class SinglePlayerModal extends LitElement {
                   type="range"
                   id="bots-count"
                   min="0"
-                  max="400"
+                  max="80"
                   step="1"
                   @input=${this.handleBotsChange}
                   @change=${this.handleBotsChange}

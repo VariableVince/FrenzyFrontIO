@@ -74,8 +74,21 @@ export class FrenzyManager {
   }
 
   /**
+   * Get the max units cap for a player.
+   * Bots get half the cap of humans and nations (FakeHumans).
+   */
+  getMaxUnitsForPlayer(playerId: PlayerID): number {
+    const player = this.game.player(playerId);
+    if (player && player.type() === PlayerType.Bot) {
+      return Math.floor(this.config.maxUnitsPerPlayer / 2);
+    }
+    return this.config.maxUnitsPerPlayer;
+  }
+
+  /**
    * Get the defensive stance for a player.
    * For bots/FakeHumans, returns a random value if not explicitly set.
+   * Bots: 10% under medium (0-0.5), 90% between medium and aggressive (0.5-1.0)
    * For human players, defaults to 1.0 (offensive).
    */
   getPlayerDefensiveStance(playerId: PlayerID): number {
@@ -84,10 +97,17 @@ export class FrenzyManager {
       return existingStance;
     }
     
-    // For bots and fake humans, use random stance
+    // For bots and fake humans, use random stance with distribution
     const player = this.game.player(playerId);
     if (player && (player.type() === PlayerType.Bot || player.type() === PlayerType.FakeHuman)) {
-      const randomStance = Math.random();
+      let randomStance: number;
+      if (Math.random() < 0.1) {
+        // 10% chance: under medium (0 to 0.5)
+        randomStance = Math.random() * 0.5;
+      } else {
+        // 90% chance: medium to aggressive (0.5 to 1.0)
+        randomStance = 0.5 + Math.random() * 0.5;
+      }
       this.playerDefensiveStance.set(playerId, randomStance);
       return randomStance;
     }
@@ -208,7 +228,7 @@ export class FrenzyManager {
 
       if (
         building.spawnTimer <= 0 &&
-        building.unitCount < this.config.maxUnitsPerPlayer
+        building.unitCount < this.getMaxUnitsForPlayer(playerId)
       ) {
         this.spawnUnit(playerId, building.x, building.y);
         building.spawnTimer = building.spawnInterval;
@@ -231,7 +251,7 @@ export class FrenzyManager {
 
       if (
         factory.spawnTimer <= 0 &&
-        building.unitCount < this.config.maxUnitsPerPlayer
+        building.unitCount < this.getMaxUnitsForPlayer(factory.playerId)
       ) {
         this.spawnUnit(factory.playerId, factory.x, factory.y);
         factory.spawnTimer = factory.spawnInterval;
@@ -1008,7 +1028,7 @@ export class FrenzyManager {
     const kept: FrenzyUnit[] = [];
     for (const unit of this.units) {
       const nextCount = (counts.get(unit.playerId) ?? 0) + 1;
-      if (nextCount <= this.config.maxUnitsPerPlayer) {
+      if (nextCount <= this.getMaxUnitsForPlayer(unit.playerId)) {
         counts.set(unit.playerId, nextCount);
         kept.push(unit);
       } else {
@@ -1101,7 +1121,7 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    if (building.unitCount >= this.config.maxUnitsPerPlayer) {
+    if (building.unitCount >= this.getMaxUnitsForPlayer(playerId)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.DefensePost);
@@ -1220,6 +1240,7 @@ export class FrenzyManager {
         spawnInterval: b.spawnInterval,
         unitCount: b.unitCount,
         tier: b.tier,
+        maxUnits: this.getMaxUnitsForPlayer(b.playerId),
       })),
       projectiles: this.projectiles.map((p) => ({
         id: p.id,
@@ -1231,6 +1252,7 @@ export class FrenzyManager {
         startY: p.startY,
       })),
       projectileSize: this.config.projectileSize,
+      maxUnitsPerPlayer: this.config.maxUnitsPerPlayer,
     };
   }
 }

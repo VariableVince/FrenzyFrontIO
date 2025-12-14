@@ -171,7 +171,7 @@ export const GameConfigSchema = z.object({
   gameMode: z.enum(GameMode),
   gameMapSize: z.enum(GameMapSize),
   disableNPCs: z.boolean(),
-  bots: z.number().int().min(0).max(400),
+  bots: z.number().int().min(0).max(80),
   infiniteGold: z.boolean(),
   infiniteTroops: z.boolean(),
   instantBuild: z.boolean(),

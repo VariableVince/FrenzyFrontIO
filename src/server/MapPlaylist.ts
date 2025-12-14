@@ -100,7 +100,7 @@ export class MapPlaylist {
       disableNPCs: mode === GameMode.Team && playerTeams !== HumansVsNations,
       gameMode: mode,
       playerTeams,
-      bots: 400,
+      bots: 80,
       disabledUnits: [],
     } satisfies GameConfig;
   }

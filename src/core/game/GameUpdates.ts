@@ -290,6 +290,7 @@ export interface FrenzyUpdate {
     spawnInterval?: number;
     unitCount?: number;
     tier?: number;
+    maxUnits?: number;
   }>;
   projectiles: Array<{
     id: number;
@@ -298,4 +299,5 @@ export interface FrenzyUpdate {
     y: number;
   }>;
   projectileSize: number;
+  maxUnitsPerPlayer: number;
 }
