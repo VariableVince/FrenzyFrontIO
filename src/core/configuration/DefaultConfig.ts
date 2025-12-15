@@ -21,7 +21,7 @@ import {
   UnitInfo,
   UnitType,
 } from "../game/Game";
-import { TileRef } from "../game/GameMap";
+import { euclDistFN, TileRef } from "../game/GameMap";
 import { PlayerView } from "../game/GameView";
 import { UserSettings } from "../game/UserSettings";
 import { GameConfig, GameID, TeamCountConfig } from "../Schemas";
@@ -30,6 +30,7 @@ import { assertNever, sigmoid, simpleHash, within } from "../Util";
 import { Config, GameEnv, NukeMagnitude, ServerConfig, Theme } from "./Config";
 import { PastelTheme } from "./PastelTheme";
 import { PastelThemeDark } from "./PastelThemeDark";
+import { DEFAULT_FRENZY_CONFIG } from "../game/frenzy/FrenzyTypes";
 
 const DEFENSE_DEBUFF_MIDPOINT = 150_000;
 const DEFENSE_DEBUFF_DECAY_RATE = Math.LN2 / 50000;
@@ -313,6 +314,18 @@ export class DefaultConfig implements Config {
     return 30;
   }
 
+  cityEconomyRadius(): number {
+    return 25;
+  }
+
+  startingGold(): Gold {
+    // In Frenzy mode, use configurable starting gold
+    if (this._gameConfig.gameFork === GameFork.Frenzy) {
+      return BigInt(DEFAULT_FRENZY_CONFIG.startingGold);
+    }
+    return 0n;
+  }
+
   defensePostDefenseBonus(): number {
     return 5;
   }
@@ -520,29 +533,39 @@ export class DefaultConfig implements Config {
         };
       case UnitType.City:
         return {
-          cost: this.costWrapper(
-            (numUnits: number) =>
-              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
-            UnitType.City,
-          ),
+          cost: this._gameConfig.gameFork === GameFork.Frenzy
+            ? () => BigInt(DEFAULT_FRENZY_CONFIG.cityCost)
+            : this.costWrapper(
+                (numUnits: number) =>
+                  Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+                UnitType.City,
+              ),
           territoryBound: true,
           constructionDuration: this.instantBuild() ? 0 : 2 * 10,
           upgradable: true,
           canBuildTrainStation: true,
+          maxHealth: this._gameConfig.gameFork === GameFork.Frenzy
+            ? DEFAULT_FRENZY_CONFIG.cityHealth
+            : undefined,
         };
       case UnitType.Factory:
         return {
-          cost: this.costWrapper(
-            (numUnits: number) =>
-              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
-            UnitType.Factory,
-            UnitType.Port,
-          ),
+          cost: this._gameConfig.gameFork === GameFork.Frenzy
+            ? () => BigInt(DEFAULT_FRENZY_CONFIG.factoryCost)
+            : this.costWrapper(
+                (numUnits: number) =>
+                  Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+                UnitType.Factory,
+                UnitType.Port,
+              ),
           territoryBound: true,
           constructionDuration: this.instantBuild() ? 0 : 2 * 10,
           canBuildTrainStation: true,
           experimental: true,
           upgradable: true,
+          maxHealth: this._gameConfig.gameFork === GameFork.Frenzy
+            ? DEFAULT_FRENZY_CONFIG.cityHealth
+            : undefined,
         };
       case UnitType.Construction:
         return {
@@ -897,13 +920,64 @@ export class DefaultConfig implements Config {
     return Math.min(player.troops() + toAdd, max) - player.troops();
   }
 
-  goldAdditionRate(player: Player): Gold {
-    // In Frenzy mode, gold scales with land size
+  goldAdditionRate(player: Player, gm?: Game): Gold {
+    // In Frenzy mode, gold comes from city territories plus base income
     if (this._gameConfig.gameFork === GameFork.Frenzy) {
-      const tiles = player.numTilesOwned();
-      // Base: 1 gold per 100 tiles per tick
-      const goldPerTick = Math.max(1, Math.floor(tiles / 100));
-      return BigInt(goldPerTick);
+      // Get live config from FrenzyManager if available, otherwise use defaults
+      const frenzyConfig = gm?.frenzyManager()?.getConfig() ?? DEFAULT_FRENZY_CONFIG;
+      
+      // Base income: convert per-minute to per-tick (10 ticks/sec, 60 sec/min = 600 ticks/min)
+      const baseGoldPerTick = BigInt(Math.round(frenzyConfig.baseGoldPerMinute / 600));
+      // City income: convert per-minute to per-tick
+      const cityGoldPerTick = BigInt(Math.round(frenzyConfig.cityGoldPerMinute / 600));
+      
+      if (!gm) {
+        // Fallback if no game provided - just base income
+        return baseGoldPerTick;
+      }
+
+      // Get all cities owned by this player
+      const cities = player.units(UnitType.City);
+      const playerTiles = player.tiles();
+      const cityRadius = this.cityEconomyRadius();
+
+      if (cities.length === 0) {
+        // No cities = just base income
+        return baseGoldPerTick;
+      }
+
+      // Track which tiles are already claimed by a city
+      const claimedTiles = new Set<TileRef>();
+      let totalCityTiles = 0;
+
+      // For each city, count owned tiles within its economy radius
+      // Tiles can only be claimed by one city (first come first served by city order)
+      for (const city of cities) {
+        const cityTile = city.tile();
+        if (!cityTile) continue;
+
+        // Get tiles within the city's economy radius
+        const tilesInRadius = gm.bfs(
+          cityTile,
+          euclDistFN(cityTile, cityRadius),
+        );
+
+        // Count only owned tiles that aren't already claimed
+        let cityTileCount = 0;
+        for (const tile of tilesInRadius) {
+          if (playerTiles.has(tile) && !claimedTiles.has(tile)) {
+            claimedTiles.add(tile);
+            cityTileCount++;
+          }
+        }
+
+        totalCityTiles += cityTileCount;
+      }
+
+      // Gold = base income + city income per city + bonus per 50 tiles in city territories
+      const cityIncome = cityGoldPerTick * BigInt(cities.length);
+      const tileBonus = BigInt(Math.floor(totalCityTiles / 50));
+      return baseGoldPerTick + cityIncome + tileBonus;
     }
 
     if (player.type() === PlayerType.Bot) {

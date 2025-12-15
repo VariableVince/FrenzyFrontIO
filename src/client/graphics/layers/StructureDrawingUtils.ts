@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { Theme } from "../../../core/configuration/Config";
-import { Cell, UnitType } from "../../../core/game/Game";
+import { Cell, GameFork, UnitType } from "../../../core/game/Game";
 import { GameView, PlayerView, UnitView } from "../../../core/game/GameView";
 import { TransformHandler } from "../TransformHandler";
 
@@ -424,6 +424,8 @@ export class SpriteFactory {
     const parentContainer = new PIXI.Container();
     const circle = new PIXI.Graphics();
     let radius = 0;
+    let color = 0xffffff;
+    let alpha = 0.2;
     switch (type) {
       case UnitType.SAMLauncher:
         radius = this.game.config().samRange(level ?? 1);
@@ -440,13 +442,23 @@ export class SpriteFactory {
       case UnitType.HydrogenBomb:
         radius = this.game.config().nukeMagnitudes(UnitType.HydrogenBomb).outer;
         break;
+      case UnitType.City:
+        // Only show city economy radius in Frenzy mode
+        if (this.game.config().gameConfig().gameFork === GameFork.Frenzy) {
+          radius = this.game.config().cityEconomyRadius();
+          color = 0xffd700; // Gold color to indicate income
+          alpha = 0.15;
+        } else {
+          return null;
+        }
+        break;
       default:
         return null;
     }
     circle
       .circle(0, 0, radius)
-      .fill({ color: 0xffffff, alpha: 0.2 })
-      .stroke({ width: 1, color: 0xffffff, alpha: 0.5 });
+      .fill({ color: color, alpha: alpha })
+      .stroke({ width: 1, color: color, alpha: 0.5 });
     parentContainer.addChild(circle);
     parentContainer.position.set(pos.x, pos.y);
     parentContainer.scale.set(this.transformHandler.scale);

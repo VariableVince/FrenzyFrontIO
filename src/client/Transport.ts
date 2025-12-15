@@ -151,6 +151,10 @@ export class SendUpgradeHQIntentEvent implements GameEvent {
   constructor() {}
 }
 
+export class SendUpgradeFactoryIntentEvent implements GameEvent {
+  constructor(public readonly tile: number) {}
+}
+
 export class CancelAttackIntentEvent implements GameEvent {
   constructor(public readonly attackID: string) {}
 }
@@ -270,6 +274,10 @@ export class Transport {
 
     this.eventBus.on(SendUpgradeHQIntentEvent, (e) =>
       this.onSendUpgradeHQIntent(e),
+    );
+
+    this.eventBus.on(SendUpgradeFactoryIntentEvent, (e) =>
+      this.onSendUpgradeFactoryIntent(e),
     );
 
     this.eventBus.on(SendKickPlayerIntentEvent, (e) =>
@@ -663,6 +671,14 @@ export class Transport {
     this.sendIntent({
       type: "upgrade_hq",
       clientID: this.lobbyConfig.clientID,
+    });
+  }
+
+  private onSendUpgradeFactoryIntent(event: SendUpgradeFactoryIntentEvent) {
+    this.sendIntent({
+      type: "upgrade_factory",
+      clientID: this.lobbyConfig.clientID,
+      tile: event.tile,
     });
   }
 

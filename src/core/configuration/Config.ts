@@ -96,7 +96,7 @@ export interface Config {
   useNationStrengthForStartManpower(): boolean;
   startManpower(playerInfo: PlayerInfo): number;
   troopIncreaseRate(player: Player | PlayerView): number;
-  goldAdditionRate(player: Player | PlayerView): Gold;
+  goldAdditionRate(player: Player | PlayerView, gm?: Game): Gold;
   attackTilesPerTick(
     attckTroops: number,
     attacker: Player,
@@ -152,6 +152,8 @@ export interface Config {
   railroadMaxSize(): number;
   safeFromPiratesCooldownMax(): number;
   defensePostRange(): number;
+  cityEconomyRadius(): number;
+  startingGold(): Gold;
   SAMCooldown(): number;
   SiloCooldown(): number;
   defensePostDefenseBonus(): number;

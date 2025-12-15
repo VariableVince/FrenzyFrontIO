@@ -15,6 +15,7 @@ import {
   SendSpawnIntentEvent,
   SendTargetPlayerIntentEvent,
   SendUpgradeHQIntentEvent,
+  SendUpgradeFactoryIntentEvent,
 } from "../../Transport";
 import { UIState } from "../UIState";
 
@@ -109,5 +110,9 @@ export class PlayerActionHandler {
 
   handleUpgradeHQ() {
     this.eventBus.emit(new SendUpgradeHQIntentEvent());
+  }
+
+  handleUpgradeFactory(tile: TileRef) {
+    this.eventBus.emit(new SendUpgradeFactoryIntentEvent(tile));
   }
 }

@@ -747,7 +747,9 @@
     "delete_unit_title": "Delete Unit",
     "delete_unit_description": "Click to delete the nearest unit",
     "upgrade_hq_title": "Upgrade HQ",
-    "upgrade_hq_description": "Upgrade your headquarters to the next tier"
+    "upgrade_hq_description": "Upgrade your headquarters to the next tier",
+    "upgrade_factory_title": "Upgrade Factory",
+    "upgrade_factory_description": "Upgrade factory to produce elite soldiers"
   },
   "discord_user_header": {
     "avatar_alt": "Avatar"

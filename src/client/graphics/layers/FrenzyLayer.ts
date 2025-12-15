@@ -134,6 +134,7 @@ export class FrenzyLayer implements Layer {
     const y = unit.y - this.game.height() / 2;
 
     const isDefensePost = unit.unitType === "defensePost";
+    const isEliteSoldier = unit.unitType === "eliteSoldier";
 
     if (isDefensePost) {
       // Defense post: shield icon (50% smaller than before)
@@ -157,6 +158,29 @@ export class FrenzyLayer implements Layer {
       context.stroke();
 
       // Black outline
+      context.strokeStyle = "#000";
+      context.lineWidth = 0.5;
+      context.stroke();
+    } else if (isEliteSoldier) {
+      // Elite soldier: larger diamond/star shape
+      const size = 8;  // Larger than regular soldier
+
+      // Draw diamond shape
+      context.fillStyle = player.territoryColor().toRgbString();
+      context.beginPath();
+      context.moveTo(x, y - size / 2); // Top point
+      context.lineTo(x + size / 2, y); // Right point
+      context.lineTo(x, y + size / 2); // Bottom point
+      context.lineTo(x - size / 2, y); // Left point
+      context.closePath();
+      context.fill();
+
+      // Golden border for elite units
+      context.strokeStyle = "#FFD700";
+      context.lineWidth = 1.5;
+      context.stroke();
+
+      // Black outer outline
       context.strokeStyle = "#000";
       context.lineWidth = 0.5;
       context.stroke();

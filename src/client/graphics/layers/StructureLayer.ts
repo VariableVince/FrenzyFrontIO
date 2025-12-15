@@ -10,12 +10,13 @@ import shieldIcon from "../../../../resources/images/buildings/fortAlt3.png";
 import anchorIcon from "../../../../resources/images/buildings/port1.png";
 import missileSiloIcon from "../../../../resources/images/buildings/silo1.png";
 import SAMMissileIcon from "../../../../resources/images/buildings/silo4.png";
-import { Cell, UnitType } from "../../../core/game/Game";
+import { Cell, GameFork, UnitType } from "../../../core/game/Game";
 import { euclDistFN, isometricDistFN } from "../../../core/game/GameMap";
 import { GameUpdateType } from "../../../core/game/GameUpdates";
 import { GameView, UnitView } from "../../../core/game/GameView";
 
 const underConstructionColor = colord("rgb(150,150,150)");
+const cityEconomyColor = colord("rgb(255,215,0)"); // Gold color for city economy radius
 
 // Base radius values and scaling factor for unit borders and territories
 const BASE_BORDER_RADIUS = 16.5;
@@ -198,6 +199,34 @@ export class StructureLayer implements Layer {
     }
   }
 
+  private isFrenzyMode(): boolean {
+    return this.game.config().gameConfig().gameFork === GameFork.Frenzy;
+  }
+
+  private drawCityEconomyRadius(unit: UnitView) {
+    // Only draw economy radius for cities in Frenzy mode
+    if (!this.isFrenzyMode() || unit.type() === UnitType.Construction) return;
+    
+    const economyRadius = this.game.config().cityEconomyRadius();
+    
+    // Draw a subtle gold-tinted economy territory around the city
+    for (const tile of this.game.bfs(
+      unit.tile(),
+      euclDistFN(unit.tile(), economyRadius, true),
+    )) {
+      // Only draw on tiles owned by the city's owner
+      const ownerID = this.game.ownerID(tile);
+      if (ownerID !== unit.owner().smallID()) continue;
+      
+      // Paint with a subtle gold tint
+      this.paintCell(
+        new Cell(this.game.x(tile), this.game.y(tile)),
+        cityEconomyColor,
+        40, // Very subtle transparency so it doesn't overwhelm the territory color
+      );
+    }
+  }
+
   private handleUnitRendering(unit: UnitView) {
     const unitType = unit.constructionType() ?? unit.type();
     const iconType = unitType;
@@ -217,10 +246,13 @@ export class StructureLayer implements Layer {
 
     if (!config || !icon) return;
 
-    // Clear previous rendering
+    // Clear previous rendering - use larger radius for cities in Frenzy mode
+    const clearRadius = (unitType === UnitType.City && this.isFrenzyMode()) 
+      ? this.game.config().cityEconomyRadius() + 1
+      : config.borderRadius + 1;
     for (const tile of this.game.bfs(
       unit.tile(),
-      euclDistFN(unit.tile(), config.borderRadius + 1, true),
+      euclDistFN(unit.tile(), clearRadius, true),
     )) {
       this.clearCell(new Cell(this.game.x(tile), this.game.y(tile)));
     }
@@ -228,6 +260,11 @@ export class StructureLayer implements Layer {
     if (!unit.isActive()) return;
 
     this.drawBorder(unit, borderColor, config);
+    
+    // Draw city economy radius for Frenzy mode
+    if (unitType === UnitType.City) {
+      this.drawCityEconomyRadius(unit);
+    }
 
     // Render icon at 1/2 scale for better quality
     const scaledWidth = icon.width >> 1;

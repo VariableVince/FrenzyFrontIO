@@ -292,6 +292,13 @@ export interface FrenzyUpdate {
     tier?: number;
     maxUnits?: number;
   }>;
+  factories: Array<{
+    tile: number;
+    playerId: string;
+    x: number;
+    y: number;
+    tier: number;
+  }>;
   projectiles: Array<{
     id: number;
     playerId: string;

@@ -123,6 +123,10 @@ export class UILayer implements Layer {
       case UnitType.Port:
       case UnitType.MissileSilo:
       case UnitType.SAMLauncher:
+        // Draw health bar for structures with health in Frenzy mode
+        if (unit.hasHealth()) {
+          this.drawHealthBar(unit);
+        }
         if (
           unit.markedForDeletion() !== false ||
           unit.missileReadinesss() < 1

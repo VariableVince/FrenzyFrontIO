@@ -139,6 +139,30 @@ const CONFIG_FIELDS: ConfigField[] = [
     step: 0.05,
     description: "Lower numbers = more frequent shots",
   },
+  {
+    key: "startingGold",
+    label: "Starting Gold",
+    min: 0,
+    max: 500000,
+    step: 10000,
+    description: "Gold given at spawn",
+  },
+  {
+    key: "baseGoldPerMinute",
+    label: "Base Gold/min",
+    min: 0,
+    max: 100000,
+    step: 1000,
+    description: "Base gold income per minute",
+  },
+  {
+    key: "cityGoldPerMinute",
+    label: "City Gold/min",
+    min: 0,
+    max: 10000,
+    step: 100,
+    description: "Extra gold per city per minute",
+  },
 ];
 
 const CUSTOM_DEFAULTS_STORAGE_KEY = "frenzy-dev-config-defaults";

@@ -47,6 +47,11 @@ export class SpawnExecution implements Execution {
       if (player.type() === PlayerType.Bot) {
         this.mg.addExecution(new BotExecution(player));
       }
+      // Add starting gold
+      const startingGold = this.mg.config().startingGold();
+      if (startingGold > 0n) {
+        player.addGold(startingGold);
+      }
     }
     player.setHasSpawned(true);
   }

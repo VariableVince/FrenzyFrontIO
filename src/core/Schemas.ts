@@ -50,7 +50,8 @@ export type Intent =
   | DeleteUnitIntent
   | KickPlayerIntent
   | DefensiveStanceIntent
-  | UpgradeHQIntent;
+  | UpgradeHQIntent
+  | UpgradeFactoryIntent;
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
@@ -86,6 +87,7 @@ export type DefensiveStanceIntent = z.infer<
   typeof DefensiveStanceIntentSchema
 >;
 export type UpgradeHQIntent = z.infer<typeof UpgradeHQIntentSchema>;
+export type UpgradeFactoryIntent = z.infer<typeof UpgradeFactoryIntentSchema>;
 
 export type Turn = z.infer<typeof TurnSchema>;
 export type GameConfig = z.infer<typeof GameConfigSchema>;
@@ -368,6 +370,11 @@ export const UpgradeHQIntentSchema = BaseIntentSchema.extend({
   type: z.literal("upgrade_hq"),
 });
 
+export const UpgradeFactoryIntentSchema = BaseIntentSchema.extend({
+  type: z.literal("upgrade_factory"),
+  tile: z.number(),
+});
+
 const IntentSchema = z.discriminatedUnion("type", [
   AttackIntentSchema,
   CancelAttackIntentSchema,
@@ -393,6 +400,7 @@ const IntentSchema = z.discriminatedUnion("type", [
   KickPlayerIntentSchema,
   DefensiveStanceIntentSchema,
   UpgradeHQIntentSchema,
+  UpgradeFactoryIntentSchema,
 ]);
 
 //

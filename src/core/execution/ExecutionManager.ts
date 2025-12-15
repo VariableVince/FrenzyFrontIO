@@ -164,6 +164,16 @@ export class Executor {
         }
         return new NoOpExecution();
       }
+      case "upgrade_factory": {
+        // Upgrade factory in Frenzy mode
+        if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+          const frenzyManager = this.mg.frenzyManager();
+          if (frenzyManager) {
+            frenzyManager.upgradeFactory(player.id(), intent.tile);
+          }
+        }
+        return new NoOpExecution();
+      }
       default:
         throw new Error(`intent type ${intent} not found`);
     }

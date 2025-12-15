@@ -8,6 +8,7 @@ import { TileRef } from "../GameMap";
 
 export enum FrenzyUnitType {
   Soldier = "soldier",
+  EliteSoldier = "eliteSoldier",
   DefensePost = "defensePost",
 }
 
@@ -52,6 +53,8 @@ export interface CoreBuilding {
   spawnInterval: number;
   unitCount: number;
   tier: number; // HQ tier level (1 = base, 2+ = upgraded)
+  health: number; // Current HP (default: 1000 for HQ)
+  maxHealth: number; // Max HP (default: 1000 for HQ)
 }
 
 export interface FactorySpawner {
@@ -61,6 +64,9 @@ export interface FactorySpawner {
   tile: TileRef;
   spawnTimer: number;
   spawnInterval: number;
+  health: number; // Current HP (default: 400 for factories/cities)
+  maxHealth: number; // Max HP (default: 400 for factories/cities)
+  tier: number; // Factory tier (1 = base, 2 = elite units)
 }
 
 export interface FrenzyConfig {
@@ -85,6 +91,16 @@ export interface FrenzyConfig {
   defensePostFireRateMultiplier: number; // Defense posts fire rate multiplier (default: 0.25 = slow like Obelisk)
   defensePostRangeMultiplier: number; // Defense posts have extended range (default: 1.5 = 50% more)
   defensePostDamage: number; // Defense post damage per shot (default: 100 = one-shot tier 1)
+  startingGold: number; // Gold at spawn (default: 150000)
+  baseGoldPerMinute: number; // Base gold income per minute (default: 20000)
+  cityGoldPerMinute: number; // Gold per city per minute (default: 2000)
+  cityCost: number; // Fixed cost for cities (default: 100000)
+  factoryCost: number; // Fixed cost for factories (default: 100000)
+  cityHealth: number; // HP for cities/factories (default: 400)
+  hqHealth: number; // HP for HQ (default: 1000)
+  eliteHealthMultiplier: number; // Elite soldier HP multiplier (default: 1.5)
+  eliteRangeMultiplier: number; // Elite soldier range multiplier (default: 1.5)
+  factoryUpgradeCost: number; // Cost to upgrade factory to tier 2 (default: 100000)
 }
 
 export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
@@ -109,6 +125,16 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   defensePostFireRateMultiplier: 0.25, // Slow fire rate like Obelisk
   defensePostRangeMultiplier: 1.5, // 50% more range
   defensePostDamage: 100, // One-shot tier 1 units
+  startingGold: 150000, // 150k gold at spawn
+  baseGoldPerMinute: 20000, // 20k gold per minute base income (doubled)
+  cityGoldPerMinute: 20000, // 2k gold per city per minute (doubled)
+  cityCost: 100000, // 100k fixed cost for cities
+  factoryCost: 100000, // 100k fixed cost for factories
+  cityHealth: 400, // Cities/factories have 400 HP
+  hqHealth: 1000, // HQ has 1000 HP
+  eliteHealthMultiplier: 1.5, // Elite soldiers have 1.5x HP
+  eliteRangeMultiplier: 1.5, // Elite soldiers have 1.5x range
+  factoryUpgradeCost: 100000, // 100k to upgrade factory
 };
 
 export enum Stance {

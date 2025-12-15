@@ -1,4 +1,4 @@
-import { Game, Player, PlayerID, PlayerType, TerraNullius } from "../Game";
+import { Game, Player, PlayerID, PlayerType, TerraNullius, UnitType, Unit } from "../Game";
 import { TileRef } from "../GameMap";
 import {
   CoreBuilding,
@@ -45,6 +45,13 @@ export class FrenzyManager {
   ) {
     this.config = { ...DEFAULT_FRENZY_CONFIG, ...config };
     this.spatialGrid = new SpatialHashGrid(50); // 50px cell size
+  }
+
+  /**
+   * Get the current Frenzy configuration
+   */
+  getConfig(): FrenzyConfig {
+    return this.config;
   }
 
   /**
@@ -178,6 +185,8 @@ export class FrenzyManager {
       spawnInterval: this.config.spawnInterval,
       unitCount: 0,
       tier: 1,
+      health: this.config.hqHealth,
+      maxHealth: this.config.hqHealth,
     });
 
     // Spawn initial units
@@ -253,7 +262,9 @@ export class FrenzyManager {
         factory.spawnTimer <= 0 &&
         building.unitCount < this.getMaxUnitsForPlayer(factory.playerId)
       ) {
-        this.spawnUnit(factory.playerId, factory.x, factory.y);
+        // Tier 2 factories spawn elite soldiers
+        const unitType = factory.tier >= 2 ? FrenzyUnitType.EliteSoldier : FrenzyUnitType.Soldier;
+        this.spawnUnit(factory.playerId, factory.x, factory.y, unitType);
         factory.spawnTimer = factory.spawnInterval;
       }
     }
@@ -281,6 +292,9 @@ export class FrenzyManager {
       health *= this.config.defensePostHealthMultiplier;
       // Slower fire rate for defense posts (like Obelisk from C&C)
       fireInterval /= this.config.defensePostFireRateMultiplier;
+    } else if (unitType === FrenzyUnitType.EliteSoldier) {
+      // Elite soldiers have more HP
+      health *= this.config.eliteHealthMultiplier;
     }
 
     const unit: FrenzyUnit = {
@@ -833,11 +847,15 @@ export class FrenzyManager {
       
       const unitPlayer = this.game.player(unit.playerId);
       const isDefensePost = unit.unitType === FrenzyUnitType.DefensePost;
+      const isElite = unit.unitType === FrenzyUnitType.EliteSoldier;
       
-      // Defense posts have extended range
-      const combatRange = isDefensePost 
-        ? this.config.combatRange * this.config.defensePostRangeMultiplier
-        : this.config.combatRange;
+      // Defense posts and elite soldiers have extended range
+      let combatRange = this.config.combatRange;
+      if (isDefensePost) {
+        combatRange *= this.config.defensePostRangeMultiplier;
+      } else if (isElite) {
+        combatRange *= this.config.eliteRangeMultiplier;
+      }
         
       const enemies = this.spatialGrid
         .getNearby(unit.x, unit.y, combatRange)
@@ -880,6 +898,9 @@ export class FrenzyManager {
             unit.weaponCooldown = unit.fireInterval;
           }
         }
+      } else {
+        // No Frenzy enemy units nearby - check for enemy City/Factory structures
+        this.attackNearbyStructures(unit, deltaTime, isDefensePost, combatRange);
       }
     }
   }
@@ -920,6 +941,120 @@ export class FrenzyManager {
       life: beamLife,
       isBeam: true,
       startX: attacker.x, // Start point (defense post)
+      startY: attacker.y,
+    });
+  }
+
+  /**
+   * Attack enemy City/Factory structures if no FrenzyUnits are in range
+   */
+  private attackNearbyStructures(
+    unit: FrenzyUnit,
+    deltaTime: number,
+    isDefensePost: boolean,
+    combatRange: number,
+  ) {
+    const unitPlayer = this.game.player(unit.playerId);
+    
+    // Convert pixel position to tile ref
+    const tileX = Math.floor(unit.x);
+    const tileY = Math.floor(unit.y);
+    const tile = this.game.ref(tileX, tileY);
+    if (!this.game.isValidRef(tile)) return;
+    
+    // Find nearby City/Factory structures
+    const nearbyStructures = this.game.nearbyUnits(
+      tile,
+      combatRange, // Use same combat range
+      [UnitType.City, UnitType.Factory],
+      ({ unit: structure }) => {
+        // Only attack enemy structures
+        const structureOwner = structure.owner();
+        if (!structureOwner.isPlayer()) return false;
+        if (structureOwner.id() === unit.playerId) return false;
+        // Don't attack allied structures
+        const ownerPlayer = this.game.player(structureOwner.id());
+        if (unitPlayer.isAlliedWith(ownerPlayer)) return false;
+        // Only attack structures with health
+        return structure.hasHealth();
+      },
+    );
+    
+    if (nearbyStructures.length === 0) return;
+    
+    // Attack nearest structure
+    const nearest = nearbyStructures.reduce((closest, current) =>
+      current.distSquared < closest.distSquared ? current : closest,
+    );
+    const targetStructure = nearest.unit;
+    
+    // Calculate damage based on unit type
+    if (isDefensePost) {
+      if (unit.weaponCooldown <= 0) {
+        targetStructure.modifyHealth(-this.config.defensePostDamage, unitPlayer);
+        this.spawnBeamProjectileToStructure(unit, targetStructure);
+        unit.weaponCooldown = unit.fireInterval;
+      }
+    } else {
+      // Regular unit DPS
+      targetStructure.modifyHealth(-this.config.unitDPS * deltaTime, unitPlayer);
+      
+      if (unit.weaponCooldown <= 0) {
+        this.spawnProjectileToStructure(unit, targetStructure);
+        unit.weaponCooldown = unit.fireInterval;
+      }
+    }
+  }
+
+  /**
+   * Spawn projectile toward a game structure (City/Factory)
+   */
+  private spawnProjectileToStructure(attacker: FrenzyUnit, target: Unit) {
+    const targetTile = target.tile();
+    const targetX = this.game.x(targetTile);
+    const targetY = this.game.y(targetTile);
+    
+    const dx = targetX - attacker.x;
+    const dy = targetY - attacker.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = this.config.projectileSpeed;
+    const vx = (dx / dist) * speed;
+    const vy = (dy / dist) * speed;
+    const travelTime = Math.max(dist / speed, 0.15);
+
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: attacker.x,
+      y: attacker.y,
+      vx,
+      vy,
+      age: 0,
+      life: travelTime,
+    });
+  }
+
+  /**
+   * Spawn beam projectile toward a game structure (City/Factory)
+   */
+  private spawnBeamProjectileToStructure(attacker: FrenzyUnit, target: Unit) {
+    const targetTile = target.tile();
+    const targetX = this.game.x(targetTile);
+    const targetY = this.game.y(targetTile);
+    
+    const beamLife = 0.3;
+    
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: targetX,
+      y: targetY,
+      vx: 0,
+      vy: 0,
+      age: 0,
+      life: beamLife,
+      isBeam: true,
+      startX: attacker.x,
       startY: attacker.y,
     });
   }
@@ -1144,6 +1279,9 @@ export class FrenzyManager {
       tile,
       spawnTimer: this.config.spawnInterval,
       spawnInterval: this.config.spawnInterval,
+      health: this.config.cityHealth,
+      maxHealth: this.config.cityHealth,
+      tier: 1,
     });
   }
 
@@ -1213,6 +1351,73 @@ export class FrenzyManager {
   }
 
   /**
+   * Get factory at a tile
+   */
+  getFactory(tile: TileRef): FactorySpawner | undefined {
+    return this.factories.get(tile);
+  }
+
+  /**
+   * Get factory tier at a tile
+   */
+  getFactoryTier(tile: TileRef): number {
+    const factory = this.factories.get(tile);
+    return factory?.tier ?? 1;
+  }
+
+  /**
+   * Check if a factory can be upgraded (HQ tier must be >= 2)
+   */
+  canUpgradeFactory(playerId: PlayerID): boolean {
+    const building = this.coreBuildings.get(playerId);
+    return building ? building.tier >= 2 : false;
+  }
+
+  /**
+   * Upgrade a factory to tier 2
+   * @returns true if upgrade was successful, false otherwise
+   */
+  upgradeFactory(playerId: PlayerID, tile: TileRef): boolean {
+    const factory = this.factories.get(tile);
+    if (!factory) {
+      return false;
+    }
+    
+    // Check if factory belongs to player
+    if (factory.playerId !== playerId) {
+      return false;
+    }
+    
+    // Check if already tier 2+
+    if (factory.tier >= 2) {
+      return false;
+    }
+    
+    // Check if HQ tier is >= 2 (required to upgrade factories)
+    const building = this.coreBuildings.get(playerId);
+    if (!building || building.tier < 2) {
+      return false;
+    }
+    
+    const player = this.game.player(playerId);
+    if (!player) {
+      return false;
+    }
+    
+    const upgradeCost = BigInt(this.config.factoryUpgradeCost);
+    if (player.gold() < upgradeCost) {
+      return false;
+    }
+    
+    // Deduct gold and upgrade tier
+    player.removeGold(upgradeCost);
+    factory.tier = 2;
+    
+    console.log(`[FrenzyManager] Player ${player.name()} upgraded factory to tier ${factory.tier}`);
+    return true;
+  }
+
+  /**
    * Get unit count for a player
    */
   getUnitCount(playerId: PlayerID): number {
@@ -1241,6 +1446,13 @@ export class FrenzyManager {
         unitCount: b.unitCount,
         tier: b.tier,
         maxUnits: this.getMaxUnitsForPlayer(b.playerId),
+      })),
+      factories: Array.from(this.factories.entries()).map(([tile, f]) => ({
+        tile,
+        playerId: f.playerId,
+        x: f.x,
+        y: f.y,
+        tier: f.tier,
       })),
       projectiles: this.projectiles.map((p) => ({
         id: p.id,

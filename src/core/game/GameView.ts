@@ -490,6 +490,13 @@ export class GameView implements GameMap {
       tier?: number;
       maxUnits?: number;
     }>;
+    factories: Array<{
+      tile: number;
+      playerId: string;
+      x: number;
+      y: number;
+      tier: number;
+    }>;
     projectiles: Array<{
       id: number;
       playerId: string;
@@ -498,6 +505,9 @@ export class GameView implements GameMap {
     }>;
     projectileSize: number;
     maxUnitsPerPlayer: number;
+    // Helper methods for UI
+    canUpgradeFactory: (playerId: string) => boolean;
+    getFactoryTier: (tile: number) => number;
   } | null = null;
 
   constructor(
@@ -571,18 +581,33 @@ export class GameView implements GameMap {
     // Update Frenzy state if available
     const frenzyUpdates = gu.updates[GameUpdateType.Frenzy];
     if (frenzyUpdates && frenzyUpdates.length > 0) {
+      const frenzyData = frenzyUpdates[0];
+      const factories = frenzyData.factories ?? [];
+      const coreBuildings = frenzyData.coreBuildings.map((b: any) => ({
+        ...b,
+        maxUnits: b.maxUnits,
+      }));
+      
       this._frenzyState = {
-        units: frenzyUpdates[0].units.map((u: any) => ({
+        units: frenzyData.units.map((u: any) => ({
           ...u,
           unitType: u.unitType ?? "soldier",
         })),
-        coreBuildings: frenzyUpdates[0].coreBuildings.map((b: any) => ({
-          ...b,
-          maxUnits: b.maxUnits,
-        })),
-        projectiles: frenzyUpdates[0].projectiles,
-        projectileSize: frenzyUpdates[0].projectileSize,
-        maxUnitsPerPlayer: frenzyUpdates[0].maxUnitsPerPlayer,
+        coreBuildings,
+        factories,
+        projectiles: frenzyData.projectiles,
+        projectileSize: frenzyData.projectileSize,
+        maxUnitsPerPlayer: frenzyData.maxUnitsPerPlayer,
+        // Helper method to check if player can upgrade factories (HQ tier >= 2)
+        canUpgradeFactory: (playerId: string) => {
+          const hq = coreBuildings.find((b: any) => b.playerId === playerId);
+          return hq ? (hq.tier ?? 1) >= 2 : false;
+        },
+        // Helper method to get factory tier
+        getFactoryTier: (tile: number) => {
+          const factory = factories.find((f: any) => f.tile === tile);
+          return factory?.tier ?? 1;
+        },
       };
     }
 

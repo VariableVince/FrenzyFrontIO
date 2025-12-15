@@ -545,6 +545,69 @@ export const upgradeHQElement: MenuElement = {
   },
 };
 
+const FACTORY_UPGRADE_COST = BigInt(100_000);
+
+export const upgradeFactoryElement: MenuElement = {
+  id: "upgrade_factory",
+  name: "upgrade_factory",
+  displayed: (params: MenuElementParams) => {
+    // Only show in Frenzy mode when clicking on own factory
+    const frenzyState = params.game.frenzyManager();
+    if (!frenzyState) return false;
+    
+    // Check if HQ tier >= 2 (required to upgrade factories)
+    if (!frenzyState.canUpgradeFactory(params.myPlayer.id())) return false;
+    
+    // Check if clicking on a factory owned by this player
+    const nearbyUnits = params.game.nearbyUnits(params.tile, 3, [UnitType.Factory]);
+    const myFactory = nearbyUnits.find(
+      ({ unit }) =>
+        unit.owner().isPlayer() &&
+        (unit.owner() as PlayerView).id() === params.myPlayer.id(),
+    );
+    if (!myFactory) return false;
+    
+    // Check if factory is already tier 2
+    const factoryTier = frenzyState.getFactoryTier(myFactory.unit.tile());
+    return factoryTier < 2;
+  },
+  disabled: (params: MenuElementParams) => {
+    return params.myPlayer.gold() < FACTORY_UPGRADE_COST;
+  },
+  text: "⬆",
+  fontSize: "24px",
+  color: "#FFD700",
+  tooltipKeys: [
+    {
+      key: "radial_menu.upgrade_factory_title",
+      className: "title",
+    },
+    {
+      key: "radial_menu.upgrade_factory_description",
+      className: "description",
+    },
+  ],
+  tooltipItems: [
+    {
+      text: `Cost: ${renderNumber(FACTORY_UPGRADE_COST)}`,
+      className: "cost",
+    },
+  ],
+  action: (params: MenuElementParams) => {
+    // Find the factory tile
+    const nearbyUnits = params.game.nearbyUnits(params.tile, 3, [UnitType.Factory]);
+    const myFactory = nearbyUnits.find(
+      ({ unit }) =>
+        unit.owner().isPlayer() &&
+        (unit.owner() as PlayerView).id() === params.myPlayer.id(),
+    );
+    if (myFactory) {
+      params.playerActionHandler.handleUpgradeFactory(myFactory.unit.tile());
+    }
+    params.closeMenu();
+  },
+};
+
 export const buildMenuElement: MenuElement = {
   id: Slot.Build,
   name: "build",
@@ -631,8 +694,10 @@ export const rootMenuElement: MenuElement = {
       tileOwner.isPlayer() &&
       (tileOwner as PlayerView).id() === params.myPlayer.id();
 
-    // Check if clicking on own HQ in Frenzy mode
+    // Check if clicking on own HQ or factory in Frenzy mode
     let isClickingOnHQ = false;
+    let isClickingOnOwnFactory = false;
+    let canUpgradeFactory = false;
     const frenzyState = params.game.frenzyManager();
     if (frenzyState) {
       const myHQ = frenzyState.coreBuildings.find(
@@ -644,10 +709,29 @@ export const rootMenuElement: MenuElement = {
         const dist = Math.hypot(tileX - myHQ.x, tileY - myHQ.y);
         isClickingOnHQ = dist <= 20;
       }
+      
+      // Check if clicking on own factory
+      const nearbyFactories = params.game.nearbyUnits(params.tile, 3, [UnitType.Factory]);
+      const myFactory = nearbyFactories.find(
+        ({ unit }) =>
+          unit.owner().isPlayer() &&
+          (unit.owner() as PlayerView).id() === params.myPlayer.id(),
+      );
+      if (myFactory) {
+        isClickingOnOwnFactory = true;
+        // Check if factory can be upgraded (HQ tier >= 2 and factory tier < 2)
+        canUpgradeFactory = frenzyState.canUpgradeFactory(params.myPlayer.id()) &&
+          frenzyState.getFactoryTier(myFactory.unit.tile()) < 2;
+      }
     }
 
-    // In own territory: show upgrade HQ if clicking on HQ, otherwise show delete unit
-    const ownTerritoryFirstItem = isClickingOnHQ ? upgradeHQElement : deleteUnitElement;
+    // In own territory: show upgrade HQ/Factory if clicking on them, otherwise show delete unit
+    let ownTerritoryFirstItem: MenuElement = deleteUnitElement;
+    if (isClickingOnHQ) {
+      ownTerritoryFirstItem = upgradeHQElement;
+    } else if (isClickingOnOwnFactory && canUpgradeFactory) {
+      ownTerritoryFirstItem = upgradeFactoryElement;
+    }
 
     const menuItems: (MenuElement | null)[] = [
       infoMenuElement,
