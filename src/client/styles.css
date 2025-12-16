@@ -60,14 +60,16 @@
   transition: all 0.3s;
   display: inline-block;
   margin: 0 0 20px 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4),
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .start-game-button:not(:disabled):hover {
   background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5),
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     0 0 15px rgba(220, 38, 38, 0.4);
 }
@@ -255,20 +257,20 @@ label.option-card:hover {
 #bots-count::-moz-range-track,
 #private-lobby-bots-count::-moz-range-track {
   height: 8px;
-  background: white;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 #bots-count::-moz-range-progress,
 #private-lobby-bots-count::-moz-range-progress {
   height: 8px;
-  background-color: #0075ff;
+  background-color: #b91c1c;
 }
 
 #bots-count::-moz-range-thumb,
 #private-lobby-bots-count::-moz-range-thumb {
   height: 16px;
   width: 16px;
-  background: #0075ff;
+  background: #dc2626;
   border: none;
   border-radius: 50%;
 }
@@ -279,8 +281,8 @@ label.option-card:hover {
   height: 8px;
   background: linear-gradient(
     to right,
-    #0075ff var(--progress, 0%),
-    white var(--progress, 0%)
+    #b91c1c var(--progress, 0%),
+    rgba(255, 255, 255, 0.3) var(--progress, 0%)
   );
 }
 
@@ -289,7 +291,7 @@ label.option-card:hover {
   -webkit-appearance: none;
   height: 16px;
   width: 16px;
-  background: #0075ff;
+  background: #dc2626;
   border: none;
   border-radius: 50%;
   margin-top: -4px;

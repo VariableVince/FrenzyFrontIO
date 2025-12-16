@@ -1,7 +1,5 @@
 import { Howl } from "howler";
 import of4 from "../../../proprietary/sounds/music/enveloped-mission-4-operation-alpha-116601.mp3";
-import openfront from "../../../proprietary/sounds/music/openfront.mp3";
-import war from "../../../proprietary/sounds/music/war.mp3";
 import kaChingSound from "../../../resources/sounds/effects/ka-ching.mp3";
 
 export enum SoundEffect {
@@ -10,10 +8,13 @@ export enum SoundEffect {
 
 class SoundManager {
   private backgroundMusic: Howl[] = [];
+  private menuMusic: Howl | null = null;
   private currentTrack: number = 0;
   private soundEffects: Map<SoundEffect, Howl> = new Map();
   private soundEffectsVolume: number = 1;
   private backgroundMusicVolume: number = 0;
+  private menuMusicVolume: number = 0.3;
+  private isMenuMusicPlaying: boolean = false;
 
   constructor() {
     this.backgroundMusic = [
@@ -23,7 +24,7 @@ class SoundManager {
         onend: this.playNext.bind(this),
         volume: 0,
       }),
-/*       new Howl({
+      /*       new Howl({
         src: [openfront],
         loop: false,
         onend: this.playNext.bind(this),
@@ -36,7 +37,36 @@ class SoundManager {
         volume: 0,
       }), */
     ];
+
+    // Menu music - same track as in-game, but for the main menu
+    this.menuMusic = new Howl({
+      src: [of4],
+      loop: true,
+      volume: this.menuMusicVolume,
+    });
+
     this.loadSoundEffect(SoundEffect.KaChing, kaChingSound);
+  }
+
+  public playMenuMusic(): void {
+    if (this.menuMusic && !this.isMenuMusicPlaying) {
+      this.menuMusic.play();
+      this.isMenuMusicPlaying = true;
+    }
+  }
+
+  public stopMenuMusic(): void {
+    if (this.menuMusic && this.isMenuMusicPlaying) {
+      this.menuMusic.stop();
+      this.isMenuMusicPlaying = false;
+    }
+  }
+
+  public setMenuMusicVolume(volume: number): void {
+    this.menuMusicVolume = Math.max(0, Math.min(1, volume));
+    if (this.menuMusic) {
+      this.menuMusic.volume(this.menuMusicVolume);
+    }
   }
 
   public playBackgroundMusic(): void {

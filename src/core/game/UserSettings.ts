@@ -184,7 +184,7 @@ export class UserSettings {
   }
 
   backgroundMusicVolume(): number {
-    return this.getFloat("settings.backgroundMusicVolume", 0);
+    return this.getFloat("settings.backgroundMusicVolume", 0.5);
   }
 
   setBackgroundMusicVolume(volume: number): void {

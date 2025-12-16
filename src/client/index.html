@@ -65,8 +65,235 @@
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: -1;
+        z-index: -2;
         filter: brightness(0.3) saturate(0.4) sepia(0.3) hue-rotate(-10deg);
+      }
+
+      .bg-video-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        overflow: hidden;
+      }
+
+      .bg-video {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        min-width: 100%;
+        min-height: 100%;
+        width: auto;
+        height: auto;
+        transform: translate(-50%, -50%);
+        object-fit: cover;
+        filter: saturate(0.4) contrast(1.2) brightness(0.7) sepia(0.3)
+          hue-rotate(-10deg);
+      }
+
+      /* Dark frenzy overlay with broken commando screen effect */
+      .bg-video-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.8) 0%,
+          rgba(80, 0, 0, 0.4) 30%,
+          rgba(139, 0, 0, 0.3) 50%,
+          rgba(50, 0, 0, 0.5) 70%,
+          rgba(0, 0, 0, 0.9) 100%
+        );
+        pointer-events: none;
+      }
+
+      /* Scanlines effect */
+      .bg-video-overlay::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.3) 2px,
+          rgba(0, 0, 0, 0.3) 4px
+        );
+        pointer-events: none;
+        animation: scanlines 0.1s linear infinite;
+      }
+
+      /* Static noise overlay */
+      .bg-video-overlay::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        opacity: 0.08;
+        pointer-events: none;
+        animation: noise 0.2s steps(10) infinite;
+      }
+
+      /* Vignette effect layer */
+      .bg-video-container::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+          ellipse at center,
+          transparent 20%,
+          rgba(0, 0, 0, 0.3) 60%,
+          rgba(0, 0, 0, 0.8) 100%
+        );
+        pointer-events: none;
+      }
+
+      /* Glitch flicker animation */
+      @keyframes scanlines {
+        0% {
+          transform: translateY(0);
+        }
+        100% {
+          transform: translateY(4px);
+        }
+      }
+
+      @keyframes noise {
+        0%,
+        100% {
+          transform: translate(0, 0);
+        }
+        10% {
+          transform: translate(-2%, -2%);
+        }
+        20% {
+          transform: translate(2%, 2%);
+        }
+        30% {
+          transform: translate(-1%, 1%);
+        }
+        40% {
+          transform: translate(1%, -1%);
+        }
+        50% {
+          transform: translate(-2%, 2%);
+        }
+        60% {
+          transform: translate(2%, -2%);
+        }
+        70% {
+          transform: translate(0, 2%);
+        }
+        80% {
+          transform: translate(-2%, 0);
+        }
+        90% {
+          transform: translate(2%, 1%);
+        }
+      }
+
+      @keyframes glitch-flicker {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        92% {
+          opacity: 1;
+        }
+        93% {
+          opacity: 0.8;
+        }
+        94% {
+          opacity: 1;
+        }
+        95% {
+          opacity: 0.6;
+        }
+        96% {
+          opacity: 1;
+        }
+        97% {
+          opacity: 0.9;
+        }
+        98% {
+          opacity: 1;
+        }
+      }
+
+      .bg-video-container {
+        animation: glitch-flicker 4s infinite;
+      }
+
+      /* Red chromatic aberration/glitch lines */
+      .bg-video-glitch-line {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 0, 0, 0.6) 20%,
+          rgba(255, 50, 50, 0.8) 50%,
+          rgba(255, 0, 0, 0.6) 80%,
+          transparent 100%
+        );
+        opacity: 0;
+        animation: glitch-line 8s ease-in-out infinite;
+        pointer-events: none;
+      }
+
+      .bg-video-glitch-line:nth-child(1) {
+        top: 15%;
+        animation-delay: 0s;
+      }
+
+      .bg-video-glitch-line:nth-child(2) {
+        top: 45%;
+        animation-delay: 2.5s;
+      }
+
+      .bg-video-glitch-line:nth-child(3) {
+        top: 75%;
+        animation-delay: 5s;
+      }
+
+      @keyframes glitch-line {
+        0%,
+        90%,
+        100% {
+          opacity: 0;
+          transform: translateX(0) scaleX(0);
+        }
+        92% {
+          opacity: 0.8;
+          transform: translateX(-5%) scaleX(1.1);
+        }
+        94% {
+          opacity: 0;
+          transform: translateX(3%) scaleX(0.8);
+        }
+        96% {
+          opacity: 0.6;
+          transform: translateX(-2%) scaleX(1);
+        }
+        98% {
+          opacity: 0;
+          transform: translateX(0) scaleX(0);
+        }
       }
 
       .bg-image::before {
@@ -146,7 +373,8 @@
     <header class="l-header">
       <div class="l-header__content">
         <h1 class="l-header__logo-text">
-          <span class="logo-frenzy">FRENZY</span><span class="logo-front">FRONT</span>
+          <span class="logo-frenzy">FRENZY</span
+          ><span class="logo-front">FRONT</span>
         </h1>
         <div id="game-version" class="l-header__highlightText text-center">
           Loading version...
@@ -154,6 +382,27 @@
       </div>
     </header>
     <div class="bg-image"></div>
+
+    <!-- Video background with gameplay footage -->
+    <!-- NOTE: Video source is loaded dynamically to avoid webpack build errors -->
+    <div id="bg-video-container" class="bg-video-container">
+      <video
+        id="bg-video"
+        class="bg-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+      >
+        <!-- Video source set dynamically - place video at /videos/gameplay-background.mp4 -->
+      </video>
+      <div class="bg-video-overlay"></div>
+      <!-- Glitch lines for broken screen effect -->
+      <div class="bg-video-glitch-line"></div>
+      <div class="bg-video-glitch-line"></div>
+      <div class="bg-video-glitch-line"></div>
+    </div>
 
     <gutter-ads></gutter-ads>
 

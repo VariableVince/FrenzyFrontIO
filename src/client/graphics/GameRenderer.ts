@@ -6,6 +6,7 @@ import { RefreshGraphicsEvent as RedrawGraphicsEvent } from "../InputHandler";
 import { FrameProfiler } from "./FrameProfiler";
 import { TransformHandler } from "./TransformHandler";
 import { UIState } from "./UIState";
+import { VideoModeManager, VideoModeToggleEvent } from "./VideoModeManager";
 import { AdTimer } from "./layers/AdTimer";
 import { AlertFrame } from "./layers/AlertFrame";
 import { BuildMenu } from "./layers/BuildMenu";
@@ -51,7 +52,11 @@ export function createRenderer(
   const transformHandler = new TransformHandler(game, eventBus, canvas);
   const userSettings = new UserSettings();
 
-  const uiState = { attackRatio: 20, defensiveStance: 1.0, ghostStructure: null } as UIState;
+  const uiState = {
+    attackRatio: 20,
+    defensiveStance: 1.0,
+    ghostStructure: null,
+  } as UIState;
 
   //hide when the game renders
   const startingModal = document.querySelector(
@@ -294,6 +299,7 @@ export function createRenderer(
 
 export class GameRenderer {
   private context: CanvasRenderingContext2D;
+  private videoModeManager: VideoModeManager;
 
   constructor(
     private game: GameView,
@@ -307,10 +313,15 @@ export class GameRenderer {
     const context = canvas.getContext("2d");
     if (context === null) throw new Error("2d context not supported");
     this.context = context;
+    this.videoModeManager = new VideoModeManager(canvas, eventBus);
   }
 
   initialize() {
     this.eventBus.on(RedrawGraphicsEvent, () => this.redraw());
+    this.eventBus.on(VideoModeToggleEvent, () => {
+      this.transformHandler.updateCanvasBoundingRect();
+      this.redraw();
+    });
     this.layers.forEach((l) => l.init?.());
 
     document.body.appendChild(this.canvas);
@@ -331,6 +342,10 @@ export class GameRenderer {
   }
 
   resizeCanvas() {
+    // Don't resize if video mode is active - it uses fixed 1920x1080
+    if (this.videoModeManager.isActive()) {
+      return;
+    }
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.transformHandler.updateCanvasBoundingRect();

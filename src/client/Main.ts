@@ -50,6 +50,7 @@ import {
 import { UpdateFrenzyConfigEvent } from "./devtools/FrenzyDevEvents";
 import "./devtools/FrenzyDevPanel";
 import { getUserMe, isLoggedIn } from "./jwt";
+import SoundManager from "./sound/SoundManager";
 import "./styles.css";
 import { JoinLobbyEvent } from "./types/JoinLobbyEvent";
 
@@ -379,6 +380,53 @@ class Client {
       });
 
     this.initializeFuseTag();
+    this.initializeMenuMusic();
+  }
+
+  private initializeMenuMusic(): void {
+    // Set volume based on user settings
+    const musicVolume = this.userSettings.backgroundMusicVolume();
+    SoundManager.setMenuMusicVolume(musicVolume * 0.5); // Menu music at 50% of in-game volume
+
+    // Try to start menu music immediately
+    SoundManager.playMenuMusic();
+
+    // Initialize background video source dynamically (avoids webpack build issues)
+    this.initializeBackgroundVideo();
+
+    // Also start on first user interaction (for browsers that block autoplay)
+    const startMusicOnInteraction = () => {
+      SoundManager.playMenuMusic();
+      document.removeEventListener("click", startMusicOnInteraction);
+      document.removeEventListener("keydown", startMusicOnInteraction);
+      document.removeEventListener("touchstart", startMusicOnInteraction);
+    };
+
+    document.addEventListener("click", startMusicOnInteraction, { once: true });
+    document.addEventListener("keydown", startMusicOnInteraction, {
+      once: true,
+    });
+    document.addEventListener("touchstart", startMusicOnInteraction, {
+      once: true,
+    });
+  }
+
+  private initializeBackgroundVideo(): void {
+    const video = document.getElementById("bg-video") as HTMLVideoElement;
+    if (!video) return;
+
+    // Set video source dynamically to avoid webpack trying to resolve it at build time
+    const source = document.createElement("source");
+    source.src = "/videos/gameplay-background.mp4";
+    source.type = "video/mp4";
+    video.appendChild(source);
+
+    // Try to load and play the video
+    video.load();
+    video.play().catch(() => {
+      // Video autoplay might be blocked - that's okay
+      console.log("Background video autoplay blocked");
+    });
   }
 
   private handleHash() {
@@ -472,6 +520,16 @@ class Client {
   private async handleJoinLobby(event: CustomEvent<JoinLobbyEvent>) {
     const lobby = event.detail;
     console.log(`joining lobby ${lobby.gameID}`);
+
+    // Stop menu music when joining a game
+    SoundManager.stopMenuMusic();
+
+    // Hide video background when entering game
+    const videoContainer = document.getElementById("bg-video-container");
+    if (videoContainer) {
+      videoContainer.style.display = "none";
+    }
+
     if (lobby.gameStartInfo) {
       this.lastJoinEvent = this.snapshotJoinEvent(lobby);
     }
@@ -579,6 +637,15 @@ class Client {
     this.gameStop = null;
     this.gutterAds.hide();
     this.publicLobby.leaveLobby();
+
+    // Restart menu music when returning to main menu
+    SoundManager.playMenuMusic();
+
+    // Show video background again
+    const videoContainer = document.getElementById("bg-video-container");
+    if (videoContainer) {
+      videoContainer.style.display = "block";
+    }
   }
 
   private handleKickPlayer(event: CustomEvent) {

@@ -100,6 +100,13 @@ export default async (env, argv) => {
             filename: "sounds/[name].[contenthash][ext]",
           },
         },
+        {
+          test: /\.(mp4|webm)$/i,
+          type: "asset/resource",
+          generator: {
+            filename: "videos/[name].[contenthash][ext]",
+          },
+        },
       ],
     },
     resolve: {

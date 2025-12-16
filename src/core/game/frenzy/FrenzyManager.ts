@@ -1,4 +1,12 @@
-import { Game, Player, PlayerID, PlayerType, TerraNullius, UnitType, Unit } from "../Game";
+import {
+  Game,
+  Player,
+  PlayerID,
+  PlayerType,
+  TerraNullius,
+  Unit,
+  UnitType,
+} from "../Game";
 import { TileRef } from "../GameMap";
 import {
   CoreBuilding,
@@ -29,7 +37,7 @@ export class FrenzyManager {
   private config: FrenzyConfig;
   private defeatedPlayers = new Set<PlayerID>();
   private attackOrders: Map<PlayerID, FrenzyAttackOrder> = new Map();
-  
+
   // Defensive stance per player: 0 = stay near HQ, 0.5 = fire range, 1 = offensive (border)
   private playerDefensiveStance: Map<PlayerID, number> = new Map();
 
@@ -51,9 +59,18 @@ export class FrenzyManager {
         ...DEFAULT_FRENZY_CONFIG,
         ...config,
         units: {
-          soldier: { ...DEFAULT_FRENZY_CONFIG.units.soldier, ...config.units.soldier },
-          eliteSoldier: { ...DEFAULT_FRENZY_CONFIG.units.eliteSoldier, ...config.units.eliteSoldier },
-          defensePost: { ...DEFAULT_FRENZY_CONFIG.units.defensePost, ...config.units.defensePost },
+          soldier: {
+            ...DEFAULT_FRENZY_CONFIG.units.soldier,
+            ...config.units.soldier,
+          },
+          eliteSoldier: {
+            ...DEFAULT_FRENZY_CONFIG.units.eliteSoldier,
+            ...config.units.eliteSoldier,
+          },
+          defensePost: {
+            ...DEFAULT_FRENZY_CONFIG.units.defensePost,
+            ...config.units.defensePost,
+          },
         },
       };
     } else {
@@ -77,17 +94,20 @@ export class FrenzyManager {
   setPlayerDefensiveStance(playerId: PlayerID, stance: number) {
     const newStance = Math.max(0, Math.min(1, stance));
     const oldStance = this.playerDefensiveStance.get(playerId);
-    
+
     // Only update if stance actually changed
     if (oldStance !== undefined && Math.abs(oldStance - newStance) < 0.01) {
       return;
     }
-    
+
     this.playerDefensiveStance.set(playerId, newStance);
-    
+
     // Force all units of this player to retarget
     for (const unit of this.units) {
-      if (unit.playerId === playerId && unit.unitType !== FrenzyUnitType.DefensePost) {
+      if (
+        unit.playerId === playerId &&
+        unit.unitType !== FrenzyUnitType.DefensePost
+      ) {
         // Reset target to force recalculation
         unit.targetX = unit.x;
         unit.targetY = unit.y;
@@ -118,10 +138,14 @@ export class FrenzyManager {
     if (existingStance !== undefined) {
       return existingStance;
     }
-    
+
     // For bots and fake humans, use random stance with distribution
     const player = this.game.player(playerId);
-    if (player && (player.type() === PlayerType.Bot || player.type() === PlayerType.FakeHuman)) {
+    if (
+      player &&
+      (player.type() === PlayerType.Bot ||
+        player.type() === PlayerType.FakeHuman)
+    ) {
       let randomStance: number;
       if (Math.random() < 0.1) {
         // 10% chance: under medium (0 to 0.5)
@@ -133,7 +157,7 @@ export class FrenzyManager {
       this.playerDefensiveStance.set(playerId, randomStance);
       return randomStance;
     }
-    
+
     // Default for human players
     return 1.0;
   }
@@ -146,14 +170,20 @@ export class FrenzyManager {
         ...overrides,
         units: {
           soldier: { ...this.config.units.soldier, ...overrides.units.soldier },
-          eliteSoldier: { ...this.config.units.eliteSoldier, ...overrides.units.eliteSoldier },
-          defensePost: { ...this.config.units.defensePost, ...overrides.units.defensePost },
+          eliteSoldier: {
+            ...this.config.units.eliteSoldier,
+            ...overrides.units.eliteSoldier,
+          },
+          defensePost: {
+            ...this.config.units.defensePost,
+            ...overrides.units.defensePost,
+          },
         },
       };
     } else {
       this.config = { ...this.config, ...overrides };
     }
-    
+
     for (const building of this.coreBuildings.values()) {
       building.spawnInterval = this.config.spawnInterval;
       building.spawnTimer = Math.min(
@@ -244,17 +274,21 @@ export class FrenzyManager {
     }
 
     this.updateSpawnTimers(deltaTime);
-    
+
     // Performance: Only rebuild territory cache periodically
-    if (this.tickCount - this.territoryCacheTick >= this.TERRITORY_CACHE_INTERVAL) {
+    if (
+      this.tickCount - this.territoryCacheTick >=
+      this.TERRITORY_CACHE_INTERVAL
+    ) {
       this.territoryCache = this.buildTerritorySnapshots();
       this.territoryCacheTick = this.tickCount;
     }
-    
+
     this.updateUnits(deltaTime, this.territoryCache);
     this.updateCombat(deltaTime);
     this.updateProjectiles(deltaTime);
     this.captureTerritory();
+    this.checkAllHQCaptures();
     this.removeDeadUnits();
     this.rebuildSpatialGrid();
   }
@@ -292,7 +326,10 @@ export class FrenzyManager {
         building.unitCount < this.getMaxUnitsForPlayer(factory.playerId)
       ) {
         // Tier 2 factories spawn elite soldiers
-        const unitType = factory.tier >= 2 ? FrenzyUnitType.EliteSoldier : FrenzyUnitType.Soldier;
+        const unitType =
+          factory.tier >= 2
+            ? FrenzyUnitType.EliteSoldier
+            : FrenzyUnitType.Soldier;
         this.spawnUnit(factory.playerId, factory.x, factory.y, unitType);
         factory.spawnTimer = factory.spawnInterval;
       }
@@ -358,19 +395,23 @@ export class FrenzyManager {
       if (unit.unitType === FrenzyUnitType.DefensePost) {
         continue;
       }
-      
+
       const territory = territories.get(unit.playerId);
-      
+
       // Check if unit needs a new target
-      const distToTarget = Math.hypot(unit.targetX - unit.x, unit.targetY - unit.y);
-      const needsNewTarget = distToTarget < RETARGET_DISTANCE || 
+      const distToTarget = Math.hypot(
+        unit.targetX - unit.x,
+        unit.targetY - unit.y,
+      );
+      const needsNewTarget =
+        distToTarget < RETARGET_DISTANCE ||
         (unit.targetX === 0 && unit.targetY === 0);
-      
+
       // Check for attack orders - units assigned to attack get HQ-biased targeting
       const attackOrder = this.attackOrders.get(unit.playerId);
       const attackPlan = attackPlans.get(unit.playerId);
       let isAttackingUnit = false;
-      
+
       if (attackPlan) {
         const assigned = attackAllocations.get(unit.playerId) ?? 0;
         if (assigned < attackPlan.quota) {
@@ -378,14 +419,25 @@ export class FrenzyManager {
           isAttackingUnit = true;
         }
       }
-      
+
       if (needsNewTarget && territory) {
         // Calculate new target with attack target bias if attacking
-        const attackTargetId = isAttackingUnit ? attackOrder?.targetPlayerId : undefined;
-        const clickPos = isAttackingUnit && attackOrder?.targetX !== undefined && attackOrder?.targetY !== undefined
-          ? { x: attackOrder.targetX, y: attackOrder.targetY }
+        const attackTargetId = isAttackingUnit
+          ? attackOrder?.targetPlayerId
           : undefined;
-        const newTarget = this.calculateUnitTarget(unit, territory, attackTargetId ?? undefined, isAttackingUnit, clickPos);
+        const clickPos =
+          isAttackingUnit &&
+          attackOrder?.targetX !== undefined &&
+          attackOrder?.targetY !== undefined
+            ? { x: attackOrder.targetX, y: attackOrder.targetY }
+            : undefined;
+        const newTarget = this.calculateUnitTarget(
+          unit,
+          territory,
+          attackTargetId ?? undefined,
+          isAttackingUnit,
+          clickPos,
+        );
         unit.targetX = newTarget.x;
         unit.targetY = newTarget.y;
       }
@@ -399,7 +451,7 @@ export class FrenzyManager {
         // Get unit-specific speed
         const unitConfig = getUnitConfig(this.config, unit.unitType);
         const speed = unitConfig.speed;
-        
+
         // Normalize direction
         unit.vx = (dx / dist) * speed;
         unit.vy = (dy / dist) * speed;
@@ -434,10 +486,12 @@ export class FrenzyManager {
     // Get player's HQ position for defensive stance calculations
     const playerHQ = this.coreBuildings.get(unit.playerId);
     const hqPos = playerHQ ? { x: playerHQ.x, y: playerHQ.y } : centroid;
-    
+
     // Get defensive stance (0 = near HQ, 0.5 = fire range, 1 = offensive/border)
     // Attacking units always use offensive stance (1.0)
-    const defensiveStance = isAttackingUnit ? 1.0 : this.getPlayerDefensiveStance(unit.playerId);
+    const defensiveStance = isAttackingUnit
+      ? 1.0
+      : this.getPlayerDefensiveStance(unit.playerId);
 
     if (borderTiles.length === 0) {
       // Fallback: move toward map center if no borders found
@@ -472,15 +526,16 @@ export class FrenzyManager {
 
     // Performance: Sample border tiles for faster calculation
     const MAX_TILES_TO_CHECK = 50;
-    const tilesToCheck = borderTiles.length > MAX_TILES_TO_CHECK
-      ? this.sampleArray(borderTiles, MAX_TILES_TO_CHECK)
-      : borderTiles;
+    const tilesToCheck =
+      borderTiles.length > MAX_TILES_TO_CHECK
+        ? this.sampleArray(borderTiles, MAX_TILES_TO_CHECK)
+        : borderTiles;
 
     for (const borderTile of tilesToCheck) {
       const neighbors = this.game.neighbors(borderTile);
       for (const neighbor of neighbors) {
         const neighborOwner = this.game.owner(neighbor);
-        
+
         // Skip if we own this neighbor
         if (neighborOwner.id() === unit.playerId) {
           continue;
@@ -490,7 +545,10 @@ export class FrenzyManager {
           continue;
         }
         // Skip allied territory - units should not gather at allied borders
-        if (neighborOwner.isPlayer() && unitPlayer.isAlliedWith(neighborOwner)) {
+        if (
+          neighborOwner.isPlayer() &&
+          unitPlayer.isAlliedWith(neighborOwner)
+        ) {
           continue;
         }
 
@@ -518,11 +576,12 @@ export class FrenzyManager {
           const tileDirX = nx - unit.x;
           const tileDirY = ny - unit.y;
           const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
-          const hqAlignment = (hqDirX * tileDirX + hqDirY * tileDirY) / (hqDirLen * tileDirLen);
+          const hqAlignment =
+            (hqDirX * tileDirX + hqDirY * tileDirY) / (hqDirLen * tileDirLen);
           // Boost score for tiles aligned with HQ direction
           alignmentBoost *= Math.max(0.5, 1 + hqAlignment * 0.5);
         }
-        
+
         // If attacking with a click position, add bonus for tiles in that direction
         if (clickPos) {
           const clickDirX = clickPos.x - unit.x;
@@ -531,7 +590,9 @@ export class FrenzyManager {
           const tileDirX = nx - unit.x;
           const tileDirY = ny - unit.y;
           const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
-          const clickAlignment = (clickDirX * tileDirX + clickDirY * tileDirY) / (clickDirLen * tileDirLen);
+          const clickAlignment =
+            (clickDirX * tileDirX + clickDirY * tileDirY) /
+            (clickDirLen * tileDirLen);
           // Boost score for tiles aligned with click direction
           alignmentBoost *= Math.max(0.5, 1 + clickAlignment * 0.5);
         }
@@ -551,7 +612,7 @@ export class FrenzyManager {
         x: this.game.x(bestTile),
         y: this.game.y(bestTile),
       };
-      
+
       let offensivePos: { x: number; y: number };
       if (this.config.borderAdvanceDistance > 0) {
         const dirX = borderPos.x - cx;
@@ -576,31 +637,31 @@ export class FrenzyManager {
       } else {
         offensivePos = borderPos;
       }
-      
+
       // Calculate positions based on defensive stance
       // Stance 0: stay at fire range distance from all borders (defensive)
       // Stance 0.5: push into neutral territory, but stay at fire range from enemy borders
       // Stance 1: offensive position (at/beyond all borders)
-      
+
       // Fire range position: pull back from border by combat range distance
       const fireRange = this.config.units.soldier.range;
       const dirToBorderX = borderPos.x - hqPos.x;
       const dirToBorderY = borderPos.y - hqPos.y;
       const dirToBorderLen = Math.hypot(dirToBorderX, dirToBorderY) || 1;
-      
+
       // Fire range position is border position minus fire range in the direction from HQ
       const fireRangePos = {
         x: borderPos.x - (dirToBorderX / dirToBorderLen) * fireRange,
         y: borderPos.y - (dirToBorderY / dirToBorderLen) * fireRange,
       };
-      
+
       // Check if the target tile is enemy or neutral (unoccupied)
       const targetOwner = this.game.owner(bestTile);
       const isEnemyTerritory = targetOwner.isPlayer();
-      
+
       // Interpolate based on stance and target type
       let targetPos: { x: number; y: number };
-      
+
       if (defensiveStance <= 0.5) {
         if (isEnemyTerritory) {
           // Against enemies: always stay at fire range for stance 0-0.5
@@ -630,7 +691,7 @@ export class FrenzyManager {
           };
         }
       }
-      
+
       return {
         x: Math.max(0, Math.min(this.game.width(), targetPos.x)),
         y: Math.max(0, Math.min(this.game.height(), targetPos.y)),
@@ -786,7 +847,7 @@ export class FrenzyManager {
       // Performance: Use borderTiles() directly instead of filtering all tiles
       const borderTilesSet = player.borderTiles();
       const borderTiles = Array.from(borderTilesSet);
-      
+
       if (borderTiles.length === 0) {
         continue;
       }
@@ -802,9 +863,10 @@ export class FrenzyManager {
 
       // Performance: Limit border tiles to prevent O(n*m) in updateUnits
       const MAX_BORDER_TILES = 200;
-      const sampledBorderTiles = borderTiles.length > MAX_BORDER_TILES
-        ? this.sampleArray(borderTiles, MAX_BORDER_TILES)
-        : borderTiles;
+      const sampledBorderTiles =
+        borderTiles.length > MAX_BORDER_TILES
+          ? this.sampleArray(borderTiles, MAX_BORDER_TILES)
+          : borderTiles;
 
       cache.set(player.id(), {
         borderTiles: sampledBorderTiles,
@@ -870,14 +932,13 @@ export class FrenzyManager {
         continue;
       }
       unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
-      
+
       const unitPlayer = this.game.player(unit.playerId);
-      const isDefensePost = unit.unitType === FrenzyUnitType.DefensePost;
-      
+
       // Get unit-specific combat range
       const unitConfig = getUnitConfig(this.config, unit.unitType);
       const combatRange = unitConfig.range;
-        
+
       const enemies = this.spatialGrid
         .getNearby(unit.x, unit.y, combatRange)
         .filter((u) => {
@@ -951,7 +1012,7 @@ export class FrenzyManager {
   private spawnBeamProjectile(attacker: FrenzyUnit, target: FrenzyUnit) {
     // Beam projectile for defense posts - instant hit, visual effect only
     const beamLife = 0.3; // Beam visible for 0.3 seconds
-    
+
     this.projectiles.push({
       id: this.nextProjectileId++,
       playerId: attacker.playerId,
@@ -977,13 +1038,13 @@ export class FrenzyManager {
     combatRange: number,
   ) {
     const unitPlayer = this.game.player(unit.playerId);
-    
+
     // Convert pixel position to tile ref
     const tileX = Math.floor(unit.x);
     const tileY = Math.floor(unit.y);
     const tile = this.game.ref(tileX, tileY);
     if (!this.game.isValidRef(tile)) return;
-    
+
     // Find nearby City/Factory structures
     const nearbyStructures = this.game.nearbyUnits(
       tile,
@@ -1001,15 +1062,19 @@ export class FrenzyManager {
         return structure.hasHealth();
       },
     );
-    
-    if (nearbyStructures.length === 0) return;
-    
+
+    if (nearbyStructures.length === 0) {
+      // No City/Factory nearby - check for enemy HQs
+      this.attackNearbyHQ(unit, deltaTime, unitConfig, combatRange);
+      return;
+    }
+
     // Attack nearest structure
     const nearest = nearbyStructures.reduce((closest, current) =>
       current.distSquared < closest.distSquared ? current : closest,
     );
     const targetStructure = nearest.unit;
-    
+
     // Calculate damage based on unit type
     if (unitConfig.projectileDamage !== undefined) {
       // Burst damage (defense posts)
@@ -1021,12 +1086,121 @@ export class FrenzyManager {
     } else {
       // Regular unit DPS
       targetStructure.modifyHealth(-unitConfig.dps * deltaTime, unitPlayer);
-      
+
       if (unit.weaponCooldown <= 0) {
         this.spawnProjectileToStructure(unit, targetStructure);
         unit.weaponCooldown = unit.fireInterval;
       }
     }
+  }
+
+  /**
+   * Attack enemy HQ (CoreBuilding) if no other targets are in range
+   */
+  private attackNearbyHQ(
+    unit: FrenzyUnit,
+    deltaTime: number,
+    unitConfig: UnitTypeConfig,
+    combatRange: number,
+  ) {
+    const unitPlayer = this.game.player(unit.playerId);
+
+    // Find nearest enemy HQ within combat range
+    let nearestHQ: CoreBuilding | null = null;
+    let nearestDistSquared = Infinity;
+
+    for (const [playerId, building] of this.coreBuildings) {
+      // Skip own HQ
+      if (playerId === unit.playerId) continue;
+
+      // Skip allied HQs
+      const hqOwner = this.game.player(playerId);
+      if (unitPlayer.isAlliedWith(hqOwner)) continue;
+
+      // Check distance
+      const dx = building.x - unit.x;
+      const dy = building.y - unit.y;
+      const distSquared = dx * dx + dy * dy;
+
+      if (
+        distSquared <= combatRange * combatRange &&
+        distSquared < nearestDistSquared
+      ) {
+        nearestHQ = building;
+        nearestDistSquared = distSquared;
+      }
+    }
+
+    if (!nearestHQ) return;
+
+    // Attack the HQ
+    if (unitConfig.projectileDamage !== undefined) {
+      // Burst damage (defense posts)
+      if (unit.weaponCooldown <= 0) {
+        nearestHQ.health -= unitConfig.projectileDamage;
+        this.spawnBeamProjectileToHQ(unit, nearestHQ);
+        unit.weaponCooldown = unit.fireInterval;
+      }
+    } else {
+      // Regular unit DPS
+      nearestHQ.health -= unitConfig.dps * deltaTime;
+
+      if (unit.weaponCooldown <= 0) {
+        this.spawnProjectileToHQ(unit, nearestHQ);
+        unit.weaponCooldown = unit.fireInterval;
+      }
+    }
+
+    // Check if HQ is destroyed by damage
+    if (nearestHQ.health <= 0) {
+      this.defeatPlayer(nearestHQ.playerId, unit.playerId);
+    }
+  }
+
+  /**
+   * Spawn projectile toward an enemy HQ
+   */
+  private spawnProjectileToHQ(attacker: FrenzyUnit, target: CoreBuilding) {
+    const dx = target.x - attacker.x;
+    const dy = target.y - attacker.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = this.config.projectileSpeed;
+    const vx = (dx / dist) * speed;
+    const vy = (dy / dist) * speed;
+    const travelTime = Math.max(dist / speed, 0.15);
+
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: attacker.x,
+      y: attacker.y,
+      vx,
+      vy,
+      age: 0,
+      life: travelTime,
+      isElite: attacker.unitType === FrenzyUnitType.EliteSoldier,
+    });
+  }
+
+  /**
+   * Spawn beam projectile toward an enemy HQ
+   */
+  private spawnBeamProjectileToHQ(attacker: FrenzyUnit, target: CoreBuilding) {
+    const beamLife = 0.3;
+
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: target.x,
+      y: target.y,
+      vx: 0,
+      vy: 0,
+      age: 0,
+      life: beamLife,
+      isBeam: true,
+      startX: attacker.x,
+      startY: attacker.y,
+    });
   }
 
   /**
@@ -1036,7 +1210,7 @@ export class FrenzyManager {
     const targetTile = target.tile();
     const targetX = this.game.x(targetTile);
     const targetY = this.game.y(targetTile);
-    
+
     const dx = targetX - attacker.x;
     const dy = targetY - attacker.y;
     const dist = Math.hypot(dx, dy) || 1;
@@ -1054,6 +1228,7 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
+      isElite: attacker.unitType === FrenzyUnitType.EliteSoldier,
     });
   }
 
@@ -1064,9 +1239,9 @@ export class FrenzyManager {
     const targetTile = target.tile();
     const targetX = this.game.x(targetTile);
     const targetY = this.game.y(targetTile);
-    
+
     const beamLife = 0.3;
-    
+
     this.projectiles.push({
       id: this.nextProjectileId++,
       playerId: attacker.playerId,
@@ -1129,7 +1304,7 @@ export class FrenzyManager {
           }
 
           const tile = this.game.ref(tileX, tileY);
-          
+
           // Performance: Skip if already checked by this player this tick
           const tileKey = tile * 1000 + unit.playerId.charCodeAt(0);
           if (checkedTiles.has(tileKey)) {
@@ -1221,11 +1396,105 @@ export class FrenzyManager {
     const dx = tileX - building.tileX;
     const dy = tileY - building.tileY;
 
+    // Only check if the captured tile is within the HQ radius
     if (dx * dx + dy * dy > radiusSquared) {
       return;
     }
 
+    // Check if ALL tiles within the HQ radius are now NOT owned by the defender
+    // The HQ is captured when the defender has no tiles left in the capture zone
+    for (let checkDx = -radius; checkDx <= radius; checkDx++) {
+      for (let checkDy = -radius; checkDy <= radius; checkDy++) {
+        if (checkDx * checkDx + checkDy * checkDy > radiusSquared) {
+          continue; // Skip tiles outside circular radius
+        }
+        const checkTileX = building.tileX + checkDx;
+        const checkTileY = building.tileY + checkDy;
+
+        if (!this.game.isValidCoord(checkTileX, checkTileY)) {
+          continue;
+        }
+
+        const checkTile = this.game.ref(checkTileX, checkTileY);
+
+        // Skip water tiles - they don't count toward HQ defense
+        if (this.game.isWater(checkTile)) {
+          continue;
+        }
+
+        const owner = this.game.owner(checkTile);
+        // If the defender still owns any tile within the radius, the HQ survives
+        if (owner.id() === defenderId) {
+          return;
+        }
+      }
+    }
+
+    // All land tiles within radius are lost - HQ is captured
     this.defeatPlayer(defenderId, conquerorId);
+  }
+
+  /**
+   * Check all HQs each tick to see if they should be captured
+   * This handles cases where territory is captured via game mechanics
+   * (e.g., surrounded clusters) rather than Frenzy unit capture
+   */
+  private checkAllHQCaptures() {
+    const playersToDefeat: Array<{
+      defenderId: PlayerID;
+      conquerorId: PlayerID;
+    }> = [];
+
+    for (const [playerId, building] of this.coreBuildings) {
+      if (this.defeatedPlayers.has(playerId)) {
+        continue;
+      }
+
+      const radius = Math.max(0, Math.floor(this.config.hqCaptureRadius));
+      const radiusSquared = radius * radius;
+
+      // Check if all tiles within the HQ radius are NOT owned by the defender
+      let defenderOwnsAnyTile = false;
+      let conquerorId: PlayerID | null = null;
+
+      for (let dx = -radius; dx <= radius && !defenderOwnsAnyTile; dx++) {
+        for (let dy = -radius; dy <= radius && !defenderOwnsAnyTile; dy++) {
+          if (dx * dx + dy * dy > radiusSquared) {
+            continue;
+          }
+          const checkTileX = building.tileX + dx;
+          const checkTileY = building.tileY + dy;
+
+          if (!this.game.isValidCoord(checkTileX, checkTileY)) {
+            continue;
+          }
+
+          const checkTile = this.game.ref(checkTileX, checkTileY);
+
+          if (this.game.isWater(checkTile)) {
+            continue;
+          }
+
+          const owner = this.game.owner(checkTile);
+          if (owner.id() === playerId) {
+            defenderOwnsAnyTile = true;
+          } else if (owner.isPlayer() && conquerorId === null) {
+            // Track a potential conqueror (the first enemy we find)
+            conquerorId = owner.id();
+          }
+        }
+      }
+
+      // If defender owns no tiles in the HQ zone, mark for defeat
+      if (!defenderOwnsAnyTile && conquerorId !== null) {
+        playersToDefeat.push({ defenderId: playerId, conquerorId });
+      }
+    }
+
+    // Defeat players after iteration to avoid modifying the map during iteration
+    for (const { defenderId, conquerorId } of playersToDefeat) {
+      this.defeatPlayer(defenderId, conquerorId);
+    }
   }
 
   private defeatPlayer(loserId: PlayerID, winnerId: PlayerID) {
@@ -1311,7 +1580,12 @@ export class FrenzyManager {
   /**
    * Apply area damage to all units within a radius (for nukes/bombs)
    */
-  applyAreaDamage(centerX: number, centerY: number, radius: number, damage: number) {
+  applyAreaDamage(
+    centerX: number,
+    centerY: number,
+    radius: number,
+    damage: number,
+  ) {
     const radiusSquared = radius * radius;
     for (const unit of this.units) {
       const dx = unit.x - centerX;
@@ -1354,22 +1628,24 @@ export class FrenzyManager {
     if (!building) {
       return false;
     }
-    
+
     const player = this.game.player(playerId);
     if (!player) {
       return false;
     }
-    
+
     const upgradeCost = BigInt(100_000);
     if (player.gold() < upgradeCost) {
       return false;
     }
-    
+
     // Deduct gold and upgrade tier
     player.removeGold(upgradeCost);
     building.tier += 1;
-    
-    console.log(`[FrenzyManager] Player ${player.name()} upgraded HQ to tier ${building.tier}`);
+
+    console.log(
+      `[FrenzyManager] Player ${player.name()} upgraded HQ to tier ${building.tier}`,
+    );
     return true;
   }
 
@@ -1405,38 +1681,40 @@ export class FrenzyManager {
     if (!factory) {
       return false;
     }
-    
+
     // Check if factory belongs to player
     if (factory.playerId !== playerId) {
       return false;
     }
-    
+
     // Check if already tier 2+
     if (factory.tier >= 2) {
       return false;
     }
-    
+
     // Check if HQ tier is >= 2 (required to upgrade factories)
     const building = this.coreBuildings.get(playerId);
     if (!building || building.tier < 2) {
       return false;
     }
-    
+
     const player = this.game.player(playerId);
     if (!player) {
       return false;
     }
-    
+
     const upgradeCost = BigInt(this.config.factoryUpgradeCost);
     if (player.gold() < upgradeCost) {
       return false;
     }
-    
+
     // Deduct gold and upgrade tier
     player.removeGold(upgradeCost);
     factory.tier = 2;
-    
-    console.log(`[FrenzyManager] Player ${player.name()} upgraded factory to tier ${factory.tier}`);
+
+    console.log(
+      `[FrenzyManager] Player ${player.name()} upgraded factory to tier ${factory.tier}`,
+    );
     return true;
   }
 
