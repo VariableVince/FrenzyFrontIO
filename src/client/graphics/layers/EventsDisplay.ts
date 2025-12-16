@@ -989,7 +989,7 @@ export class EventsDisplay extends LitElement implements Layer {
                 `,
                 onClick: this.toggleHidden,
                 className:
-                  "text-white cursor-pointer pointer-events-auto w-fit p-2 lg:p-3 rounded-md bg-gray-800/70 backdrop-blur",
+                  "text-white cursor-pointer pointer-events-auto w-fit p-2 lg:p-3 rounded-md bg-red-950/70 backdrop-blur",
               })}
             </div>
           `
@@ -1000,7 +1000,7 @@ export class EventsDisplay extends LitElement implements Layer {
             >
               <!-- Button Bar -->
               <div
-                class="w-full p-2 lg:p-3 rounded-t-none md:rounded-t-md bg-gray-800/70"
+                class="w-full p-2 lg:p-3 rounded-t-none md:rounded-t-md bg-red-950/70"
               >
                 <div class="flex justify-between items-center">
                   <div class="flex gap-4">
@@ -1044,7 +1044,7 @@ export class EventsDisplay extends LitElement implements Layer {
 
               <!-- Content Area -->
               <div
-                class="rounded-b-none md:rounded-b-md bg-gray-800/70 max-h-[30vh] flex flex-col-reverse overflow-y-auto w-full h-full"
+                class="rounded-b-none md:rounded-b-md bg-red-950/70 max-h-[30vh] flex flex-col-reverse overflow-y-auto w-full h-full"
               >
                 <div>
                   <table
@@ -1094,7 +1094,7 @@ export class EventsDisplay extends LitElement implements Layer {
                                               : btn.className.includes(
                                                     "btn-gray",
                                                   )
-                                                ? "bg-gray-500 hover:bg-gray-600"
+                                                ? "bg-red-800 hover:bg-red-700"
                                                 : "bg-green-600 hover:bg-green-700"}"
                                             @click=${() => {
                                               btn.action();

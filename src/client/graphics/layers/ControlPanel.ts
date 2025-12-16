@@ -230,11 +230,11 @@ export class ControlPanel extends LitElement implements Layer {
       </style>
       <div
         class="${this._isVisible
-          ? "w-full sm:max-w-[320px] text-sm sm:text-base bg-gray-800/70 p-2 pr-3 sm:p-4 shadow-lg sm:rounded-lg backdrop-blur"
+          ? "w-full sm:max-w-[320px] text-sm sm:text-base bg-red-950/70 p-2 pr-3 sm:p-4 shadow-lg sm:rounded-lg backdrop-blur border border-red-800/30"
           : "hidden"}"
         @contextmenu=${(e: MouseEvent) => e.preventDefault()}
       >
-        <div class="block bg-black/30 text-white mb-4 p-2 rounded">
+        <div class="block bg-black/40 text-white mb-4 p-2 rounded border border-red-900/30">
           <div class="flex justify-between mb-1">
             <span class="font-bold"
               >${translateText(this._isFrenzy ? "control_panel.units" : "control_panel.troops")}:</span

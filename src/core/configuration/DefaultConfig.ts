@@ -28,6 +28,7 @@ import { GameConfig, GameID, TeamCountConfig } from "../Schemas";
 import { NukeType } from "../StatsSchemas";
 import { assertNever, sigmoid, simpleHash, within } from "../Util";
 import { Config, GameEnv, NukeMagnitude, ServerConfig, Theme } from "./Config";
+import { FrenzyTheme } from "./FrenzyTheme";
 import { PastelTheme } from "./PastelTheme";
 import { PastelThemeDark } from "./PastelThemeDark";
 import { DEFAULT_FRENZY_CONFIG } from "../game/frenzy/FrenzyTypes";
@@ -230,6 +231,7 @@ export abstract class DefaultServerConfig implements ServerConfig {
 export class DefaultConfig implements Config {
   private pastelTheme: PastelTheme = new PastelTheme();
   private pastelThemeDark: PastelThemeDark = new PastelThemeDark();
+  private frenzyTheme: FrenzyTheme = new FrenzyTheme();
   constructor(
     private _serverConfig: ServerConfig,
     private _gameConfig: GameConfig,
@@ -657,6 +659,10 @@ export class DefaultConfig implements Config {
     return this.bots();
   }
   theme(): Theme {
+    // Frenzy mode always uses the dark, desaturated FrenzyTheme
+    if (this._gameConfig.gameFork === GameFork.Frenzy) {
+      return this.frenzyTheme;
+    }
     return this.userSettings()?.darkMode()
       ? this.pastelThemeDark
       : this.pastelTheme;
