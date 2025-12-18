@@ -1,4 +1,11 @@
-import { Execution, Game, Player, Unit, UnitType } from "../game/Game";
+import {
+  Execution,
+  Game,
+  GameFork,
+  Player,
+  Unit,
+  UnitType,
+} from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { PseudoRandom } from "../PseudoRandom";
 import { TradeShipExecution } from "./TradeShipExecution";
@@ -38,6 +45,22 @@ export class PortExecution implements Execution {
       }
       this.port = this.player.buildUnit(UnitType.Port, spawn, {});
       this.createStation();
+
+      // Register port as warship spawner in Frenzy mode
+      if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+        const frenzyManager = this.mg.frenzyManager();
+        if (frenzyManager && this.port) {
+          const portTile = this.port.tile();
+          if (portTile) {
+            frenzyManager.registerPort(
+              this.player.id(),
+              portTile,
+              this.mg.x(portTile),
+              this.mg.y(portTile),
+            );
+          }
+        }
+      }
     }
 
     if (!this.port.isActive()) {

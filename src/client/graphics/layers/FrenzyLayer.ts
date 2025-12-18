@@ -980,6 +980,7 @@ export class FrenzyLayer implements Layer {
 
     const isDefensePost = unit.unitType === "defensePost";
     const isEliteSoldier = unit.unitType === "eliteSoldier";
+    const isWarship = unit.unitType === "warship";
 
     if (isDefensePost) {
       // Defense post: shield icon (50% smaller than before)
@@ -1023,6 +1024,51 @@ export class FrenzyLayer implements Layer {
       // Golden border for elite units
       context.strokeStyle = "#FFD700";
       context.lineWidth = 1.5;
+      context.stroke();
+
+      // Black outer outline
+      context.strokeStyle = "#000";
+      context.lineWidth = 0.5;
+      context.stroke();
+    } else if (isWarship) {
+      // Warship: boat/ship shape with pointed bow
+      const size = 10;
+
+      // Ship hull shape (pointed at front, flat at back)
+      context.fillStyle = player.territoryColor().toRgbString();
+      context.beginPath();
+      // Bow (front point)
+      context.moveTo(x, y - size / 2);
+      // Right side
+      context.lineTo(x + size / 3, y - size / 6);
+      context.lineTo(x + size / 3, y + size / 3);
+      // Stern (back, flat)
+      context.lineTo(x - size / 3, y + size / 3);
+      // Left side
+      context.lineTo(x - size / 3, y - size / 6);
+      context.closePath();
+      context.fill();
+
+      // Deck line (horizontal bar)
+      context.fillStyle = "#fff";
+      context.fillRect(x - size / 4, y - size / 10, size / 2, size / 6);
+
+      // Cannon turret (small circle on deck)
+      context.beginPath();
+      context.arc(x, y + size / 8, size / 6, 0, Math.PI * 2);
+      context.fillStyle = "#444";
+      context.fill();
+
+      // Navy blue border
+      context.strokeStyle = "#1a3a6e";
+      context.lineWidth = 1.5;
+      context.beginPath();
+      context.moveTo(x, y - size / 2);
+      context.lineTo(x + size / 3, y - size / 6);
+      context.lineTo(x + size / 3, y + size / 3);
+      context.lineTo(x - size / 3, y + size / 3);
+      context.lineTo(x - size / 3, y - size / 6);
+      context.closePath();
       context.stroke();
 
       // Black outer outline

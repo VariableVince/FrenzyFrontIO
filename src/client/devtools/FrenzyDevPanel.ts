@@ -3,7 +3,6 @@ import { customElement, state } from "lit/decorators.js";
 import {
   DEFAULT_FRENZY_CONFIG,
   FrenzyConfig,
-  FrenzyUnitType,
 } from "../../core/game/frenzy/FrenzyTypes";
 import { GameFork, GameType } from "../../core/game/Game";
 import { JoinLobbyEvent } from "../types/JoinLobbyEvent";
@@ -24,7 +23,13 @@ interface SimpleConfigField {
 interface UnitConfigField {
   type: "unit";
   unitType: "soldier" | "eliteSoldier" | "defensePost";
-  property: "health" | "speed" | "dps" | "range" | "fireInterval" | "projectileDamage";
+  property:
+    | "health"
+    | "speed"
+    | "dps"
+    | "range"
+    | "fireInterval"
+    | "projectileDamage";
   label: string;
   min: number;
   max: number;
@@ -514,7 +519,6 @@ export class FrenzyDevPanel extends LitElement {
 
   private renderField(field: ConfigField) {
     const value = this.getFieldValue(field);
-    const fieldKey = this.getFieldKey(field);
     return html`
       <div class="field">
         <label>
@@ -746,15 +750,16 @@ function persistDefaults(config: FrenzyConfig): StoredDefaultsSnapshot | null {
 }
 
 function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
-  const merged: FrenzyConfig = { 
+  const merged: FrenzyConfig = {
     ...DEFAULT_FRENZY_CONFIG,
     units: {
       soldier: { ...DEFAULT_FRENZY_CONFIG.units.soldier },
       eliteSoldier: { ...DEFAULT_FRENZY_CONFIG.units.eliteSoldier },
       defensePost: { ...DEFAULT_FRENZY_CONFIG.units.defensePost },
+      warship: { ...DEFAULT_FRENZY_CONFIG.units.warship },
     },
   };
-  
+
   // Handle simple number fields
   (Object.keys(partial) as Array<keyof FrenzyConfig>).forEach((key) => {
     if (key === "units") return; // Handle units separately
@@ -763,21 +768,23 @@ function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
       (merged as any)[key] = value;
     }
   });
-  
+
   // Handle nested unit configs
   if (partial.units) {
-    (["soldier", "eliteSoldier", "defensePost"] as const).forEach((unitType) => {
-      const unitConfig = partial.units?.[unitType];
-      if (unitConfig) {
-        Object.keys(unitConfig).forEach((prop) => {
-          const value = (unitConfig as any)[prop];
-          if (typeof value === "number" && Number.isFinite(value)) {
-            (merged.units[unitType] as any)[prop] = value;
-          }
-        });
-      }
-    });
+    (["soldier", "eliteSoldier", "defensePost", "warship"] as const).forEach(
+      (unitType) => {
+        const unitConfig = partial.units?.[unitType];
+        if (unitConfig) {
+          Object.keys(unitConfig).forEach((prop) => {
+            const value = (unitConfig as any)[prop];
+            if (typeof value === "number" && Number.isFinite(value)) {
+              (merged.units[unitType] as any)[prop] = value;
+            }
+          });
+        }
+      },
+    );
   }
-  
+
   return merged;
 }

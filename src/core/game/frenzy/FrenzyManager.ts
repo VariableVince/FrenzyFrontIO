@@ -18,6 +18,7 @@ import {
   FrenzyUnit,
   FrenzyUnitType,
   getUnitConfig,
+  PortSpawner,
   UnitTypeConfig,
 } from "./FrenzyTypes";
 import { SpatialHashGrid } from "./SpatialHashGrid";
@@ -31,6 +32,7 @@ export class FrenzyManager {
   private units: FrenzyUnit[] = [];
   private coreBuildings: Map<PlayerID, CoreBuilding> = new Map();
   private factories: Map<TileRef, FactorySpawner> = new Map();
+  private ports: Map<TileRef, PortSpawner> = new Map();
   private crystals: CrystalCluster[] = [];
   private nextCrystalId = 1;
   private spatialGrid: SpatialHashGrid;
@@ -82,6 +84,10 @@ export class FrenzyManager {
           defensePost: {
             ...DEFAULT_FRENZY_CONFIG.units.defensePost,
             ...config.units.defensePost,
+          },
+          warship: {
+            ...DEFAULT_FRENZY_CONFIG.units.warship,
+            ...config.units.warship,
           },
         },
       };
@@ -189,6 +195,10 @@ export class FrenzyManager {
           defensePost: {
             ...this.config.units.defensePost,
             ...overrides.units.defensePost,
+          },
+          warship: {
+            ...this.config.units.warship,
+            ...overrides.units.warship,
           },
         },
       };
@@ -350,6 +360,38 @@ export class FrenzyManager {
             : FrenzyUnitType.Soldier;
         this.spawnUnit(factory.playerId, factory.x, factory.y, unitType);
         factory.spawnTimer = factory.spawnInterval;
+      }
+    }
+
+    // Spawn warships from ports
+    for (const [tile, port] of this.ports) {
+      // Check if port still exists and is owned by same player
+      const owner = this.game.owner(tile);
+      if (!owner.isPlayer() || owner.id() !== port.playerId) {
+        this.ports.delete(tile);
+        continue;
+      }
+
+      const building = this.coreBuildings.get(port.playerId);
+      if (!building) continue;
+
+      port.spawnTimer -= deltaTime;
+
+      if (
+        port.spawnTimer <= 0 &&
+        building.unitCount < this.getMaxUnitsForPlayer(port.playerId)
+      ) {
+        // Find a water tile near the port to spawn the warship
+        const waterSpawn = this.findWaterSpawnNearPort(port.x, port.y);
+        if (waterSpawn) {
+          this.spawnUnit(
+            port.playerId,
+            waterSpawn.x,
+            waterSpawn.y,
+            FrenzyUnitType.Warship,
+          );
+        }
+        port.spawnTimer = port.spawnInterval;
       }
     }
   }
@@ -525,6 +567,12 @@ export class FrenzyManager {
       }
       // Defense posts don't move
       if (unit.unitType === FrenzyUnitType.DefensePost) {
+        continue;
+      }
+
+      // Warships have separate movement logic
+      if (unit.unitType === FrenzyUnitType.Warship) {
+        this.updateWarshipMovement(unit, deltaTime);
         continue;
       }
 
@@ -835,6 +883,133 @@ export class FrenzyManager {
       x: this.game.width() / 2,
       y: this.game.height() / 2,
     };
+  }
+
+  /**
+   * Update warship movement - warships patrol on water near enemy coastlines
+   */
+  private updateWarshipMovement(unit: FrenzyUnit, deltaTime: number) {
+    const RETARGET_DISTANCE = 10;
+
+    // Check if unit needs a new target
+    const distToTarget = Math.hypot(
+      unit.targetX - unit.x,
+      unit.targetY - unit.y,
+    );
+    const needsNewTarget =
+      distToTarget < RETARGET_DISTANCE ||
+      (unit.targetX === 0 && unit.targetY === 0);
+
+    if (needsNewTarget) {
+      const newTarget = this.findWarshipTarget(unit);
+      unit.targetX = newTarget.x;
+      unit.targetY = newTarget.y;
+    }
+
+    const dx = unit.targetX - unit.x;
+    const dy = unit.targetY - unit.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const stopDistance = Math.max(0, this.config.stopDistance);
+    if (dist > stopDistance) {
+      const unitConfig = getUnitConfig(this.config, unit.unitType);
+      const speed = unitConfig.speed;
+
+      // Normalize direction
+      unit.vx = (dx / dist) * speed;
+      unit.vy = (dy / dist) * speed;
+
+      // Calculate next position
+      const nextX = unit.x + unit.vx * deltaTime;
+      const nextY = unit.y + unit.vy * deltaTime;
+
+      // Only move if next position is on water
+      const nextTile = this.game.ref(Math.floor(nextX), Math.floor(nextY));
+      if (nextTile && this.game.isWater(nextTile)) {
+        unit.x = nextX;
+        unit.y = nextY;
+      } else {
+        // Can't move to land - pick a new target
+        unit.targetX = unit.x;
+        unit.targetY = unit.y;
+        unit.vx = 0;
+        unit.vy = 0;
+      }
+
+      // Keep within map bounds
+      unit.x = Math.max(0, Math.min(this.game.width(), unit.x));
+      unit.y = Math.max(0, Math.min(this.game.height(), unit.y));
+    } else {
+      unit.vx = 0;
+      unit.vy = 0;
+    }
+  }
+
+  /**
+   * Find a good target position for a warship - water tiles near enemy territory
+   */
+  private findWarshipTarget(unit: FrenzyUnit): { x: number; y: number } {
+    const searchRadius = 30;
+    const unitPlayer = this.game.player(unit.playerId);
+
+    // Look for water tiles near enemy/neutral land
+    let bestTarget: { x: number; y: number } | null = null;
+    let bestScore = Infinity;
+
+    // Sample random positions around the unit
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * searchRadius + 5;
+      const checkX = Math.floor(unit.x + Math.cos(angle) * dist);
+      const checkY = Math.floor(unit.y + Math.sin(angle) * dist);
+
+      const tile = this.game.ref(checkX, checkY);
+      if (!tile || !this.game.isWater(tile)) continue;
+
+      // Prefer water tiles near enemy coastlines
+      let coastScore = 0;
+      const neighbors = this.game.neighbors(tile);
+      for (const neighbor of neighbors) {
+        if (!this.game.isWater(neighbor)) {
+          const owner = this.game.owner(neighbor);
+          if (owner.isPlayer() && owner.id() !== unit.playerId) {
+            if (!unitPlayer.isAlliedWith(owner)) {
+              coastScore += 10; // Near enemy land
+            }
+          } else if (!owner.isPlayer()) {
+            coastScore += 1; // Near neutral land
+          }
+        }
+      }
+
+      if (coastScore > 0) {
+        const distToTile = Math.hypot(checkX - unit.x, checkY - unit.y);
+        const score = distToTile / coastScore;
+        if (score < bestScore) {
+          bestScore = score;
+          bestTarget = { x: checkX + 0.5, y: checkY + 0.5 };
+        }
+      }
+    }
+
+    // If no good coastal target found, just patrol randomly on water
+    if (!bestTarget) {
+      for (let i = 0; i < 10; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 15 + 5;
+        const checkX = Math.floor(unit.x + Math.cos(angle) * dist);
+        const checkY = Math.floor(unit.y + Math.sin(angle) * dist);
+
+        const tile = this.game.ref(checkX, checkY);
+        if (tile && this.game.isWater(tile)) {
+          return { x: checkX + 0.5, y: checkY + 0.5 };
+        }
+      }
+      // Stay in place if no valid water found
+      return { x: unit.x, y: unit.y };
+    }
+
+    return bestTarget;
   }
 
   queueAttackOrder(
@@ -1718,6 +1893,54 @@ export class FrenzyManager {
   }
 
   /**
+   * Register a port as a warship spawner
+   */
+  registerPort(playerId: PlayerID, tile: TileRef, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    if (this.ports.has(tile)) {
+      return; // Already registered
+    }
+    this.ports.set(tile, {
+      playerId,
+      x,
+      y,
+      tile,
+      spawnTimer: this.config.spawnInterval * 1.5, // Warships spawn slower
+      spawnInterval: this.config.spawnInterval * 1.5,
+      health: this.config.cityHealth,
+      maxHealth: this.config.cityHealth,
+      tier: 1,
+    });
+  }
+
+  /**
+   * Find a water tile near a port to spawn a warship
+   */
+  private findWaterSpawnNearPort(
+    portX: number,
+    portY: number,
+  ): { x: number; y: number } | null {
+    // Search in a spiral pattern around the port for water
+    const searchRadius = 5;
+    for (let r = 1; r <= searchRadius; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue; // Only check perimeter
+          const x = Math.floor(portX) + dx;
+          const y = Math.floor(portY) + dy;
+          const tile = this.game.ref(x, y);
+          if (tile && this.game.isWater(tile)) {
+            return { x: x + 0.5, y: y + 0.5 }; // Center of tile
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Apply area damage to all units within a radius (for nukes/bombs)
    */
   applyAreaDamage(
@@ -1794,6 +2017,13 @@ export class FrenzyManager {
    */
   getFactory(tile: TileRef): FactorySpawner | undefined {
     return this.factories.get(tile);
+  }
+
+  /**
+   * Get port at a tile
+   */
+  getPort(tile: TileRef): PortSpawner | undefined {
+    return this.ports.get(tile);
   }
 
   /**

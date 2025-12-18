@@ -10,6 +10,7 @@ export enum FrenzyUnitType {
   Soldier = "soldier",
   EliteSoldier = "eliteSoldier",
   DefensePost = "defensePost",
+  Warship = "warship",
 }
 
 // Per-unit-type configuration
@@ -80,6 +81,18 @@ export interface FactorySpawner {
   tier: number; // Factory tier (1 = base, 2 = elite units)
 }
 
+export interface PortSpawner {
+  playerId: PlayerID;
+  x: number;
+  y: number;
+  tile: TileRef;
+  spawnTimer: number;
+  spawnInterval: number;
+  health: number;
+  maxHealth: number;
+  tier: number; // Port tier (1 = base, 2 = elite warships)
+}
+
 export interface CrystalCluster {
   id: number;
   x: number; // Pixel coordinates (center)
@@ -94,6 +107,7 @@ export interface FrenzyConfig {
     soldier: UnitTypeConfig;
     eliteSoldier: UnitTypeConfig;
     defensePost: UnitTypeConfig;
+    warship: UnitTypeConfig;
   };
 
   // Spawning
@@ -145,6 +159,8 @@ export function getUnitConfig(
       return config.units.eliteSoldier;
     case FrenzyUnitType.DefensePost:
       return config.units.defensePost;
+    case FrenzyUnitType.Warship:
+      return config.units.warship;
     default:
       return config.units.soldier;
   }
@@ -174,6 +190,14 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       range: 37.5, // 1.5x soldier range
       fireInterval: 4, // Slow fire rate like Obelisk
       projectileDamage: 100, // One-shot tier 1 units
+    },
+    warship: {
+      health: 250, // Tough naval unit
+      speed: 2.0, // Slower than land units
+      dps: 20, // Strong damage
+      range: 45, // Long range - can hit land from water
+      fireInterval: 1.5, // Moderate fire rate
+      projectileDamage: 50, // Good projectile damage
     },
   },
 
