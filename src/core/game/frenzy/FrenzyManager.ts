@@ -519,10 +519,25 @@ export class FrenzyManager {
     const building = this.coreBuildings.get(playerId);
     if (!building) return;
 
-    // Add small random offset so units don't stack (but not for defense posts)
+    // Add small random offset so units don't stack (but not for defense posts or warships)
     const isDefensePost = unitType === FrenzyUnitType.DefensePost;
-    const offsetX = isDefensePost ? 0 : (Math.random() - 0.5) * 20;
-    const offsetY = isDefensePost ? 0 : (Math.random() - 0.5) * 20;
+    const isWarship = unitType === FrenzyUnitType.Warship;
+    const offsetX = isDefensePost || isWarship ? 0 : (Math.random() - 0.5) * 20;
+    const offsetY = isDefensePost || isWarship ? 0 : (Math.random() - 0.5) * 20;
+
+    const spawnX = x + offsetX;
+    const spawnY = y + offsetY;
+
+    // For warships, verify spawn position is on water
+    if (isWarship) {
+      const tile = this.game.ref(Math.floor(spawnX), Math.floor(spawnY));
+      if (!tile || !this.game.isWater(tile)) {
+        console.warn(
+          `[FrenzyManager] Warship spawn aborted - position not on water: ${spawnX}, ${spawnY}`,
+        );
+        return; // Don't spawn on land
+      }
+    }
 
     // Get unit-specific configuration
     const unitConfig = getUnitConfig(this.config, unitType);
@@ -532,14 +547,14 @@ export class FrenzyManager {
     const unit: FrenzyUnit = {
       id: this.nextUnitId++,
       playerId,
-      x: x + offsetX,
-      y: y + offsetY,
+      x: spawnX,
+      y: spawnY,
       vx: 0,
       vy: 0,
       health,
       maxHealth: health,
-      targetX: x,
-      targetY: y,
+      targetX: spawnX,
+      targetY: spawnY,
       weaponCooldown: Math.random() * fireInterval,
       unitType,
       fireInterval,
