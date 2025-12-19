@@ -1222,7 +1222,13 @@ export class FrenzyLayer implements Layer {
 
   private renderCrystal(
     context: CanvasRenderingContext2D,
-    crystal: { id: number; x: number; y: number; crystalCount: number },
+    crystal: {
+      id: number;
+      x: number;
+      y: number;
+      crystalCount: number;
+      rotation: number;
+    },
   ) {
     const x = crystal.x - this.game.width() / 2;
     const y = crystal.y - this.game.height() / 2;
@@ -1237,7 +1243,13 @@ export class FrenzyLayer implements Layer {
     );
 
     for (const pos of crystalPositions) {
-      this.renderSingleCrystal(context, x + pos.x, y + pos.y, pos.size);
+      this.renderSingleCrystal(
+        context,
+        x + pos.x,
+        y + pos.y,
+        pos.size,
+        crystal.rotation,
+      );
     }
   }
 
@@ -1274,11 +1286,19 @@ export class FrenzyLayer implements Layer {
     x: number,
     y: number,
     size: number,
+    rotation: number,
   ) {
     // Growth animation - subtle pulse (crystals are hard, no movement)
     const time = performance.now() / 1000;
     const halfWidth = size / 2;
     const height = size * 1.8; // Taller crystal
+    const bottomY = y + height * 0.3; // Bottom anchor point
+
+    // Save context and apply rotation around bottom center
+    context.save();
+    context.translate(x, bottomY);
+    context.rotate(rotation);
+    context.translate(-x, -bottomY);
 
     // Outer glow with animated intensity
     const glowIntensity = 0.3 + Math.sin(time * 2) * 0.1; // Glow pulses, not size
@@ -1328,5 +1348,8 @@ export class FrenzyLayer implements Layer {
     context.lineTo(x - halfWidth, y - height * 0.2);
     context.closePath();
     context.stroke();
+
+    // Restore context
+    context.restore();
   }
 }

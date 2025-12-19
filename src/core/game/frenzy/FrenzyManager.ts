@@ -101,6 +101,8 @@ export class FrenzyManager {
     this.spatialGrid = new SpatialHashGrid(50); // 50px cell size
     // Use game ticks as seed for deterministic randomness in multiplayer
     this.random = new PseudoRandom(this.game.ticks());
+    // Generate crystals immediately so they're visible during spawn selection
+    this.generateCrystals();
   }
 
   /**
@@ -293,11 +295,6 @@ export class FrenzyManager {
 
     this.tickCount++;
 
-    // Generate crystals once at game start (only on circle map for now)
-    if (this.tickCount === 1) {
-      this.generateCrystals();
-    }
-
     // Check for newly spawned players and create their HQs
     for (const player of this.game.players()) {
       const tiles = player.tiles();
@@ -437,12 +434,16 @@ export class FrenzyManager {
         Math.max(1, Math.floor(1 + centerBonus * 3 + this.random.next() * 2)),
       );
 
+      // Random rotation for visual variety (bottom anchored, tilt up to 30 degrees each way)
+      const rotation = (this.random.next() - 0.5) * (Math.PI / 3);
+
       this.crystals.push({
         id: this.nextCrystalId++,
         x,
         y,
         tile,
         crystalCount,
+        rotation,
       });
     }
   }
@@ -2169,6 +2170,7 @@ export class FrenzyManager {
         x: c.x,
         y: c.y,
         crystalCount: c.crystalCount,
+        rotation: c.rotation,
       })),
       pendingGoldPayouts: [...this.pendingGoldPayouts],
     };
