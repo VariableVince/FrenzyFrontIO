@@ -4,7 +4,7 @@ import { TransformHandler } from "../TransformHandler";
 import { Layer } from "./Layer";
 
 /**
- * Floating gold text effect for city income
+ * Floating gold text effect for mine income
  */
 interface GoldTextFx {
   x: number;
@@ -15,11 +15,25 @@ interface GoldTextFx {
 }
 
 /**
+ * Gold flow particle - flows from territory/crystals to mines
+ */
+interface GoldFlowParticle {
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  progress: number; // 0-1
+  duration: number; // ms
+  size: number;
+  isCrystal: boolean; // Purple if from crystal, gold if from land
+}
+
+/**
  * Unified structure type for Frenzy mode rendering
  */
 enum FrenzyStructureType {
   HQ = "hq",
-  City = "city",
+  Mine = "mine",
   Factory = "factory",
   DefensePost = "defensePost",
   Port = "port",
@@ -49,6 +63,7 @@ interface FrenzyStructure {
  */
 export class FrenzyLayer implements Layer {
   private goldTextEffects: GoldTextFx[] = [];
+  private goldFlowParticles: GoldFlowParticle[] = [];
   private lastPayoutIds = new Set<string>();
   private lastFrameTime: number = 0;
 
@@ -105,12 +120,23 @@ export class FrenzyLayer implements Layer {
             lifeTime: 0,
             duration: 1500, // 1.5 seconds
           });
+
+          // Spawn flow particles from nearby crystals and territory
+          this.spawnGoldFlowParticles(
+            payout.x,
+            payout.y,
+            payout.gold,
+            frenzyState.crystals ?? [],
+          );
         }
       }
       this.lastPayoutIds = newPayoutIds;
     } else {
       this.lastPayoutIds.clear();
     }
+
+    // Render and update gold flow particles (below crystals)
+    this.updateAndRenderGoldFlowParticles(context, deltaTime);
 
     // Render crystals first (bottom layer)
     if (frenzyState.crystals) {
@@ -192,7 +218,7 @@ export class FrenzyLayer implements Layer {
         let structureType: FrenzyStructureType | null = null;
         switch (unit.type()) {
           case UnitType.City:
-            structureType = FrenzyStructureType.City;
+            structureType = FrenzyStructureType.Mine;
             break;
           case UnitType.DefensePost:
             structureType = FrenzyStructureType.DefensePost;
@@ -227,7 +253,7 @@ export class FrenzyLayer implements Layer {
           let constrType: FrenzyStructureType | null = null;
           switch (constructionUnitType) {
             case UnitType.City:
-              constrType = FrenzyStructureType.City;
+              constrType = FrenzyStructureType.Mine;
               break;
             case UnitType.Factory:
               constrType = FrenzyStructureType.Factory;
@@ -291,8 +317,8 @@ export class FrenzyLayer implements Layer {
       case FrenzyStructureType.HQ:
         this.renderHQIcon(context, x, y, player, structure.tier);
         break;
-      case FrenzyStructureType.City:
-        this.renderCityIcon(context, x, y, player, structure.tier);
+      case FrenzyStructureType.Mine:
+        this.renderMineIcon(context, x, y, player, structure.tier);
         break;
       case FrenzyStructureType.Factory:
         this.renderFactoryIcon(context, x, y, player, structure.tier);
@@ -341,7 +367,7 @@ export class FrenzyLayer implements Layer {
     switch (type) {
       case FrenzyStructureType.HQ:
         return 14;
-      case FrenzyStructureType.City:
+      case FrenzyStructureType.Mine:
       case FrenzyStructureType.Factory:
       case FrenzyStructureType.Port:
         return 10;
@@ -475,9 +501,9 @@ export class FrenzyLayer implements Layer {
   }
 
   /**
-   * City Icon: Hexagon (6-sided) - represents urban center
+   * Mine Icon: Hexagon (6-sided) - represents resource extraction
    */
-  private renderCityIcon(
+  private renderMineIcon(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -861,8 +887,8 @@ export class FrenzyLayer implements Layer {
 
     // Render the ghost shape of the target structure
     switch (targetType) {
-      case FrenzyStructureType.City:
-        this.renderCityIcon(context, 0, 0, grayColor, 0);
+      case FrenzyStructureType.Mine:
+        this.renderMineIcon(context, 0, 0, grayColor, 0);
         break;
       case FrenzyStructureType.Factory:
         this.renderFactoryIcon(context, 0, 0, grayColor, 0);
@@ -900,6 +926,126 @@ export class FrenzyLayer implements Layer {
     context.strokeStyle = "#000";
     context.lineWidth = 0.5;
     context.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
+  }
+
+  /**
+   * Spawn gold flow particles from nearby crystals and territory towards a mine
+   * Computationally cheap - just creates a few particles per payout
+   */
+  private spawnGoldFlowParticles(
+    mineX: number,
+    mineY: number,
+    gold: number,
+    crystals: Array<{ x: number; y: number; crystalCount: number }>,
+  ) {
+    const maxParticles = 12; // Cap total particles per payout for performance
+    let particleCount = 0;
+
+    // Spawn particles from nearby crystals (purple glow)
+    for (const crystal of crystals) {
+      if (particleCount >= maxParticles) break;
+
+      const dist = Math.hypot(crystal.x - mineX, crystal.y - mineY);
+      if (dist < 150) {
+        // Close enough to contribute
+        // Spawn 1-2 particles per crystal based on crystal count
+        const count = Math.min(2, crystal.crystalCount);
+        for (let i = 0; i < count && particleCount < maxParticles; i++) {
+          // Add slight randomness to start position
+          const offsetX = (Math.random() - 0.5) * 10;
+          const offsetY = (Math.random() - 0.5) * 10;
+
+          this.goldFlowParticles.push({
+            x: crystal.x + offsetX,
+            y: crystal.y + offsetY,
+            targetX: mineX,
+            targetY: mineY,
+            progress: 0,
+            duration: 800 + Math.random() * 400, // 0.8-1.2 seconds
+            size: 2 + Math.random() * 1.5,
+            isCrystal: true,
+          });
+          particleCount++;
+        }
+      }
+    }
+
+    // Spawn particles from territory (gold color) - random positions around mine
+    const territoryParticles = Math.min(maxParticles - particleCount, 6);
+    for (let i = 0; i < territoryParticles; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 30 + Math.random() * 60; // 30-90 pixels away
+
+      this.goldFlowParticles.push({
+        x: mineX + Math.cos(angle) * dist,
+        y: mineY + Math.sin(angle) * dist,
+        targetX: mineX,
+        targetY: mineY,
+        progress: 0,
+        duration: 600 + Math.random() * 300, // 0.6-0.9 seconds
+        size: 1.5 + Math.random() * 1,
+        isCrystal: false,
+      });
+    }
+  }
+
+  /**
+   * Update and render gold flow particles
+   */
+  private updateAndRenderGoldFlowParticles(
+    context: CanvasRenderingContext2D,
+    deltaTime: number,
+  ) {
+    const halfWidth = this.game.width() / 2;
+    const halfHeight = this.game.height() / 2;
+
+    // Update and filter completed particles
+    this.goldFlowParticles = this.goldFlowParticles.filter((particle) => {
+      // Update progress
+      particle.progress += deltaTime / particle.duration;
+      if (particle.progress >= 1) {
+        return false; // Remove completed
+      }
+
+      // Ease-in curve for acceleration toward mine
+      const t = particle.progress;
+      const easeT = t * t * (3 - 2 * t); // Smooth step
+
+      // Interpolate position
+      const x =
+        particle.x + (particle.targetX - particle.x) * easeT - halfWidth;
+      const y =
+        particle.y + (particle.targetY - particle.y) * easeT - halfHeight;
+
+      // Fade in at start, fade out at end
+      const alpha = t < 0.1 ? t * 10 : t > 0.8 ? (1 - t) * 5 : 1;
+
+      // Size shrinks as it approaches
+      const size = particle.size * (1 - easeT * 0.5);
+
+      // Draw particle with glow
+      const color = particle.isCrystal
+        ? `rgba(180, 100, 255, ${alpha * 0.9})` // Purple for crystals
+        : `rgba(255, 215, 0, ${alpha * 0.8})`; // Gold for territory
+
+      const glowColor = particle.isCrystal
+        ? `rgba(147, 112, 219, ${alpha * 0.4})`
+        : `rgba(255, 200, 50, ${alpha * 0.3})`;
+
+      // Glow
+      context.fillStyle = glowColor;
+      context.beginPath();
+      context.arc(x, y, size * 2, 0, Math.PI * 2);
+      context.fill();
+
+      // Core
+      context.fillStyle = color;
+      context.beginPath();
+      context.arc(x, y, size, 0, Math.PI * 2);
+      context.fill();
+
+      return true; // Keep particle
+    });
   }
 
   private updateAndRenderGoldEffects(

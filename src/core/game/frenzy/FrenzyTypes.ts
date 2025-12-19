@@ -130,22 +130,21 @@ export interface FrenzyConfig {
 
   // Buildings
   hqCaptureRadius: number; // Tiles around HQ that must fall before defeat (default: 2 tiles)
-  cityHealth: number; // HP for cities/factories (default: 400)
+  mineHealth: number; // HP for mines/factories (default: 400)
   hqHealth: number; // HP for HQ (default: 1000)
 
   // Economy
   startingGold: number; // Gold at spawn (default: 150000)
   baseGoldPerMinute: number; // Base gold income per minute (default: 20000)
-  cityGoldPerMinute: number; // Gold per city per minute (default: 2000)
-  cityCost: number; // Fixed cost for cities (default: 100000)
+  mineGoldPerMinute: number; // Gold per mine per minute (default: 2000)
+  mineCost: number; // Fixed cost for mines (default: 100000)
   factoryCost: number; // Fixed cost for factories (default: 100000)
   factoryUpgradeCost: number; // Cost to upgrade factory to tier 2 (default: 100000)
 
   // Crystals (resources)
   crystalClusterCount: number; // Number of crystal clusters to spawn (default: 50)
-  crystalRange: number; // Range from city to count crystals (default: 50px)
   crystalGoldBonus: number; // Extra gold per crystal per 10s interval (default: 1000)
-  cityGoldInterval: number; // Seconds between city gold payouts (default: 10)
+  mineGoldInterval: number; // Seconds between mine gold payouts (default: 10)
 }
 
 // Helper to get unit config by type
@@ -221,22 +220,21 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
 
   // Buildings
   hqCaptureRadius: 2,
-  cityHealth: 400,
+  mineHealth: 400,
   hqHealth: 1000,
 
   // Economy
   startingGold: 150000,
   baseGoldPerMinute: 20000,
-  cityGoldPerMinute: 20000,
-  cityCost: 100000,
+  mineGoldPerMinute: 20000,
+  mineCost: 100000,
   factoryCost: 100000,
   factoryUpgradeCost: 100000,
 
   // Crystals (resources)
   crystalClusterCount: 50,
-  crystalRange: 50,
   crystalGoldBonus: 1000,
-  cityGoldInterval: 10,
+  mineGoldInterval: 10,
 };
 
 export enum Stance {

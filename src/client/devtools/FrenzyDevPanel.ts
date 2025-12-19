@@ -271,12 +271,12 @@ const CONFIG_FIELDS: ConfigField[] = [
   },
   {
     type: "simple",
-    key: "cityGoldPerMinute",
-    label: "City Gold/min",
+    key: "mineGoldPerMinute",
+    label: "Mine Gold/min",
     min: 0,
     max: 10000,
     step: 100,
-    description: "Extra gold per city per minute",
+    description: "Extra gold per mine per minute",
   },
 ];
 

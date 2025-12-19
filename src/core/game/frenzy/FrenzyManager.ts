@@ -44,8 +44,8 @@ export class FrenzyManager {
   private defeatedPlayers = new Set<PlayerID>();
   private attackOrders: Map<PlayerID, FrenzyAttackOrder> = new Map();
 
-  // City gold payout tracking
-  private cityGoldTimer = 0; // Seconds until next city gold payout
+  // Mine gold payout tracking
+  private mineGoldTimer = 0; // Seconds until next mine gold payout
   private pendingGoldPayouts: Array<{
     playerId: PlayerID;
     x: number;
@@ -304,7 +304,7 @@ export class FrenzyManager {
     }
 
     this.updateSpawnTimers(deltaTime);
-    this.updateCityGoldPayouts(deltaTime);
+    this.updateMineGoldPayouts(deltaTime);
 
     // Performance: Only rebuild territory cache periodically
     if (
@@ -452,55 +452,135 @@ export class FrenzyManager {
   }
 
   /**
-   * Update city gold payouts - every 10 seconds, cities pay gold based on nearby crystals
+   * Update mine gold payouts - every 10 seconds, mines pay gold based on their Voronoi territory.
+   * Each mine's territory is defined by bisection planes with neighboring mines.
+   * Gold = base amount + (land tiles in territory) + (crystals in territory bonus)
    */
-  private updateCityGoldPayouts(deltaTime: number) {
-    this.cityGoldTimer -= deltaTime;
+  private updateMineGoldPayouts(deltaTime: number) {
+    this.mineGoldTimer -= deltaTime;
 
     // Clear pending payouts from previous tick
     this.pendingGoldPayouts = [];
 
-    if (this.cityGoldTimer <= 0) {
-      this.cityGoldTimer = this.config.cityGoldInterval;
+    if (this.mineGoldTimer <= 0) {
+      this.mineGoldTimer = this.config.mineGoldInterval;
 
-      // Process all cities
+      // Collect all mines from all players
+      const allMines: Array<{
+        unit: Unit;
+        player: Player;
+        x: number;
+        y: number;
+        tile: TileRef;
+      }> = [];
+
       for (const player of this.game.players()) {
-        const cities = player.units(UnitType.City);
+        const mines = player.units(UnitType.City);
+        for (const mine of mines) {
+          const mineTile = mine.tile();
+          if (!mineTile) continue;
+          allMines.push({
+            unit: mine,
+            player,
+            x: this.game.x(mineTile),
+            y: this.game.y(mineTile),
+            tile: mineTile,
+          });
+        }
+      }
 
-        for (const city of cities) {
-          const cityTile = city.tile();
-          if (!cityTile) continue;
+      // Calculate gold for each mine based on Voronoi territory
+      for (const mine of allMines) {
+        // Count land tiles owned by this player that are closer to this mine than any other mine
+        let tilesInTerritory = 0;
+        let crystalsInTerritory = 0;
 
-          const cityX = this.game.x(cityTile);
-          const cityY = this.game.y(cityTile);
+        // Check crystals - assign to nearest mine
+        for (const crystal of this.crystals) {
+          const distToThis = Math.hypot(crystal.x - mine.x, crystal.y - mine.y);
+          let isClosest = true;
 
-          // Count crystals in range
-          let crystalsInRange = 0;
-          for (const crystal of this.crystals) {
-            const dist = Math.hypot(crystal.x - cityX, crystal.y - cityY);
-            if (dist <= this.config.crystalRange) {
-              crystalsInRange += crystal.crystalCount;
+          for (const otherMine of allMines) {
+            if (otherMine === mine) continue;
+            const distToOther = Math.hypot(
+              crystal.x - otherMine.x,
+              crystal.y - otherMine.y,
+            );
+            if (distToOther < distToThis) {
+              isClosest = false;
+              break;
             }
           }
 
-          // Calculate gold: base city income per interval + crystal bonus
-          const baseGold = Math.round(
-            (this.config.cityGoldPerMinute / 60) * this.config.cityGoldInterval,
-          );
-          const crystalBonus = crystalsInRange * this.config.crystalGoldBonus;
-          const totalGold = baseGold + crystalBonus;
-
-          if (totalGold > 0) {
-            player.addGold(BigInt(totalGold));
-
-            // Queue floating text display
-            this.pendingGoldPayouts.push({
-              playerId: player.id(),
-              x: cityX,
-              y: cityY,
-              gold: totalGold,
-            });
+          if (isClosest) {
+            crystalsInTerritory += crystal.crystalCount;
           }
+        }
+
+        // Sample owned tiles within a reasonable radius (performance optimization)
+        // Instead of checking all tiles, sample in a grid pattern
+        const sampleRadius = 100; // pixels
+        const sampleStep = 5; // Check every 5 pixels
+        const ownerPlayer = mine.player;
+
+        for (
+          let sx = mine.x - sampleRadius;
+          sx <= mine.x + sampleRadius;
+          sx += sampleStep
+        ) {
+          for (
+            let sy = mine.y - sampleRadius;
+            sy <= mine.y + sampleRadius;
+            sy += sampleStep
+          ) {
+            const tile = this.game.ref(Math.floor(sx), Math.floor(sy));
+            if (!tile) continue;
+
+            // Check if this tile is owned by the mine's player
+            const tileOwner = this.game.owner(tile);
+            if (!tileOwner || tileOwner.id() !== ownerPlayer.id()) continue;
+
+            // Check if this is the closest mine to this tile (Voronoi)
+            const distToThis = Math.hypot(sx - mine.x, sy - mine.y);
+            let isClosest = true;
+
+            for (const otherMine of allMines) {
+              if (otherMine === mine) continue;
+              const distToOther = Math.hypot(
+                sx - otherMine.x,
+                sy - otherMine.y,
+              );
+              if (distToOther < distToThis) {
+                isClosest = false;
+                break;
+              }
+            }
+
+            if (isClosest) {
+              tilesInTerritory++;
+            }
+          }
+        }
+
+        // Calculate gold: base income + tile bonus + crystal bonus
+        const baseGold = Math.round(
+          (this.config.mineGoldPerMinute / 60) * this.config.mineGoldInterval,
+        );
+        // Scale tile bonus: each sampled tile represents ~25 actual tiles (5x5 area)
+        const tileGold = tilesInTerritory * 10; // 10 gold per sampled tile
+        const crystalBonus = crystalsInTerritory * this.config.crystalGoldBonus;
+        const totalGold = baseGold + tileGold + crystalBonus;
+
+        if (totalGold > 0) {
+          mine.player.addGold(BigInt(totalGold));
+
+          // Queue floating text display
+          this.pendingGoldPayouts.push({
+            playerId: mine.player.id(),
+            x: mine.x,
+            y: mine.y,
+            gold: totalGold,
+          });
         }
       }
     }
@@ -1913,8 +1993,8 @@ export class FrenzyManager {
       tile,
       spawnTimer: this.config.spawnInterval,
       spawnInterval: this.config.spawnInterval,
-      health: this.config.cityHealth,
-      maxHealth: this.config.cityHealth,
+      health: this.config.mineHealth,
+      maxHealth: this.config.mineHealth,
       tier: 1,
     });
   }
@@ -1936,8 +2016,8 @@ export class FrenzyManager {
       tile,
       spawnTimer: this.config.spawnInterval * 1.5, // Warships spawn slower
       spawnInterval: this.config.spawnInterval * 1.5,
-      health: this.config.cityHealth,
-      maxHealth: this.config.cityHealth,
+      health: this.config.mineHealth,
+      maxHealth: this.config.mineHealth,
       tier: 1,
     });
   }
