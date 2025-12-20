@@ -37,6 +37,7 @@ export interface FrenzyUnit {
   weaponCooldown: number;
   unitType: FrenzyUnitType;
   fireInterval: number; // Unit-specific fire interval
+  tier: number; // Unit tier (1 = base, 2+ = upgraded)
 }
 
 export interface FrenzyProjectile {
@@ -136,8 +137,9 @@ export interface FrenzyConfig {
   // Economy
   startingGold: number; // Gold at spawn (default: 150000)
   baseGoldPerMinute: number; // Base gold income per minute (default: 20000)
-  mineGoldPerMinute: number; // Gold per mine per minute (default: 2000)
-  mineCost: number; // Fixed cost for mines (default: 100000)
+  mineGoldPerMinute: number; // Gold per mine per minute (default: 10000 for tier 1)
+  mineCost: number; // Fixed cost for mines (default: 50000)
+  mineUpgradeCost: number; // Cost to upgrade mine to tier 2 (default: 100000)
   factoryCost: number; // Fixed cost for factories (default: 100000)
   factoryUpgradeCost: number; // Cost to upgrade factory to tier 2 (default: 100000)
 
@@ -145,6 +147,7 @@ export interface FrenzyConfig {
   crystalClusterCount: number; // Number of crystal clusters to spawn (default: 50)
   crystalGoldBonus: number; // Extra gold per crystal per 10s interval (default: 1000)
   mineGoldInterval: number; // Seconds between mine gold payouts (default: 10)
+  mineRadius: number; // Max radius of mine Voronoi territory in pixels (default: 40)
 }
 
 // Helper to get unit config by type
@@ -187,9 +190,9 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       health: 200, // 2x soldier health
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
-      range: 37.5, // 1.5x soldier range
-      fireInterval: 4, // Slow fire rate like Obelisk
-      projectileDamage: 100, // One-shot tier 1 units
+      range: 25, // Same as soldier (tier 2: 37.5)
+      fireInterval: 0.5, // Double soldier fire rate (tier 2: 4.0)
+      projectileDamage: 15, // Same as soldier damage (tier 2: 100, one-shots units)
     },
     warship: {
       health: 250, // Tough naval unit
@@ -226,8 +229,9 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   // Economy
   startingGold: 150000,
   baseGoldPerMinute: 20000,
-  mineGoldPerMinute: 20000,
-  mineCost: 100000,
+  mineGoldPerMinute: 10000, // Tier 1 mine gold (tier 2 doubles this)
+  mineCost: 50000,
+  mineUpgradeCost: 100000, // Upgrade to tier 2 doubles gold generation
   factoryCost: 100000,
   factoryUpgradeCost: 100000,
 
@@ -235,6 +239,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   crystalClusterCount: 50,
   crystalGoldBonus: 1000,
   mineGoldInterval: 10,
+  mineRadius: 40,
 };
 
 export enum Stance {

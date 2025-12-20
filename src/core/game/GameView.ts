@@ -520,6 +520,8 @@ export class GameView implements GameMap {
       x: number;
       y: number;
       gold: number;
+      crystals?: Array<{ x: number; y: number; count: number }>;
+      cellArea?: number;
     }>;
     // Helper methods for UI
     canUpgradeFactory: (playerId: string) => boolean;

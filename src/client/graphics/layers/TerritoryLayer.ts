@@ -494,7 +494,12 @@ export class TerritoryLayer implements Layer {
       this.clearTile(tile);
       return;
     }
-    const owner = this.game.owner(tile) as PlayerView;
+    const owner = this.game.owner(tile);
+    // Ensure we have a real player, not TerraNullius
+    if (!owner.isPlayer()) {
+      this.clearTile(tile);
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const isHighlighted =
       this.highlightedTerritory &&

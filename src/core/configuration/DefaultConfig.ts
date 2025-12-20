@@ -537,7 +537,7 @@ export class DefaultConfig implements Config {
         return {
           cost:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? () => BigInt(DEFAULT_FRENZY_CONFIG.cityCost)
+              ? () => BigInt(DEFAULT_FRENZY_CONFIG.mineCost)
               : this.costWrapper(
                   (numUnits: number) =>
                     Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
@@ -549,7 +549,7 @@ export class DefaultConfig implements Config {
           canBuildTrainStation: true,
           maxHealth:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? DEFAULT_FRENZY_CONFIG.cityHealth
+              ? DEFAULT_FRENZY_CONFIG.mineHealth
               : undefined,
         };
       case UnitType.Factory:
@@ -570,7 +570,7 @@ export class DefaultConfig implements Config {
           upgradable: true,
           maxHealth:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? DEFAULT_FRENZY_CONFIG.cityHealth
+              ? DEFAULT_FRENZY_CONFIG.mineHealth
               : undefined,
         };
       case UnitType.Construction:

@@ -322,5 +322,7 @@ export interface FrenzyUpdate {
     x: number;
     y: number;
     gold: number;
+    crystals?: Array<{ x: number; y: number; count: number }>;
+    cellArea?: number;
   }>;
 }

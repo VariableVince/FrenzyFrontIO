@@ -51,6 +51,8 @@ export class FrenzyManager {
     x: number;
     y: number;
     gold: number;
+    crystals?: Array<{ x: number; y: number; count: number }>;
+    cellArea?: number;
   }> = [];
 
   // Defensive stance per player: 0 = stay near HQ, 0.5 = fire range, 1 = offensive (border)
@@ -453,8 +455,8 @@ export class FrenzyManager {
 
   /**
    * Update mine gold payouts - every 10 seconds, mines pay gold based on their Voronoi territory.
-   * Each mine's territory is defined by bisection planes with neighboring mines.
-   * Gold = base amount + (land tiles in territory) + (crystals in territory bonus)
+   * Territory is: owned land within mineRadius, closer to this mine than any other.
+   * Gold = base amount + (area of cell) + (crystals inside cell bonus)
    */
   private updateMineGoldPayouts(deltaTime: number) {
     this.mineGoldTimer -= deltaTime;
@@ -464,6 +466,7 @@ export class FrenzyManager {
 
     if (this.mineGoldTimer <= 0) {
       this.mineGoldTimer = this.config.mineGoldInterval;
+      const mineRadius = this.config.mineRadius;
 
       // Collect all mines from all players
       const allMines: Array<{
@@ -491,15 +494,28 @@ export class FrenzyManager {
 
       // Calculate gold for each mine based on Voronoi territory
       for (const mine of allMines) {
-        // Count land tiles owned by this player that are closer to this mine than any other mine
-        let tilesInTerritory = 0;
-        let crystalsInTerritory = 0;
+        let cellArea = 0; // Count of sampled points in cell
+        const crystalsInCell: Array<{ x: number; y: number; count: number }> =
+          [];
 
-        // Check crystals - assign to nearest mine
+        // Check crystals - must be within mineRadius AND in Voronoi cell AND on owned territory
         for (const crystal of this.crystals) {
           const distToThis = Math.hypot(crystal.x - mine.x, crystal.y - mine.y);
-          let isClosest = true;
 
+          // Must be within mine radius
+          if (distToThis > mineRadius) continue;
+
+          // Must be on owned territory
+          const crystalTile = this.game.ref(
+            Math.floor(crystal.x),
+            Math.floor(crystal.y),
+          );
+          if (!crystalTile) continue;
+          const tileOwner = this.game.owner(crystalTile);
+          if (!tileOwner || tileOwner.id() !== mine.player.id()) continue;
+
+          // Must be closer to this mine than any other (Voronoi)
+          let isClosest = true;
           for (const otherMine of allMines) {
             if (otherMine === mine) continue;
             const distToOther = Math.hypot(
@@ -513,73 +529,80 @@ export class FrenzyManager {
           }
 
           if (isClosest) {
-            crystalsInTerritory += crystal.crystalCount;
+            crystalsInCell.push({
+              x: crystal.x,
+              y: crystal.y,
+              count: crystal.crystalCount,
+            });
           }
         }
 
-        // Sample owned tiles within a reasonable radius (performance optimization)
-        // Instead of checking all tiles, sample in a grid pattern
-        const sampleRadius = 100; // pixels
-        const sampleStep = 5; // Check every 5 pixels
+        // Sample owned tiles within mineRadius to calculate cell area
+        const sampleStep = 4; // Check every 4 pixels for better accuracy
         const ownerPlayer = mine.player;
 
         for (
-          let sx = mine.x - sampleRadius;
-          sx <= mine.x + sampleRadius;
+          let sx = mine.x - mineRadius;
+          sx <= mine.x + mineRadius;
           sx += sampleStep
         ) {
           for (
-            let sy = mine.y - sampleRadius;
-            sy <= mine.y + sampleRadius;
+            let sy = mine.y - mineRadius;
+            sy <= mine.y + mineRadius;
             sy += sampleStep
           ) {
+            // Must be within circular radius
+            const distToMine = Math.hypot(sx - mine.x, sy - mine.y);
+            if (distToMine > mineRadius) continue;
+
             const tile = this.game.ref(Math.floor(sx), Math.floor(sy));
             if (!tile) continue;
 
-            // Check if this tile is owned by the mine's player
+            // Must be owned by this player
             const tileOwner = this.game.owner(tile);
             if (!tileOwner || tileOwner.id() !== ownerPlayer.id()) continue;
 
-            // Check if this is the closest mine to this tile (Voronoi)
-            const distToThis = Math.hypot(sx - mine.x, sy - mine.y);
+            // Must be in Voronoi cell (closest to this mine)
             let isClosest = true;
-
             for (const otherMine of allMines) {
               if (otherMine === mine) continue;
-              const distToOther = Math.hypot(
-                sx - otherMine.x,
-                sy - otherMine.y,
-              );
-              if (distToOther < distToThis) {
+              const distToOther = Math.hypot(sx - otherMine.x, sy - otherMine.y);
+              if (distToOther < distToMine) {
                 isClosest = false;
                 break;
               }
             }
 
             if (isClosest) {
-              tilesInTerritory++;
+              cellArea++;
             }
           }
         }
 
-        // Calculate gold: base income + tile bonus + crystal bonus
+        // Calculate gold: base income + area bonus + crystal bonus
+        // Tier 2 mines double the gold generation
+        const tierMultiplier = mine.unit.level() >= 2 ? 2 : 1;
         const baseGold = Math.round(
-          (this.config.mineGoldPerMinute / 60) * this.config.mineGoldInterval,
+          ((this.config.mineGoldPerMinute / 60) * this.config.mineGoldInterval) *
+            tierMultiplier,
         );
-        // Scale tile bonus: each sampled tile represents ~25 actual tiles (5x5 area)
-        const tileGold = tilesInTerritory * 10; // 10 gold per sampled tile
-        const crystalBonus = crystalsInTerritory * this.config.crystalGoldBonus;
-        const totalGold = baseGold + tileGold + crystalBonus;
+        // Each sampled point represents ~16 sq pixels (4x4 area)
+        const areaGold = cellArea * 5 * tierMultiplier; // 5 gold per sampled point
+        const crystalCount = crystalsInCell.reduce((sum, c) => sum + c.count, 0);
+        const crystalBonus = crystalCount * this.config.crystalGoldBonus * tierMultiplier;
+        const totalGold = baseGold + areaGold + crystalBonus;
 
         if (totalGold > 0) {
           mine.player.addGold(BigInt(totalGold));
 
-          // Queue floating text display
+          // Queue floating text display with crystal positions for animation
           this.pendingGoldPayouts.push({
             playerId: mine.player.id(),
             x: mine.x,
             y: mine.y,
             gold: totalGold,
+            crystals: crystalsInCell,
+            cellArea,
           });
         }
       }
@@ -650,6 +673,7 @@ export class FrenzyManager {
       weaponCooldown: this.random.next() * fireInterval,
       unitType,
       fireInterval,
+      tier: 1, // Units start at tier 1
     };
 
     this.units.push(unit);
@@ -1359,7 +1383,16 @@ export class FrenzyManager {
 
       // Get unit-specific combat range
       const unitConfig = getUnitConfig(this.config, unit.unitType);
-      const combatRange = unitConfig.range;
+      
+      // Tier 2 defense posts get enhanced stats
+      const isDefensePostT2 = unit.unitType === FrenzyUnitType.DefensePost && unit.tier >= 2;
+      const combatRange = isDefensePostT2 ? 37.5 : unitConfig.range; // Tier 2: 1.5x soldier range
+      const effectiveFireInterval = isDefensePostT2 ? 4.0 : unit.fireInterval; // Tier 2: slow but powerful
+      
+      // Update fire interval for tier 2 defense posts
+      if (isDefensePostT2 && unit.fireInterval !== effectiveFireInterval) {
+        unit.fireInterval = effectiveFireInterval;
+      }
 
       const enemies = this.spatialGrid
         .getNearby(unit.x, unit.y, combatRange)
@@ -1384,10 +1417,22 @@ export class FrenzyManager {
 
         // Defense posts deal burst damage on shot, regular units deal DPS
         if (unitConfig.projectileDamage !== undefined) {
-          // Burst damage on shot (defense posts)
+          // Burst damage on shot (defense posts, warships)
           if (unit.weaponCooldown <= 0) {
-            nearest.health -= unitConfig.projectileDamage;
-            this.spawnBeamProjectile(unit, nearest);
+            // Get effective damage based on tier for defense posts
+            const isDefensePost = unit.unitType === FrenzyUnitType.DefensePost;
+            let damage = unitConfig.projectileDamage;
+            
+            if (isDefensePost && unit.tier >= 2) {
+              // Tier 2 defense posts: one-shot beam (100 damage)
+              damage = 100;
+              nearest.health -= damage;
+              this.spawnBeamProjectile(unit, nearest);
+            } else {
+              // Tier 1 defense posts or other units: regular projectile
+              nearest.health -= damage;
+              this.spawnProjectile(unit, nearest);
+            }
             unit.weaponCooldown = unit.fireInterval;
           }
         } else {
@@ -2196,6 +2241,117 @@ export class FrenzyManager {
   }
 
   /**
+   * Check if a mine can be upgraded (must be tier 1)
+   */
+  canUpgradeMine(playerId: PlayerID, tile: TileRef): boolean {
+    const player = this.game.player(playerId);
+    if (!player) return false;
+
+    // Find the mine unit at this tile
+    const mines = player.units(UnitType.City);
+    const mine = mines.find((m) => m.tile() === tile);
+    if (!mine) return false;
+
+    // Check if already tier 2+
+    if (mine.level() >= 2) return false;
+
+    // Check if player has enough gold
+    const upgradeCost = BigInt(this.config.mineUpgradeCost);
+    return player.gold() >= upgradeCost;
+  }
+
+  /**
+   * Upgrade a mine to tier 2 (doubles gold generation)
+   * @returns true if upgrade was successful, false otherwise
+   */
+  upgradeMine(playerId: PlayerID, tile: TileRef): boolean {
+    const player = this.game.player(playerId);
+    if (!player) return false;
+
+    // Find the mine unit at this tile
+    const mines = player.units(UnitType.City);
+    const mine = mines.find((m) => m.tile() === tile);
+    if (!mine) {
+      return false;
+    }
+
+    // Check if already tier 2+
+    if (mine.level() >= 2) {
+      return false;
+    }
+
+    const upgradeCost = BigInt(this.config.mineUpgradeCost);
+    if (player.gold() < upgradeCost) {
+      return false;
+    }
+
+    // Deduct gold and upgrade level
+    player.removeGold(upgradeCost);
+    mine.increaseLevel();
+
+    console.log(
+      `[FrenzyManager] Player ${player.name()} upgraded mine to tier ${mine.level()}`,
+    );
+    return true;
+  }
+
+  /**
+   * Check if a defense post can be upgraded (must be tier 1)
+   */
+  canUpgradeDefensePost(playerId: PlayerID, unitId: number): boolean {
+    const player = this.game.player(playerId);
+    if (!player) return false;
+
+    // Find the defense post
+    const defensePost = this.units.find(
+      (u) => u.id === unitId && 
+             u.playerId === playerId && 
+             u.unitType === FrenzyUnitType.DefensePost
+    );
+    if (!defensePost) return false;
+
+    // Check if already tier 2+
+    if (defensePost.tier >= 2) return false;
+
+    // Check if player has enough gold (same cost as factory upgrade)
+    const upgradeCost = BigInt(this.config.factoryUpgradeCost);
+    return player.gold() >= upgradeCost;
+  }
+
+  /**
+   * Upgrade a defense post to tier 2 (beam attack, longer range)
+   * @returns true if upgrade was successful, false otherwise
+   */
+  upgradeDefensePost(playerId: PlayerID, unitId: number): boolean {
+    const player = this.game.player(playerId);
+    if (!player) return false;
+
+    // Find the defense post
+    const defensePost = this.units.find(
+      (u) => u.id === unitId && 
+             u.playerId === playerId && 
+             u.unitType === FrenzyUnitType.DefensePost
+    );
+    if (!defensePost) return false;
+
+    // Check if already tier 2+
+    if (defensePost.tier >= 2) return false;
+
+    const upgradeCost = BigInt(this.config.factoryUpgradeCost);
+    if (player.gold() < upgradeCost) return false;
+
+    // Deduct gold and upgrade tier
+    player.removeGold(upgradeCost);
+    defensePost.tier = 2;
+    // Fire interval will be updated in combat loop
+
+    console.log(
+      `[FrenzyManager] Player ${player.name()} upgraded defense post to tier 2`,
+    );
+    return true;
+  }
+
+  /**
    * Get unit count for a player
    */
   getUnitCount(playerId: PlayerID): number {
@@ -2214,6 +2370,7 @@ export class FrenzyManager {
         y: u.y,
         health: u.health,
         unitType: u.unitType,
+        tier: u.tier,
       })),
       coreBuildings: Array.from(this.coreBuildings.values()).map((b) => ({
         playerId: b.playerId,

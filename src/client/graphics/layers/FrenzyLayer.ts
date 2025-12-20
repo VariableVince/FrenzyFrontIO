@@ -15,17 +15,14 @@ interface GoldTextFx {
 }
 
 /**
- * Gold flow particle - flows from territory/crystals to mines
+ * Mine data for protomolecule rendering
  */
-interface GoldFlowParticle {
+interface MineData {
   x: number;
   y: number;
-  targetX: number;
-  targetY: number;
-  progress: number; // 0-1
-  duration: number; // ms
-  size: number;
-  isCrystal: boolean; // Purple if from crystal, gold if from land
+  playerId: string;
+  tier: number;
+  crystalsInCell: Array<{ x: number; y: number; count: number }>;
 }
 
 /**
@@ -63,7 +60,6 @@ interface FrenzyStructure {
  */
 export class FrenzyLayer implements Layer {
   private goldTextEffects: GoldTextFx[] = [];
-  private goldFlowParticles: GoldFlowParticle[] = [];
   private lastPayoutIds = new Set<string>();
   private lastFrameTime: number = 0;
 
@@ -101,7 +97,7 @@ export class FrenzyLayer implements Layer {
     const deltaTime = now - this.lastFrameTime;
     this.lastFrameTime = now;
 
-    // Process new gold payouts - convert to animated effects
+    // Process new gold payouts - convert to animated text effects only
     if (
       frenzyState.pendingGoldPayouts &&
       frenzyState.pendingGoldPayouts.length > 0
@@ -120,14 +116,6 @@ export class FrenzyLayer implements Layer {
             lifeTime: 0,
             duration: 1500, // 1.5 seconds
           });
-
-          // Spawn flow particles from nearby crystals and territory
-          this.spawnGoldFlowParticles(
-            payout.x,
-            payout.y,
-            payout.gold,
-            frenzyState.crystals ?? [],
-          );
         }
       }
       this.lastPayoutIds = newPayoutIds;
@@ -135,18 +123,67 @@ export class FrenzyLayer implements Layer {
       this.lastPayoutIds.clear();
     }
 
-    // Render and update gold flow particles (below crystals)
-    this.updateAndRenderGoldFlowParticles(context, deltaTime);
+    // Gather all structures into unified list
+    const structures = this.gatherAllStructures(frenzyState);
 
-    // Render crystals first (bottom layer)
+    // Get all mine data for protomolecule rendering
+    const allMines: MineData[] = structures
+      .filter((s) => s.type === FrenzyStructureType.Mine)
+      .map((s) => ({
+        x: s.x,
+        y: s.y,
+        playerId: s.playerId,
+        tier: s.tier,
+        crystalsInCell: [], // Will be populated below
+      }));
+
+    // Assign crystals to their Voronoi cells
+    const mineRadius = 40; // Should match config.mineRadius
+    if (frenzyState.crystals) {
+      for (const crystal of frenzyState.crystals) {
+        // Find which mine this crystal belongs to (closest within radius)
+        let closestMine: MineData | null = null;
+        let closestDist = Infinity;
+
+        for (const mine of allMines) {
+          const dist = Math.hypot(crystal.x - mine.x, crystal.y - mine.y);
+          if (dist <= mineRadius && dist < closestDist) {
+            // Check if closer to this mine than any other
+            let isClosest = true;
+            for (const other of allMines) {
+              if (other === mine) continue;
+              const otherDist = Math.hypot(crystal.x - other.x, crystal.y - other.y);
+              if (otherDist < dist) {
+                isClosest = false;
+                break;
+              }
+            }
+            if (isClosest) {
+              closestMine = mine;
+              closestDist = dist;
+            }
+          }
+        }
+
+        if (closestMine) {
+          closestMine.crystalsInCell.push({
+            x: crystal.x,
+            y: crystal.y,
+            count: crystal.crystalCount,
+          });
+        }
+      }
+    }
+
+    // Render protomolecule effect (permanent veins and boundaries)
+    this.renderProtomoleculeEffect(context, allMines, frenzyState.crystals ?? []);
+
+    // Render crystals (above protomolecule veins)
     if (frenzyState.crystals) {
       for (const crystal of frenzyState.crystals) {
         this.renderCrystal(context, crystal);
       }
     }
-
-    // Gather all structures into unified list
-    const structures = this.gatherAllStructures(frenzyState);
 
     // Render all structures with unified system
     for (const structure of structures) {
@@ -929,123 +966,347 @@ export class FrenzyLayer implements Layer {
   }
 
   /**
-   * Spawn gold flow particles from nearby crystals and territory towards a mine
-   * Computationally cheap - just creates a few particles per payout
+   * Render protomolecule effect - organic veins/roots from mines to crystals
+   * with cold blue energy pulsing toward mines. Also draws Voronoi boundaries.
    */
-  private spawnGoldFlowParticles(
-    mineX: number,
-    mineY: number,
-    gold: number,
-    crystals: Array<{ x: number; y: number; crystalCount: number }>,
+  private renderProtomoleculeEffect(
+    context: CanvasRenderingContext2D,
+    allMines: MineData[],
+    allCrystals: Array<{ x: number; y: number; crystalCount: number }>,
   ) {
-    const maxParticles = 12; // Cap total particles per payout for performance
-    let particleCount = 0;
+    const halfWidth = this.game.width() / 2;
+    const halfHeight = this.game.height() / 2;
+    const time = performance.now() / 1000;
+    const mineRadius = 40; // Should match config.mineRadius
 
-    // Spawn particles from nearby crystals (purple glow)
-    for (const crystal of crystals) {
-      if (particleCount >= maxParticles) break;
+    // First, calculate all bisection points between adjacent mines (draw once per pair)
+    const drawnBisections = new Set<string>();
 
-      const dist = Math.hypot(crystal.x - mineX, crystal.y - mineY);
-      if (dist < 150) {
-        // Close enough to contribute
-        // Spawn 1-2 particles per crystal based on crystal count
-        const count = Math.min(2, crystal.crystalCount);
-        for (let i = 0; i < count && particleCount < maxParticles; i++) {
-          // Add slight randomness to start position
-          const offsetX = (Math.random() - 0.5) * 10;
-          const offsetY = (Math.random() - 0.5) * 10;
+    // Draw subtle Voronoi boundaries
+    for (let i = 0; i < allMines.length; i++) {
+      const mine = allMines[i];
+      const mx = mine.x - halfWidth;
+      const my = mine.y - halfHeight;
 
-          this.goldFlowParticles.push({
-            x: crystal.x + offsetX,
-            y: crystal.y + offsetY,
-            targetX: mineX,
-            targetY: mineY,
-            progress: 0,
-            duration: 800 + Math.random() * 400, // 0.8-1.2 seconds
-            size: 2 + Math.random() * 1.5,
-            isCrystal: true,
-          });
-          particleCount++;
+      for (let j = i + 1; j < allMines.length; j++) {
+        const other = allMines[j];
+        const dist = Math.hypot(other.x - mine.x, other.y - mine.y);
+
+        // Only draw bisection if mines are within 2x radius (overlapping territories)
+        if (dist < mineRadius * 2) {
+          const pairKey = `${Math.min(i, j)}_${Math.max(i, j)}`;
+          if (!drawnBisections.has(pairKey)) {
+            drawnBisections.add(pairKey);
+
+            // Calculate bisection line (perpendicular at midpoint)
+            const midX = (mine.x + other.x) / 2;
+            const midY = (mine.y + other.y) / 2;
+
+            // Perpendicular direction
+            const dx = other.x - mine.x;
+            const dy = other.y - mine.y;
+            const perpX = -dy;
+            const perpY = dx;
+            const perpLen = Math.hypot(perpX, perpY);
+            if (perpLen === 0) continue;
+
+            // Normalize and scale to radius
+            const normPerpX = perpX / perpLen;
+            const normPerpY = perpY / perpLen;
+
+            // Find where bisection intersects territory boundary
+            // Clip to the smaller of: mine radius, or territory boundary
+            const clipRadius = Math.min(mineRadius, dist / 2 + 5);
+
+            // Sample along the bisection line, only draw within owned territory
+            const segments: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+            const sampleDist = clipRadius;
+            let inTerritory = false;
+            let segStart = { x: 0, y: 0 };
+
+            for (let t = -sampleDist; t <= sampleDist; t += 2) {
+              const px = midX + normPerpX * t;
+              const py = midY + normPerpY * t;
+
+              // Check if point is within either mine's radius
+              const distToMine = Math.hypot(px - mine.x, py - mine.y);
+              const distToOther = Math.hypot(px - other.x, py - other.y);
+              const withinBounds = distToMine <= mineRadius || distToOther <= mineRadius;
+
+              // Check territory ownership
+              const tile = this.game.ref(Math.floor(px), Math.floor(py));
+              const owner = tile ? this.game.owner(tile) : null;
+              const isOwned = owner && owner.isPlayer() &&
+                (owner.id() === mine.playerId || owner.id() === other.playerId);
+
+              if (withinBounds && isOwned) {
+                if (!inTerritory) {
+                  inTerritory = true;
+                  segStart = { x: px - halfWidth, y: py - halfHeight };
+                }
+              } else {
+                if (inTerritory) {
+                  inTerritory = false;
+                  segments.push({
+                    x1: segStart.x,
+                    y1: segStart.y,
+                    x2: px - halfWidth - normPerpX * 2,
+                    y2: py - halfHeight - normPerpY * 2,
+                  });
+                }
+              }
+            }
+            // Close any open segment
+            if (inTerritory) {
+              segments.push({
+                x1: segStart.x,
+                y1: segStart.y,
+                x2: midX + normPerpX * sampleDist - halfWidth,
+                y2: midY + normPerpY * sampleDist - halfHeight,
+              });
+            }
+
+            // Draw bisection segments with subtle styling
+            context.strokeStyle = `rgba(100, 180, 255, 0.15)`;
+            context.lineWidth = 1;
+            for (const seg of segments) {
+              context.beginPath();
+              context.moveTo(seg.x1, seg.y1);
+              context.lineTo(seg.x2, seg.y2);
+              context.stroke();
+            }
+          }
         }
       }
     }
 
-    // Spawn particles from territory (gold color) - random positions around mine
-    const territoryParticles = Math.min(maxParticles - particleCount, 6);
-    for (let i = 0; i < territoryParticles; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = 30 + Math.random() * 60; // 30-90 pixels away
+    // Draw organic veins for each mine
+    for (const mine of allMines) {
+      const mx = mine.x - halfWidth;
+      const my = mine.y - halfHeight;
 
-      this.goldFlowParticles.push({
-        x: mineX + Math.cos(angle) * dist,
-        y: mineY + Math.sin(angle) * dist,
-        targetX: mineX,
-        targetY: mineY,
-        progress: 0,
-        duration: 600 + Math.random() * 300, // 0.6-0.9 seconds
-        size: 1.5 + Math.random() * 1,
-        isCrystal: false,
-      });
+      // Check if mine is on owned territory
+      const mineTile = this.game.ref(Math.floor(mine.x), Math.floor(mine.y));
+      const mineOwner = mineTile ? this.game.owner(mineTile) : null;
+      if (!mineOwner || !mineOwner.isPlayer()) continue;
+      const ownerId = mineOwner.id();
+
+      // Draw veins to crystals in cell (dense, prominent)
+      for (const crystal of mine.crystalsInCell) {
+        this.drawOrganicVein(
+          context,
+          mx,
+          my,
+          crystal.x - halfWidth,
+          crystal.y - halfHeight,
+          time,
+          1.5, // line width
+          0.6, // alpha
+          true, // is crystal vein
+          crystal.count,
+        );
+      }
+
+      // Draw sparse veins into the rest of the cell (area representation)
+      // Sample points within cell that are on owned territory
+      const areaVeinCount = 8; // Number of area veins per mine
+      const angleStep = (Math.PI * 2) / areaVeinCount;
+
+      for (let i = 0; i < areaVeinCount; i++) {
+        const baseAngle = i * angleStep + (mine.x * 0.1); // Offset by mine position for variety
+        const veinLength = mineRadius * (0.5 + 0.3 * Math.sin(baseAngle * 3 + mine.y * 0.05));
+
+        // End point of vein
+        const vx = mine.x + Math.cos(baseAngle) * veinLength;
+        const vy = mine.y + Math.sin(baseAngle) * veinLength;
+
+        // Check if end is in Voronoi cell and owned territory
+        let inCell = true;
+        for (const other of allMines) {
+          if (other === mine) continue;
+          const distToOther = Math.hypot(vx - other.x, vy - other.y);
+          const distToThis = Math.hypot(vx - mine.x, vy - mine.y);
+          if (distToOther < distToThis) {
+            inCell = false;
+            break;
+          }
+        }
+
+        if (!inCell) continue;
+
+        // Check territory ownership
+        const tile = this.game.ref(Math.floor(vx), Math.floor(vy));
+        const owner = tile ? this.game.owner(tile) : null;
+        if (!owner || !owner.isPlayer() || owner.id() !== ownerId) continue;
+
+        this.drawOrganicVein(
+          context,
+          mx,
+          my,
+          vx - halfWidth,
+          vy - halfHeight,
+          time,
+          0.8, // thinner line
+          0.25, // lower alpha
+          false, // not crystal vein
+          1,
+        );
+      }
+
+      // Draw subtle cell boundary (clipped to territory)
+      this.drawCellBoundary(context, mine, allMines, halfWidth, halfHeight);
     }
   }
 
   /**
-   * Update and render gold flow particles
+   * Draw an organic-looking vein with energy pulses
    */
-  private updateAndRenderGoldFlowParticles(
+  private drawOrganicVein(
     context: CanvasRenderingContext2D,
-    deltaTime: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    time: number,
+    lineWidth: number,
+    alpha: number,
+    isCrystal: boolean,
+    crystalCount: number,
   ) {
-    const halfWidth = this.game.width() / 2;
-    const halfHeight = this.game.height() / 2;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.hypot(dx, dy);
+    if (length < 2) return;
 
-    // Update and filter completed particles
-    this.goldFlowParticles = this.goldFlowParticles.filter((particle) => {
-      // Update progress
-      particle.progress += deltaTime / particle.duration;
-      if (particle.progress >= 1) {
-        return false; // Remove completed
+    // Organic curve - add slight waviness
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const perpX = -dy / length;
+    const perpY = dx / length;
+    const waveAmp = length * 0.05 * Math.sin(time * 0.5 + x1 * 0.1);
+    const ctrlX = midX + perpX * waveAmp;
+    const ctrlY = midY + perpY * waveAmp;
+
+    // Base vein color (cold blue)
+    context.strokeStyle = `rgba(80, 160, 220, ${alpha * 0.4})`;
+    context.lineWidth = lineWidth;
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.quadraticCurveTo(ctrlX, ctrlY, x2, y2);
+    context.stroke();
+
+    // Energy pulses traveling toward mine (from crystal to mine direction)
+    const pulseCount = isCrystal ? 2 + crystalCount : 1;
+    const pulseSpeed = isCrystal ? 0.8 : 0.4; // pulses per second (slower)
+
+    for (let p = 0; p < pulseCount; p++) {
+      // Pulse position along the vein (0 = at crystal/source, 1 = at mine)
+      const pulseT = ((time * pulseSpeed + p / pulseCount) % 1);
+
+      // Position along quadratic curve: t=0 at x2 (crystal), t=1 at x1 (mine)
+      const t = pulseT;
+      const px = (1 - t) * (1 - t) * x2 + 2 * (1 - t) * t * ctrlX + t * t * x1;
+      const py = (1 - t) * (1 - t) * y2 + 2 * (1 - t) * t * ctrlY + t * t * y1;
+
+      // Pulse size varies
+      const pulseSizeBase = isCrystal ? 2.5 : 1.5;
+      const pulseSize = pulseSizeBase * (0.6 + 0.4 * Math.sin(pulseT * Math.PI));
+
+      // Pulse brightness - brighter near ends
+      const pulseAlpha = alpha * (0.5 + 0.5 * Math.sin(pulseT * Math.PI));
+
+      // Cold blue glow
+      const gradient = context.createRadialGradient(px, py, 0, px, py, pulseSize * 2);
+      gradient.addColorStop(0, `rgba(150, 220, 255, ${pulseAlpha})`);
+      gradient.addColorStop(0.5, `rgba(80, 180, 240, ${pulseAlpha * 0.5})`);
+      gradient.addColorStop(1, `rgba(40, 120, 200, 0)`);
+
+      context.fillStyle = gradient;
+      context.beginPath();
+      context.arc(px, py, pulseSize * 2, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+
+  /**
+   * Draw the Voronoi cell boundary for a mine (subtle, clipped to territory)
+   */
+  private drawCellBoundary(
+    context: CanvasRenderingContext2D,
+    mine: MineData,
+    allMines: MineData[],
+    halfWidth: number,
+    halfHeight: number,
+  ) {
+    const mineRadius = 40;
+    const mx = mine.x - halfWidth;
+    const my = mine.y - halfHeight;
+    const sampleCount = 48;
+
+    // Check mine tile ownership
+    const mineTile = this.game.ref(Math.floor(mine.x), Math.floor(mine.y));
+    const mineOwner = mineTile ? this.game.owner(mineTile) : null;
+    if (!mineOwner || !mineOwner.isPlayer()) return;
+    const ownerId = mineOwner.id();
+
+    // Sample points around the cell boundary
+    context.strokeStyle = `rgba(80, 160, 220, 0.2)`;
+    context.lineWidth = 0.8;
+
+    let lastPoint: { x: number; y: number; valid: boolean } | null = null;
+
+    for (let i = 0; i <= sampleCount; i++) {
+      const angle = (i / sampleCount) * Math.PI * 2;
+      let radius = mineRadius;
+
+      // Check Voronoi constraint - find where bisection clips the radius
+      for (const other of allMines) {
+        if (other === mine) continue;
+        const dist = Math.hypot(other.x - mine.x, other.y - mine.y);
+        if (dist < mineRadius * 2) {
+          // This mine might clip our boundary
+          // Find intersection of this angle ray with the bisection plane
+          const midX = (mine.x + other.x) / 2;
+          const midY = (mine.y + other.y) / 2;
+          const distToMid = Math.hypot(midX - mine.x, midY - mine.y);
+
+          // Direction to midpoint from mine
+          const angleToMid = Math.atan2(midY - mine.y, midX - mine.x);
+          const angleDiff = Math.abs(((angle - angleToMid + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+
+          // If angle is toward the other mine, clip radius
+          if (angleDiff < Math.PI / 2) {
+            const clipDist = distToMid / Math.cos(angleDiff);
+            if (clipDist > 0 && clipDist < radius) {
+              radius = clipDist;
+            }
+          }
+        }
       }
 
-      // Ease-in curve for acceleration toward mine
-      const t = particle.progress;
-      const easeT = t * t * (3 - 2 * t); // Smooth step
+      const px = mine.x + Math.cos(angle) * radius;
+      const py = mine.y + Math.sin(angle) * radius;
 
-      // Interpolate position
-      const x =
-        particle.x + (particle.targetX - particle.x) * easeT - halfWidth;
-      const y =
-        particle.y + (particle.targetY - particle.y) * easeT - halfHeight;
+      // Check if this point is on owned territory
+      const tile = this.game.ref(Math.floor(px), Math.floor(py));
+      const owner = tile ? this.game.owner(tile) : null;
+      const isOwned = owner && owner.isPlayer() && owner.id() === ownerId;
 
-      // Fade in at start, fade out at end
-      const alpha = t < 0.1 ? t * 10 : t > 0.8 ? (1 - t) * 5 : 1;
+      const point = {
+        x: px - halfWidth,
+        y: py - halfHeight,
+        valid: !!isOwned,
+      };
 
-      // Size shrinks as it approaches
-      const size = particle.size * (1 - easeT * 0.5);
+      if (lastPoint && lastPoint.valid && point.valid) {
+        context.beginPath();
+        context.moveTo(lastPoint.x, lastPoint.y);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      }
 
-      // Draw particle with glow
-      const color = particle.isCrystal
-        ? `rgba(180, 100, 255, ${alpha * 0.9})` // Purple for crystals
-        : `rgba(255, 215, 0, ${alpha * 0.8})`; // Gold for territory
-
-      const glowColor = particle.isCrystal
-        ? `rgba(147, 112, 219, ${alpha * 0.4})`
-        : `rgba(255, 200, 50, ${alpha * 0.3})`;
-
-      // Glow
-      context.fillStyle = glowColor;
-      context.beginPath();
-      context.arc(x, y, size * 2, 0, Math.PI * 2);
-      context.fill();
-
-      // Core
-      context.fillStyle = color;
-      context.beginPath();
-      context.arc(x, y, size, 0, Math.PI * 2);
-      context.fill();
-
-      return true; // Keep particle
-    });
+      lastPoint = point;
+    }
   }
 
   private updateAndRenderGoldEffects(
@@ -1449,25 +1710,27 @@ export class FrenzyLayer implements Layer {
     context.rotate(rotation);
     context.translate(-x, -bottomY);
 
-    // Outer glow with animated intensity
-    const glowIntensity = 0.3 + Math.sin(time * 2) * 0.1; // Glow pulses, not size
+    // Outer glow with animated intensity - cold blue protomolecule style
+    const glowIntensity = 0.4 + Math.sin(time * 2.5) * 0.2; // Stronger pulse
+    const radiationPulse = 1 + Math.sin(time * 3) * 0.15; // Radiation expansion
     const glowGradient = context.createRadialGradient(
       x,
       y - height * 0.2,
       0,
       x,
       y - height * 0.2,
-      size * 1.5,
+      size * 1.5 * radiationPulse,
     );
-    glowGradient.addColorStop(0, `rgba(147, 112, 219, ${glowIntensity})`); // Purple glow
-    glowGradient.addColorStop(1, "rgba(147, 112, 219, 0)");
+    glowGradient.addColorStop(0, `rgba(120, 200, 255, ${glowIntensity})`); // Cold blue core
+    glowGradient.addColorStop(0.5, `rgba(80, 160, 220, ${glowIntensity * 0.5})`); // Mid blue
+    glowGradient.addColorStop(1, "rgba(40, 120, 200, 0)"); // Fade out
     context.fillStyle = glowGradient;
     context.beginPath();
-    context.arc(x, y - height * 0.2, size * 1.5, 0, Math.PI * 2);
+    context.arc(x, y - height * 0.2, size * 1.5 * radiationPulse, 0, Math.PI * 2);
     context.fill();
 
-    // Crystal body (pentagon shape - tall with flat bottom)
-    context.fillStyle = "rgba(138, 43, 226, 0.9)"; // BlueViolet
+    // Crystal body (pentagon shape - tall with flat bottom) - cold blue
+    context.fillStyle = "rgba(60, 140, 200, 0.9)"; // Cold blue
     context.beginPath();
     context.moveTo(x, y - height * 0.7); // Top point
     context.lineTo(x + halfWidth, y - height * 0.2); // Upper right
@@ -1477,8 +1740,8 @@ export class FrenzyLayer implements Layer {
     context.closePath();
     context.fill();
 
-    // Crystal highlight
-    context.fillStyle = "rgba(200, 162, 255, 0.8)";
+    // Crystal highlight - bright cold blue
+    context.fillStyle = "rgba(150, 210, 255, 0.8)";
     context.beginPath();
     context.moveTo(x, y - height * 0.6);
     context.lineTo(x + halfWidth * 0.4, y - height * 0.25);
@@ -1486,8 +1749,8 @@ export class FrenzyLayer implements Layer {
     context.closePath();
     context.fill();
 
-    // Border
-    context.strokeStyle = "rgba(75, 0, 130, 0.8)"; // Indigo
+    // Border - dark blue
+    context.strokeStyle = "rgba(20, 60, 100, 0.8)"; // Dark blue
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(x, y - height * 0.7);
