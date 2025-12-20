@@ -757,6 +757,8 @@ function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
       eliteSoldier: { ...DEFAULT_FRENZY_CONFIG.units.eliteSoldier },
       defensePost: { ...DEFAULT_FRENZY_CONFIG.units.defensePost },
       warship: { ...DEFAULT_FRENZY_CONFIG.units.warship },
+      artillery: { ...DEFAULT_FRENZY_CONFIG.units.artillery },
+      shieldGenerator: { ...DEFAULT_FRENZY_CONFIG.units.shieldGenerator },
     },
   };
 
@@ -771,7 +773,7 @@ function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
 
   // Handle nested unit configs
   if (partial.units) {
-    (["soldier", "eliteSoldier", "defensePost", "warship"] as const).forEach(
+    (["soldier", "eliteSoldier", "defensePost", "warship", "artillery", "shieldGenerator"] as const).forEach(
       (unitType) => {
         const unitConfig = partial.units?.[unitType];
         if (unitConfig) {

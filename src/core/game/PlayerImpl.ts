@@ -989,6 +989,8 @@ export class PlayerImpl implements Player {
       case UnitType.City:
       case UnitType.Factory:
       case UnitType.Construction:
+      case UnitType.ShieldGenerator:
+      case UnitType.Artillery:
         return this.landBasedStructureSpawn(targetTile, validTiles);
       default:
         assertNever(unitType);

@@ -11,6 +11,8 @@ export enum FrenzyUnitType {
   EliteSoldier = "eliteSoldier",
   DefensePost = "defensePost",
   Warship = "warship",
+  Artillery = "artillery",
+  ShieldGenerator = "shieldGenerator",
 }
 
 // Per-unit-type configuration
@@ -21,6 +23,9 @@ export interface UnitTypeConfig {
   range: number; // Combat range in pixels
   fireInterval: number; // Seconds between shots
   projectileDamage?: number; // If set, deals instant damage instead of DPS
+  areaRadius?: number; // Area of effect radius for splash damage
+  shieldRadius?: number; // Shield protection radius
+  shieldHealth?: number; // Shield HP (regenerates when not taking damage)
 }
 
 export interface FrenzyUnit {
@@ -38,6 +43,9 @@ export interface FrenzyUnit {
   unitType: FrenzyUnitType;
   fireInterval: number; // Unit-specific fire interval
   tier: number; // Unit tier (1 = base, 2+ = upgraded)
+  shieldHealth?: number; // Current shield HP (for shield generators)
+  maxShieldHealth?: number; // Max shield HP
+  shieldRegenTimer?: number; // Timer for shield regeneration
 }
 
 export interface FrenzyProjectile {
@@ -51,8 +59,13 @@ export interface FrenzyProjectile {
   life: number;
   isBeam?: boolean; // True for defense post red beam
   isElite?: boolean; // True for elite soldier projectiles
+  isArtillery?: boolean; // True for artillery shells (area damage)
+  areaRadius?: number; // Splash damage radius
+  damage?: number; // Damage to deal on impact
   startX?: number; // Beam origin X
   startY?: number; // Beam origin Y
+  targetX?: number; // Target position X (for artillery)
+  targetY?: number; // Target position Y (for artillery)
 }
 
 export interface CoreBuilding {
@@ -110,6 +123,8 @@ export interface FrenzyConfig {
     eliteSoldier: UnitTypeConfig;
     defensePost: UnitTypeConfig;
     warship: UnitTypeConfig;
+    artillery: UnitTypeConfig;
+    shieldGenerator: UnitTypeConfig;
   };
 
   // Spawning
@@ -164,6 +179,10 @@ export function getUnitConfig(
       return config.units.defensePost;
     case FrenzyUnitType.Warship:
       return config.units.warship;
+    case FrenzyUnitType.Artillery:
+      return config.units.artillery;
+    case FrenzyUnitType.ShieldGenerator:
+      return config.units.shieldGenerator;
     default:
       return config.units.soldier;
   }
@@ -201,6 +220,24 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       range: 45, // Long range - can hit land from water
       fireInterval: 1.5, // Moderate fire rate
       projectileDamage: 50, // Good projectile damage
+    },
+    artillery: {
+      health: 150, // Fragile
+      speed: 0, // Stationary
+      dps: 0, // Uses projectileDamage instead
+      range: 80, // Very long range
+      fireInterval: 8.0, // Very slow firing, long cooldown
+      projectileDamage: 60, // High damage
+      areaRadius: 15, // Splash damage radius
+    },
+    shieldGenerator: {
+      health: 100, // Low HP
+      speed: 0, // Stationary
+      dps: 0, // No attack
+      range: 0, // No attack range
+      fireInterval: 0, // No firing
+      shieldRadius: 30, // Protection radius
+      shieldHealth: 500, // Shield absorbs 500 damage before breaking
     },
   },
 

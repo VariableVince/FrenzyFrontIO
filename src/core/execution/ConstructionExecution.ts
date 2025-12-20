@@ -135,6 +135,28 @@ export class ConstructionExecution implements Execution {
           this.mg.addExecution(new DefensePostExecution(player, this.tile));
         }
         break;
+      case UnitType.Artillery:
+        // Artillery only works in Frenzy mode
+        if (
+          this.mg.config().gameConfig().gameFork === GameFork.Frenzy &&
+          this.mg.frenzyManager()
+        ) {
+          const tileX = this.mg.x(this.tile);
+          const tileY = this.mg.y(this.tile);
+          this.mg.frenzyManager()!.spawnArtillery(player.id(), tileX, tileY);
+        }
+        break;
+      case UnitType.ShieldGenerator:
+        // Shield generator only works in Frenzy mode
+        if (
+          this.mg.config().gameConfig().gameFork === GameFork.Frenzy &&
+          this.mg.frenzyManager()
+        ) {
+          const tileX = this.mg.x(this.tile);
+          const tileY = this.mg.y(this.tile);
+          this.mg.frenzyManager()!.spawnShieldGenerator(player.id(), tileX, tileY);
+        }
+        break;
       case UnitType.SAMLauncher:
         this.mg.addExecution(new SAMLauncherExecution(player, this.tile));
         break;

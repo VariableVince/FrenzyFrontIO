@@ -15,6 +15,17 @@ interface GoldTextFx {
 }
 
 /**
+ * Artillery explosion effect
+ */
+interface ExplosionFx {
+  x: number;
+  y: number;
+  radius: number;
+  lifeTime: number;
+  duration: number;
+}
+
+/**
  * Mine data for protomolecule rendering
  */
 interface MineData {
@@ -36,6 +47,8 @@ enum FrenzyStructureType {
   Port = "port",
   MissileSilo = "missileSilo",
   SAMLauncher = "samLauncher",
+  Artillery = "artillery",
+  ShieldGenerator = "shieldGenerator",
   Construction = "construction",
 }
 
@@ -60,7 +73,9 @@ interface FrenzyStructure {
  */
 export class FrenzyLayer implements Layer {
   private goldTextEffects: GoldTextFx[] = [];
+  private explosionEffects: ExplosionFx[] = [];
   private lastPayoutIds = new Set<string>();
+  private lastArtilleryIds = new Set<number>();
   private lastFrameTime: number = 0;
 
   constructor(
@@ -197,10 +212,58 @@ export class FrenzyLayer implements Layer {
 
     const projectileSize = Math.max(0.5, frenzyState.projectileSize ?? 2);
 
-    // Render projectiles last so they sit on top
+    // Track artillery projectiles to detect impacts
+    const currentArtilleryIds = new Set<number>();
+    for (const projectile of frenzyState.projectiles) {
+      if (projectile.isArtillery) {
+        currentArtilleryIds.add(projectile.id);
+        // If this is a new artillery projectile we haven't seen, track it
+        if (!this.lastArtilleryIds.has(projectile.id)) {
+          this.lastArtilleryIds.add(projectile.id);
+        }
+      }
+    }
+    
+    // Check for artillery impacts (projectiles that were tracked but are now gone)
+    for (const id of this.lastArtilleryIds) {
+      if (!currentArtilleryIds.has(id)) {
+        // Find the projectile info from last frame if possible
+        // Since we don't have it, we need to check the last known position
+        // Instead, we'll spawn explosion when projectile progress >= 0.95
+        this.lastArtilleryIds.delete(id);
+      }
+    }
+    
+    // Render projectiles and check for near-impact artillery
     for (const projectile of frenzyState.projectiles) {
       this.renderProjectile(context, projectile, projectileSize);
+      
+      // Spawn explosion effect when artillery is about to impact (progress > 0.95)
+      const progress = projectile.progress ?? 0;
+      const targetX = projectile.targetX ?? projectile.x;
+      const targetY = projectile.targetY ?? projectile.y;
+      if (projectile.isArtillery && progress >= 0.95 && targetX !== undefined && targetY !== undefined) {
+        // Check if we already spawned an explosion for this projectile
+        const existingExplosion = this.explosionEffects.find(e => 
+          Math.abs(e.x - targetX) < 1 && Math.abs(e.y - targetY) < 1 && e.lifeTime < 100
+        );
+        if (!existingExplosion) {
+          this.explosionEffects.push({
+            x: targetX,
+            y: targetY,
+            radius: projectile.areaRadius || 15,
+            lifeTime: 0,
+            duration: 600, // 0.6 seconds
+          });
+        }
+      }
     }
+    
+    // Update last artillery ids
+    this.lastArtilleryIds = currentArtilleryIds;
+
+    // Render explosion effects
+    this.updateAndRenderExplosions(context, deltaTime);
 
     // Update and render gold text effects
     this.updateAndRenderGoldEffects(context, deltaTime);
@@ -269,6 +332,12 @@ export class FrenzyLayer implements Layer {
           case UnitType.SAMLauncher:
             structureType = FrenzyStructureType.SAMLauncher;
             break;
+          case UnitType.Artillery:
+            structureType = FrenzyStructureType.Artillery;
+            break;
+          case UnitType.ShieldGenerator:
+            structureType = FrenzyStructureType.ShieldGenerator;
+            break;
         }
 
         if (structureType) {
@@ -306,6 +375,12 @@ export class FrenzyLayer implements Layer {
               break;
             case UnitType.SAMLauncher:
               constrType = FrenzyStructureType.SAMLauncher;
+              break;
+            case UnitType.Artillery:
+              constrType = FrenzyStructureType.Artillery;
+              break;
+            case UnitType.ShieldGenerator:
+              constrType = FrenzyStructureType.ShieldGenerator;
               break;
           }
           if (constrType && constructionUnitType) {
@@ -894,6 +969,84 @@ export class FrenzyLayer implements Layer {
   }
 
   /**
+   * Artillery Icon: Cannon/mortar shape for construction preview
+   */
+  private renderArtilleryIcon(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+  ) {
+    const size = 6;
+
+    // Base platform
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.beginPath();
+    context.ellipse(x, y + size * 0.3, size, size * 0.4, 0, 0, Math.PI * 2);
+    context.fill();
+
+    // Cannon barrel (angled)
+    context.fillStyle = "#4a4a4a";
+    context.save();
+    context.translate(x, y);
+    context.rotate(-Math.PI / 4);
+    context.fillRect(-size * 0.2, -size * 1.2, size * 0.4, size * 1.2);
+    context.restore();
+
+    // Border
+    context.strokeStyle = "#000";
+    context.lineWidth = 0.5;
+    context.beginPath();
+    context.ellipse(x, y + size * 0.3, size, size * 0.4, 0, 0, Math.PI * 2);
+    context.stroke();
+  }
+
+  /**
+   * Shield Generator Icon: Hexagon with shield dome for construction preview
+   */
+  private renderShieldGeneratorIcon(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+  ) {
+    const size = 6;
+
+    // Hexagon base
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3 - Math.PI / 6;
+      const px = x + Math.cos(angle) * size;
+      const py = y + Math.sin(angle) * size;
+      if (i === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+    context.closePath();
+    context.fill();
+
+    // Energy core
+    context.fillStyle = "rgba(100, 200, 255, 0.6)";
+    context.beginPath();
+    context.arc(x, y, size * 0.4, 0, Math.PI * 2);
+    context.fill();
+
+    // Border
+    context.strokeStyle = "#1a5a8e";
+    context.lineWidth = 1;
+    context.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3 - Math.PI / 6;
+      const px = x + Math.cos(angle) * size;
+      const py = y + Math.sin(angle) * size;
+      if (i === 0) context.moveTo(px, py);
+      else context.lineTo(px, py);
+    }
+    context.closePath();
+    context.stroke();
+  }
+
+  /**
    * Construction Icon: Animated building-in-progress using the target structure shape
    */
   private renderConstructionIcon(
@@ -941,6 +1094,12 @@ export class FrenzyLayer implements Layer {
         break;
       case FrenzyStructureType.SAMLauncher:
         this.renderSAMLauncherIcon(context, 0, 0, grayColor, 0);
+        break;
+      case FrenzyStructureType.Artillery:
+        this.renderArtilleryIcon(context, 0, 0, grayColor);
+        break;
+      case FrenzyStructureType.ShieldGenerator:
+        this.renderShieldGeneratorIcon(context, 0, 0, grayColor);
         break;
     }
 
@@ -1350,6 +1509,42 @@ export class FrenzyLayer implements Layer {
     });
   }
 
+  private updateAndRenderExplosions(
+    context: CanvasRenderingContext2D,
+    deltaTime: number,
+  ) {
+    // Update and filter expired explosions
+    this.explosionEffects = this.explosionEffects.filter((explosion) => {
+      explosion.lifeTime += deltaTime;
+      if (explosion.lifeTime >= explosion.duration) {
+        return false; // Remove expired
+      }
+
+      // Calculate animation progress (0 to 1)
+      const t = explosion.lifeTime / explosion.duration;
+      const x = explosion.x - this.game.width() / 2;
+      const y = explosion.y - this.game.height() / 2;
+      
+      // Flash grows quickly then fades
+      const growthPhase = Math.min(t * 5, 1); // Reaches full size at 20% of duration
+      const currentRadius = explosion.radius * growthPhase;
+      const alpha = Math.pow(1 - t, 2); // Fade out quickly (quadratic)
+
+      // Flash of light - white/yellow core that fades
+      const flashGradient = context.createRadialGradient(x, y, 0, x, y, currentRadius);
+      flashGradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+      flashGradient.addColorStop(0.3, `rgba(255, 255, 200, ${alpha * 0.8})`);
+      flashGradient.addColorStop(0.6, `rgba(255, 200, 100, ${alpha * 0.4})`);
+      flashGradient.addColorStop(1, `rgba(255, 150, 50, 0)`);
+      context.fillStyle = flashGradient;
+      context.beginPath();
+      context.arc(x, y, currentRadius, 0, Math.PI * 2);
+      context.fill();
+
+      return true; // Keep effect
+    });
+  }
+
   private renderTestMarker(context: CanvasRenderingContext2D) {
     // Draw a circle at 0,0 (map center in transformed coordinates)
     context.fillStyle = "#FF0000";
@@ -1388,8 +1583,102 @@ export class FrenzyLayer implements Layer {
     const isDefensePost = unit.unitType === "defensePost";
     const isEliteSoldier = unit.unitType === "eliteSoldier";
     const isWarship = unit.unitType === "warship";
+    const isArtillery = unit.unitType === "artillery";
+    const isShieldGenerator = unit.unitType === "shieldGenerator";
 
-    if (isDefensePost) {
+    if (isShieldGenerator) {
+      // Shield Generator: dome/bubble with energy field
+      const size = 6;
+      const shieldRadius = 30; // Match config shieldRadius
+      
+      // Draw shield bubble (if active)
+      if (unit.shieldHealth && unit.shieldHealth > 0) {
+        const shieldAlpha = 0.15 + 0.1 * Math.sin(Date.now() / 500);
+        const shieldGradient = context.createRadialGradient(x, y, 0, x, y, shieldRadius);
+        shieldGradient.addColorStop(0, `rgba(100, 200, 255, ${shieldAlpha * 0.3})`);
+        shieldGradient.addColorStop(0.7, `rgba(80, 180, 240, ${shieldAlpha * 0.5})`);
+        shieldGradient.addColorStop(1, `rgba(60, 150, 220, ${shieldAlpha})`);
+        
+        context.fillStyle = shieldGradient;
+        context.beginPath();
+        context.arc(x, y, shieldRadius, 0, Math.PI * 2);
+        context.fill();
+        
+        // Shield edge glow
+        context.strokeStyle = `rgba(120, 220, 255, ${0.3 + 0.2 * Math.sin(Date.now() / 300)})`;
+        context.lineWidth = 2;
+        context.stroke();
+      }
+      
+      // Generator base (hexagon)
+      context.fillStyle = player.territoryColor().toRgbString();
+      context.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3 - Math.PI / 6;
+        const px = x + Math.cos(angle) * size;
+        const py = y + Math.sin(angle) * size;
+        if (i === 0) context.moveTo(px, py);
+        else context.lineTo(px, py);
+      }
+      context.closePath();
+      context.fill();
+      
+      // Center energy core
+      const coreGlow = 0.5 + 0.3 * Math.sin(Date.now() / 200);
+      context.fillStyle = `rgba(100, 200, 255, ${coreGlow})`;
+      context.beginPath();
+      context.arc(x, y, size * 0.4, 0, Math.PI * 2);
+      context.fill();
+      
+      // Border
+      context.strokeStyle = "#1a5a8e";
+      context.lineWidth = 1;
+      context.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3 - Math.PI / 6;
+        const px = x + Math.cos(angle) * size;
+        const py = y + Math.sin(angle) * size;
+        if (i === 0) context.moveTo(px, py);
+        else context.lineTo(px, py);
+      }
+      context.closePath();
+      context.stroke();
+    } else if (isArtillery) {
+      // Artillery: cannon/mortar shape
+      const size = 7;
+      
+      // Base platform (rectangle)
+      context.fillStyle = "#555";
+      context.fillRect(x - size / 2, y + size / 4, size, size / 3);
+      
+      // Cannon barrel (angled rectangle)
+      context.save();
+      context.translate(x, y);
+      context.rotate(-Math.PI / 6); // Angle upward
+      
+      context.fillStyle = player.territoryColor().toRgbString();
+      context.fillRect(-size / 6, -size / 2, size / 3, size * 0.8);
+      
+      // Barrel tip (darker)
+      context.fillStyle = "#333";
+      context.fillRect(-size / 6, -size / 2, size / 3, size / 5);
+      
+      context.restore();
+      
+      // Wheels (circles)
+      context.fillStyle = "#444";
+      context.beginPath();
+      context.arc(x - size / 3, y + size / 3, size / 5, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.arc(x + size / 3, y + size / 3, size / 5, 0, Math.PI * 2);
+      context.fill();
+      
+      // Border
+      context.strokeStyle = "#000";
+      context.lineWidth = 0.5;
+      context.strokeRect(x - size / 2, y + size / 4, size, size / 3);
+    } else if (isDefensePost) {
       // Defense post: shield icon (50% smaller than before)
       const size = 4; // Reduced from 8 for 50% smaller
 
@@ -1528,6 +1817,12 @@ export class FrenzyLayer implements Layer {
       return;
     }
 
+    // Check if this is an artillery shell
+    if (projectile.isArtillery) {
+      this.renderArtilleryProjectile(context, x, y, projectile);
+      return;
+    }
+
     // Plasma projectile effect with glowing core
     // Outer glow
     const gradient = context.createRadialGradient(x, y, 0, x, y, radius * 2.5);
@@ -1580,6 +1875,61 @@ export class FrenzyLayer implements Layer {
     context.fillStyle = "#ffffff";
     context.beginPath();
     context.arc(x, y, eliteRadius * 0.5, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  private renderArtilleryProjectile(
+    context: CanvasRenderingContext2D,
+    baseX: number,
+    baseY: number,
+    projectile: any,
+  ) {
+    // Artillery shell follows a ballistic arc trajectory
+    const spotSize = 3;
+    
+    // Get trajectory progress (0 = start, 1 = end)
+    const progress = projectile.progress || 0;
+    
+    // Calculate start and end points in screen space
+    const startX = (projectile.startX ?? projectile.x) - this.game.width() / 2;
+    const startY = (projectile.startY ?? projectile.y) - this.game.height() / 2;
+    const targetX = (projectile.targetX ?? projectile.x) - this.game.width() / 2;
+    const targetY = (projectile.targetY ?? projectile.y) - this.game.height() / 2;
+    
+    // Calculate horizontal distance for arc height
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const dist = Math.hypot(dx, dy);
+    
+    // Ballistic arc: parabola that peaks at 50% progress
+    const arcHeight = Math.min(dist * 0.4, 60); // Max 60 pixels high
+    const arcOffset = -4 * arcHeight * progress * (1 - progress);
+    
+    // Interpolate position along straight line + arc offset
+    const x = startX + dx * progress;
+    const y = startY + dy * progress + arcOffset;
+
+    // Outer glow (orange/red)
+    const glowRadius = spotSize * 4;
+    const glowGradient = context.createRadialGradient(x, y, 0, x, y, glowRadius);
+    glowGradient.addColorStop(0, "rgba(255, 150, 50, 0.6)");
+    glowGradient.addColorStop(0.4, "rgba(255, 80, 0, 0.3)");
+    glowGradient.addColorStop(1, "rgba(255, 0, 0, 0)");
+    context.fillStyle = glowGradient;
+    context.beginPath();
+    context.arc(x, y, glowRadius, 0, Math.PI * 2);
+    context.fill();
+
+    // Bright white/yellow core spot
+    context.fillStyle = "#ffffcc";
+    context.beginPath();
+    context.arc(x, y, spotSize, 0, Math.PI * 2);
+    context.fill();
+    
+    // Inner bright white center
+    context.fillStyle = "#ffffff";
+    context.beginPath();
+    context.arc(x, y, spotSize * 0.5, 0, Math.PI * 2);
     context.fill();
   }
 

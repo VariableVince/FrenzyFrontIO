@@ -19,6 +19,7 @@ import donateGoldIcon from "../../../../resources/images/DonateGoldIconWhite.svg
 import donateTroopIcon from "../../../../resources/images/DonateTroopIconWhite.svg";
 import emojiIcon from "../../../../resources/images/EmojiIconWhite.svg";
 import infoIcon from "../../../../resources/images/InfoIcon.svg";
+import shieldIcon from "../../../../resources/images/ShieldIconWhite.svg";
 import swordIcon from "../../../../resources/images/SwordIconWhite.svg";
 import targetIcon from "../../../../resources/images/TargetIconWhite.svg";
 import traitorIcon from "../../../../resources/images/TraitorIconWhite.svg";
@@ -325,12 +326,16 @@ function getAllEnabledUnits(myPlayer: boolean, config: Config): Set<UnitType> {
   };
 
   if (myPlayer) {
+    // Strategic structures (shown directly in build menu)
     addStructureIfEnabled(UnitType.City);
-    addStructureIfEnabled(UnitType.DefensePost);
     addStructureIfEnabled(UnitType.Port);
+    addStructureIfEnabled(UnitType.Factory);
+    // Tactical structures (shown in tactical submenu)
+    addStructureIfEnabled(UnitType.DefensePost);
     addStructureIfEnabled(UnitType.MissileSilo);
     addStructureIfEnabled(UnitType.SAMLauncher);
-    addStructureIfEnabled(UnitType.Factory);
+    addStructureIfEnabled(UnitType.ShieldGenerator);
+    addStructureIfEnabled(UnitType.Artillery);
   } else {
     addStructureIfEnabled(UnitType.Warship);
     addStructureIfEnabled(UnitType.HydrogenBomb);
@@ -341,6 +346,22 @@ function getAllEnabledUnits(myPlayer: boolean, config: Config): Set<UnitType> {
   return Units;
 }
 
+// Strategic structures - economic/production
+const STRATEGIC_UNIT_TYPES: UnitType[] = [
+  UnitType.City,
+  UnitType.Port,
+  UnitType.Factory,
+];
+
+// Tactical structures - military/defensive
+const TACTICAL_UNIT_TYPES: UnitType[] = [
+  UnitType.DefensePost,
+  UnitType.SAMLauncher,
+  UnitType.MissileSilo,
+  UnitType.ShieldGenerator,
+  UnitType.Artillery,
+];
+
 const ATTACK_UNIT_TYPES: UnitType[] = [
   UnitType.AtomBomb,
   UnitType.MIRV,
@@ -350,7 +371,7 @@ const ATTACK_UNIT_TYPES: UnitType[] = [
 
 function createMenuElements(
   params: MenuElementParams,
-  filterType: "attack" | "build",
+  filterType: "attack" | "build" | "strategic" | "tactical",
   elementIdPrefix: string,
 ): MenuElement[] {
   const unitTypes: Set<UnitType> = getAllEnabledUnits(
@@ -359,13 +380,21 @@ function createMenuElements(
   );
 
   return flattenedBuildTable
-    .filter(
-      (item) =>
-        unitTypes.has(item.unitType) &&
-        (filterType === "attack"
-          ? ATTACK_UNIT_TYPES.includes(item.unitType)
-          : !ATTACK_UNIT_TYPES.includes(item.unitType)),
-    )
+    .filter((item) => {
+      if (!unitTypes.has(item.unitType)) return false;
+      
+      switch (filterType) {
+        case "attack":
+          return ATTACK_UNIT_TYPES.includes(item.unitType);
+        case "strategic":
+          return STRATEGIC_UNIT_TYPES.includes(item.unitType);
+        case "tactical":
+          return TACTICAL_UNIT_TYPES.includes(item.unitType);
+        case "build":
+        default:
+          return !ATTACK_UNIT_TYPES.includes(item.unitType);
+      }
+    })
     .map((item: BuildItemDisplay) => ({
       id: `${elementIdPrefix}_${item.unitType}`,
       name: item.key
@@ -617,7 +646,31 @@ export const buildMenuElement: MenuElement = {
 
   subMenu: (params: MenuElementParams) => {
     if (params === undefined) return [];
-    return createMenuElements(params, "build", "build");
+    // Strategic structures + tactical submenu
+    const strategicItems = createMenuElements(params, "strategic", "build");
+    return [...strategicItems, tacticalMenuElement];
+  },
+};
+
+export const tacticalMenuElement: MenuElement = {
+  id: "tactical",
+  name: "tactical",
+  disabled: (params: MenuElementParams) => params.game.inSpawnPhase(),
+  icon: shieldIcon,
+  color: COLORS.attack,
+  tooltipKeys: [
+    {
+      key: "radial_menu.tactical_title",
+      className: "title",
+    },
+    {
+      key: "radial_menu.tactical_description",
+      className: "description",
+    },
+  ],
+  subMenu: (params: MenuElementParams) => {
+    if (params === undefined) return [];
+    return createMenuElements(params, "tactical", "tactical");
   },
 };
 
@@ -697,6 +750,7 @@ export const rootMenuElement: MenuElement = {
     // Check if clicking on own HQ or factory in Frenzy mode
     let isClickingOnHQ = false;
     let isClickingOnOwnFactory = false;
+    let isClickingOnStructure = false;
     let canUpgradeFactory = false;
     const frenzyState = params.game.frenzyManager();
     if (frenzyState) {
@@ -719,18 +773,38 @@ export const rootMenuElement: MenuElement = {
       );
       if (myFactory) {
         isClickingOnOwnFactory = true;
+        isClickingOnStructure = true;
         // Check if factory can be upgraded (HQ tier >= 2 and factory tier < 2)
         canUpgradeFactory = frenzyState.canUpgradeFactory(params.myPlayer.id()) &&
           frenzyState.getFactoryTier(myFactory.unit.tile()) < 2;
       }
+      
+      // Check if clicking on any structure (mine, port, etc.)
+      const nearbyStructures = params.game.nearbyUnits(params.tile, 3, [
+        UnitType.City, UnitType.Port, UnitType.MissileSilo, 
+        UnitType.SAMLauncher, UnitType.DefensePost,
+        UnitType.ShieldGenerator, UnitType.Artillery
+      ]);
+      if (nearbyStructures.some(({ unit }) => 
+        unit.owner().isPlayer() && 
+        (unit.owner() as PlayerView).id() === params.myPlayer.id()
+      )) {
+        isClickingOnStructure = true;
+      }
     }
 
-    // In own territory: show upgrade HQ/Factory if clicking on them, otherwise show delete unit
-    let ownTerritoryFirstItem: MenuElement = deleteUnitElement;
+    // In own territory: determine what to show in the first slot
+    // - On HQ: upgrade HQ
+    // - On Factory: upgrade factory
+    // - On other structure: delete unit
+    // - On empty land: tactical menu
+    let ownTerritoryFirstItem: MenuElement = tacticalMenuElement;
     if (isClickingOnHQ) {
       ownTerritoryFirstItem = upgradeHQElement;
     } else if (isClickingOnOwnFactory && canUpgradeFactory) {
       ownTerritoryFirstItem = upgradeFactoryElement;
+    } else if (isClickingOnStructure) {
+      ownTerritoryFirstItem = deleteUnitElement;
     }
 
     const menuItems: (MenuElement | null)[] = [

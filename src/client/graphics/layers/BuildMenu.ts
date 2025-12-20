@@ -103,6 +103,20 @@ export const buildTable: BuildItemDisplay[][] = [
       countable: true,
     },
     {
+      unitType: UnitType.ShieldGenerator,
+      icon: shieldIcon,
+      description: "build_menu.desc.shield_generator",
+      key: "unit_type.shield_generator",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Artillery,
+      icon: missileSiloIcon,
+      description: "build_menu.desc.artillery",
+      key: "unit_type.artillery",
+      countable: true,
+    },
+    {
       unitType: UnitType.City,
       icon: cityIcon,
       description: "build_menu.desc.city",

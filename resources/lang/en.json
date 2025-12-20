@@ -326,7 +326,9 @@
     "atom_bomb": "Atom Bomb",
     "hydrogen_bomb": "Hydrogen Bomb",
     "mirv": "MIRV",
-    "factory": "Factory"
+    "factory": "Factory",
+    "shield_generator": "Shield Generator",
+    "artillery": "Artillery"
   },
   "user_setting": {
     "title": "User Settings",
@@ -521,7 +523,9 @@
       "port": "Sends trade ships to generate gold",
       "defense_post": "Increases defenses of nearby borders",
       "city": "Increases max population",
-      "factory": "Creates railroads and spawns trains"
+      "factory": "Creates railroads and spawns trains",
+      "shield_generator": "Protects nearby units from damage",
+      "artillery": "Long-range bombardment of enemy positions"
     },
     "not_enough_money": "Not enough money"
   },
@@ -749,7 +753,9 @@
     "upgrade_hq_title": "Upgrade HQ",
     "upgrade_hq_description": "Upgrade your headquarters to the next tier",
     "upgrade_factory_title": "Upgrade Factory",
-    "upgrade_factory_description": "Upgrade factory to produce elite soldiers"
+    "upgrade_factory_description": "Upgrade factory to produce elite soldiers",
+    "tactical_title": "Tactical",
+    "tactical_description": "Build military and defensive structures"
   },
   "discord_user_header": {
     "avatar_alt": "Avatar"

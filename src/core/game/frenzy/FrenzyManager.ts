@@ -95,6 +95,14 @@ export class FrenzyManager {
             ...DEFAULT_FRENZY_CONFIG.units.warship,
             ...config.units.warship,
           },
+          artillery: {
+            ...DEFAULT_FRENZY_CONFIG.units.artillery,
+            ...config.units.artillery,
+          },
+          shieldGenerator: {
+            ...DEFAULT_FRENZY_CONFIG.units.shieldGenerator,
+            ...config.units.shieldGenerator,
+          },
         },
       };
     } else {
@@ -209,6 +217,14 @@ export class FrenzyManager {
           warship: {
             ...this.config.units.warship,
             ...overrides.units.warship,
+          },
+          artillery: {
+            ...this.config.units.artillery,
+            ...overrides.units.artillery,
+          },
+          shieldGenerator: {
+            ...this.config.units.shieldGenerator,
+            ...overrides.units.shieldGenerator,
           },
         },
       };
@@ -675,6 +691,13 @@ export class FrenzyManager {
       fireInterval,
       tier: 1, // Units start at tier 1
     };
+    
+    // Initialize shield for shield generators
+    if (unitType === FrenzyUnitType.ShieldGenerator && unitConfig.shieldHealth) {
+      unit.shieldHealth = unitConfig.shieldHealth;
+      unit.maxShieldHealth = unitConfig.shieldHealth;
+      unit.shieldRegenTimer = 0;
+    }
 
     this.units.push(unit);
     building.unitCount++;
@@ -696,8 +719,10 @@ export class FrenzyManager {
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
-      // Defense posts don't move
-      if (unit.unitType === FrenzyUnitType.DefensePost) {
+      // Defense posts, artillery, and shield generators don't move
+      if (unit.unitType === FrenzyUnitType.DefensePost ||
+          unit.unitType === FrenzyUnitType.Artillery ||
+          unit.unitType === FrenzyUnitType.ShieldGenerator) {
         continue;
       }
 
@@ -1373,10 +1398,28 @@ export class FrenzyManager {
     // Track which units are in combat to apply mutual damage
     const combatPairs = new Map<number, number>();
 
+    // Update shield regeneration
+    for (const unit of this.units) {
+      if (unit.unitType === FrenzyUnitType.ShieldGenerator) {
+        if (unit.shieldRegenTimer !== undefined && unit.shieldRegenTimer > 0) {
+          unit.shieldRegenTimer -= deltaTime;
+        } else if (unit.shieldHealth !== undefined && unit.maxShieldHealth !== undefined) {
+          // Regenerate shield at 50 HP/sec when not taking damage
+          unit.shieldHealth = Math.min(unit.maxShieldHealth, unit.shieldHealth + 50 * deltaTime);
+        }
+      }
+    }
+
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
+      
+      // Shield generators don't attack
+      if (unit.unitType === FrenzyUnitType.ShieldGenerator) {
+        continue;
+      }
+      
       unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
 
       const unitPlayer = this.game.player(unit.playerId);
@@ -1386,6 +1429,7 @@ export class FrenzyManager {
       
       // Tier 2 defense posts get enhanced stats
       const isDefensePostT2 = unit.unitType === FrenzyUnitType.DefensePost && unit.tier >= 2;
+      const isArtillery = unit.unitType === FrenzyUnitType.Artillery;
       const combatRange = isDefensePostT2 ? 37.5 : unitConfig.range; // Tier 2: 1.5x soldier range
       const effectiveFireInterval = isDefensePostT2 ? 4.0 : unit.fireInterval; // Tier 2: slow but powerful
       
@@ -1415,8 +1459,15 @@ export class FrenzyManager {
           return distToEnemy < distToClosest ? enemy : closest;
         }, enemies[0]);
 
+        // Artillery fires at enemy position with area damage
+        if (isArtillery) {
+          if (unit.weaponCooldown <= 0) {
+            this.spawnArtilleryProjectile(unit, nearest.x, nearest.y);
+            unit.weaponCooldown = unit.fireInterval;
+          }
+        }
         // Defense posts deal burst damage on shot, regular units deal DPS
-        if (unitConfig.projectileDamage !== undefined) {
+        else if (unitConfig.projectileDamage !== undefined) {
           // Burst damage on shot (defense posts, warships)
           if (unit.weaponCooldown <= 0) {
             // Get effective damage based on tier for defense posts
@@ -1426,18 +1477,18 @@ export class FrenzyManager {
             if (isDefensePost && unit.tier >= 2) {
               // Tier 2 defense posts: one-shot beam (100 damage)
               damage = 100;
-              nearest.health -= damage;
+              this.applyDamage(nearest, damage);
               this.spawnBeamProjectile(unit, nearest);
             } else {
               // Tier 1 defense posts or other units: regular projectile
-              nearest.health -= damage;
+              this.applyDamage(nearest, damage);
               this.spawnProjectile(unit, nearest);
             }
             unit.weaponCooldown = unit.fireInterval;
           }
         } else {
           // Regular unit DPS
-          nearest.health -= unitConfig.dps * deltaTime;
+          this.applyDamage(nearest, unitConfig.dps * deltaTime);
 
           // Track that this unit is in combat (for mutual damage)
           combatPairs.set(unit.id, nearest.id);
@@ -1493,6 +1544,71 @@ export class FrenzyManager {
       startX: attacker.x, // Start point (defense post)
       startY: attacker.y,
     });
+  }
+
+  private spawnArtilleryProjectile(attacker: FrenzyUnit, targetX: number, targetY: number) {
+    const unitConfig = getUnitConfig(this.config, attacker.unitType);
+    const dx = targetX - attacker.x;
+    const dy = targetY - attacker.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = this.config.projectileSpeed * 1.5; // Faster projectile
+    const vx = (dx / dist) * speed;
+    const vy = (dy / dist) * speed;
+    const travelTime = Math.max(dist / speed, 0.3); // Shorter minimum travel time
+
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      playerId: attacker.playerId,
+      x: attacker.x,
+      y: attacker.y,
+      vx,
+      vy,
+      age: 0,
+      life: travelTime,
+      isArtillery: true,
+      areaRadius: unitConfig.areaRadius || 15,
+      damage: unitConfig.projectileDamage || 60,
+      targetX,
+      targetY,
+      startX: attacker.x, // Store start position for ballistic arc
+      startY: attacker.y,
+    });
+  }
+
+  /**
+   * Check if a unit is protected by a friendly shield generator
+   * Returns the shield generator if protected, null otherwise
+   */
+  private getProtectingShield(unit: FrenzyUnit): FrenzyUnit | null {
+    for (const other of this.units) {
+      if (other.unitType !== FrenzyUnitType.ShieldGenerator) continue;
+      if (other.playerId !== unit.playerId) continue;
+      if (!other.shieldHealth || other.shieldHealth <= 0) continue;
+      
+      const unitConfig = getUnitConfig(this.config, other.unitType);
+      const shieldRadius = unitConfig.shieldRadius || 30;
+      const dist = Math.hypot(unit.x - other.x, unit.y - other.y);
+      
+      if (dist <= shieldRadius) {
+        return other;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Apply damage to a unit, accounting for shield protection
+   */
+  private applyDamage(target: FrenzyUnit, damage: number): void {
+    const shield = this.getProtectingShield(target);
+    if (shield && shield.shieldHealth && shield.shieldHealth > 0) {
+      // Shield absorbs damage
+      const absorbed = Math.min(shield.shieldHealth, damage);
+      shield.shieldHealth -= absorbed;
+      shield.shieldRegenTimer = 3.0; // Reset regen timer
+      damage -= absorbed;
+    }
+    target.health -= damage;
   }
 
   /**
@@ -1730,11 +1846,48 @@ export class FrenzyManager {
       projectile.age += deltaTime;
       projectile.x += projectile.vx * deltaTime;
       projectile.y += projectile.vy * deltaTime;
+      
+      // Check if artillery projectile has reached target
+      if (projectile.isArtillery && projectile.age >= projectile.life) {
+        // Apply area damage at impact location
+        this.applyArtilleryImpact(projectile);
+      }
+      
       if (projectile.age < projectile.life) {
         active.push(projectile);
       }
     }
     this.projectiles = active;
+  }
+
+  /**
+   * Apply area damage when artillery shell lands
+   */
+  private applyArtilleryImpact(projectile: FrenzyProjectile) {
+    const impactX = projectile.targetX ?? projectile.x;
+    const impactY = projectile.targetY ?? projectile.y;
+    const radius = projectile.areaRadius ?? 15;
+    const damage = projectile.damage ?? 60;
+    
+    // Find all enemy units in the blast radius
+    const unitsInRadius = this.spatialGrid.getNearby(impactX, impactY, radius);
+    
+    for (const unit of unitsInRadius) {
+      // Don't damage friendly units
+      if (unit.playerId === projectile.playerId) continue;
+      
+      // Check if allied
+      const projectilePlayer = this.game.player(projectile.playerId);
+      const unitPlayer = this.game.player(unit.playerId);
+      if (projectilePlayer.isAlliedWith(unitPlayer)) continue;
+      
+      const dist = Math.hypot(unit.x - impactX, unit.y - impactY);
+      if (dist <= radius) {
+        // Damage falls off with distance (100% at center, 50% at edge)
+        const falloff = 1 - (dist / radius) * 0.5;
+        this.applyDamage(unit, damage * falloff);
+      }
+    }
   }
 
   /**
@@ -2019,6 +2172,40 @@ export class FrenzyManager {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.DefensePost);
+  }
+
+  /**
+   * Spawn an artillery at the given location
+   */
+  spawnArtillery(playerId: PlayerID, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    const building = this.coreBuildings.get(playerId);
+    if (!building) {
+      return;
+    }
+    if (building.unitCount >= this.getMaxUnitsForPlayer(playerId)) {
+      return;
+    }
+    this.spawnUnit(playerId, x, y, FrenzyUnitType.Artillery);
+  }
+
+  /**
+   * Spawn a shield generator at the given location
+   */
+  spawnShieldGenerator(playerId: PlayerID, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    const building = this.coreBuildings.get(playerId);
+    if (!building) {
+      return;
+    }
+    if (building.unitCount >= this.getMaxUnitsForPlayer(playerId)) {
+      return;
+    }
+    this.spawnUnit(playerId, x, y, FrenzyUnitType.ShieldGenerator);
   }
 
   /**
@@ -2371,6 +2558,8 @@ export class FrenzyManager {
         health: u.health,
         unitType: u.unitType,
         tier: u.tier,
+        shieldHealth: u.shieldHealth,
+        maxShieldHealth: u.maxShieldHealth,
       })),
       coreBuildings: Array.from(this.coreBuildings.values()).map((b) => ({
         playerId: b.playerId,
@@ -2402,6 +2591,11 @@ export class FrenzyManager {
         isElite: p.isElite,
         startX: p.startX,
         startY: p.startY,
+        isArtillery: p.isArtillery,
+        targetX: p.targetX,
+        targetY: p.targetY,
+        areaRadius: p.areaRadius,
+        progress: p.life > 0 ? p.age / p.life : 1,
       })),
       projectileSize: this.config.projectileSize,
       maxUnitsPerPlayer: this.config.maxUnitsPerPlayer,

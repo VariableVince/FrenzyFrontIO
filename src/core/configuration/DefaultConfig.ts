@@ -584,6 +584,20 @@ export class DefaultConfig implements Config {
           territoryBound: false,
           experimental: true,
         };
+      case UnitType.ShieldGenerator:
+        return {
+          cost: this.costWrapper(() => 150_000, UnitType.ShieldGenerator),
+          territoryBound: true,
+          constructionDuration: this.instantBuild() ? 0 : 15 * 10,
+          upgradable: true,
+        };
+      case UnitType.Artillery:
+        return {
+          cost: this.costWrapper(() => 200_000, UnitType.Artillery),
+          territoryBound: true,
+          constructionDuration: this.instantBuild() ? 0 : 20 * 10,
+          upgradable: true,
+        };
       default:
         assertNever(type);
     }
