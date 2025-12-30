@@ -19,7 +19,7 @@ export class ControlPanel extends LitElement implements Layer {
   public uiState: UIState;
 
   @state()
-  private attackRatio: number = 0.2;
+  private attackRatio: number = 0.01;
 
   @state()
   private defensiveStance: number = 1.0; // 0 = stay near HQ, 0.5 = fire range, 1 = offensive
@@ -54,7 +54,7 @@ export class ControlPanel extends LitElement implements Layer {
 
   init() {
     this.attackRatio = Number(
-      localStorage.getItem("settings.attackRatio") ?? "0.2",
+      localStorage.getItem("settings.attackRatio") ?? "0.01",
     );
     this.uiState.attackRatio = this.attackRatio;
 

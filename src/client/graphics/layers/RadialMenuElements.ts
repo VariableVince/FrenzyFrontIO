@@ -1201,6 +1201,15 @@ export const centerButtonElement: CenterButtonElement = {
   disabled: (params: MenuElementParams): boolean => {
     const tileOwner = params.game.owner(params.tile);
     const isLand = params.game.isLand(params.tile);
+    const isWater = params.game.isWater(params.tile);
+
+    // In Frenzy mode, allow attacks anywhere (own territory, enemy, wilderness, water)
+    const frenzyState = params.game.frenzyManager();
+    if (frenzyState && !params.game.inSpawnPhase()) {
+      // In Frenzy mode, only disable if tile is invalid (not land and not water)
+      return !isLand && !isWater;
+    }
+
     if (!isLand) {
       return true;
     }

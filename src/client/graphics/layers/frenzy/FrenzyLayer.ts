@@ -160,6 +160,9 @@ export class FrenzyLayer implements Layer {
     }
     FrameProfiler.end("FrenzyLayer:units", unitStart);
 
+    // Render attack order lines for units with active attack orders
+    this.renderAttackOrderLines(ctx, frenzyState.units);
+
     // Render projectiles
     const projStart = FrameProfiler.start();
     const projectileSize = Math.max(0.5, frenzyState.projectileSize ?? 2);
@@ -173,5 +176,49 @@ export class FrenzyLayer implements Layer {
     // Render effects
     this.effectsRenderer.renderExplosions(ctx, deltaTime);
     this.effectsRenderer.renderGoldEffects(ctx, deltaTime);
+  }
+
+  /**
+   * Render red dashed lines from units to their attack order targets
+   * Only renders lines for units owned by the current player
+   */
+  private renderAttackOrderLines(
+    ctx: FrenzyRenderContext,
+    units: Array<{
+      x: number;
+      y: number;
+      playerId: string;
+      hasAttackOrder?: boolean;
+      attackOrderX?: number;
+      attackOrderY?: number;
+    }>,
+  ) {
+    const myPlayer = this.game.myPlayer();
+    if (!myPlayer) return;
+    const myPlayerId = myPlayer.id();
+
+    ctx.context.save();
+    ctx.context.strokeStyle = "rgba(255, 80, 80, 0.25)";
+    ctx.context.lineWidth = 0.5;
+    ctx.context.setLineDash([4, 3]);
+
+    for (const unit of units) {
+      if (unit.playerId !== myPlayerId) continue;
+      if (!unit.hasAttackOrder) continue;
+      if (unit.attackOrderX === undefined || unit.attackOrderY === undefined) continue;
+
+      const unitX = unit.x - ctx.halfWidth;
+      const unitY = unit.y - ctx.halfHeight;
+      const targetX = unit.attackOrderX - ctx.halfWidth;
+      const targetY = unit.attackOrderY - ctx.halfHeight;
+
+      ctx.context.beginPath();
+      ctx.context.moveTo(unitX, unitY);
+      ctx.context.lineTo(targetX, targetY);
+      ctx.context.stroke();
+    }
+
+    ctx.context.setLineDash([]);
+    ctx.context.restore();
   }
 }

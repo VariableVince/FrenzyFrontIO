@@ -1,4 +1,6 @@
 import { PseudoRandom } from "../../PseudoRandom";
+import { PathFindResultType } from "../../pathfinding/AStar";
+import { MiniAStar } from "../../pathfinding/MiniAStar";
 import {
   Game,
   Player,
@@ -28,8 +30,6 @@ import {
 } from "./FrenzyTypes";
 import { SpatialHashGrid } from "./SpatialHashGrid";
 
-const ATTACK_ORDER_TTL_TICKS = 150; // ~15 seconds at 10 ticks/sec
-
 /**
  * FrenzyManager handles all unit-based warfare logic for Frenzy mode
  * ALL structures (HQ, Mine, Factory, Port) and units are managed here.
@@ -49,7 +49,6 @@ export class FrenzyManager {
   private projectiles: FrenzyProjectile[] = [];
   private config: FrenzyConfig;
   private defeatedPlayers = new Set<PlayerID>();
-  private attackOrders: Map<PlayerID, FrenzyAttackOrder> = new Map();
 
   // Mine gold payout tracking
   private mineGoldTimer = 0; // Seconds until next mine gold payout
@@ -75,6 +74,10 @@ export class FrenzyManager {
 
   // Deterministic random number generator (seeded for multiplayer sync)
   private random: PseudoRandom;
+
+  // Warship pathfinding - compute full path, store on unit, process one at a time
+  private warshipPathfindQueue: number[] = []; // Unit IDs needing pathfinding
+  private activePathfind: { unitId: number; aStar: MiniAStar } | null = null;
 
   constructor(
     private game: Game,
@@ -350,6 +353,9 @@ export class FrenzyManager {
 
     this.updateSpawnTimers(deltaTime);
     this.updateMineGoldPayouts(deltaTime);
+
+    // Process warship pathfinding queue (one per tick)
+    this.processWarshipPathfindQueue();
 
     // Performance: Only rebuild territory cache periodically
     if (
@@ -742,13 +748,9 @@ export class FrenzyManager {
     deltaTime: number,
     territories: Map<PlayerID, PlayerTerritorySnapshot>,
   ) {
-    const unitCounts = this.buildUnitCounts();
-    this.cleanupAttackOrders(unitCounts);
-    const attackPlans = this.buildAttackPlans(unitCounts, territories);
-    const attackAllocations = new Map<PlayerID, number>();
-
     // Performance: Only recalculate targets for a subset of units each tick
     const RETARGET_DISTANCE = 15; // Recalculate when within this distance of target
+    const ATTACK_ORDER_ARRIVAL_DISTANCE = 20; // Clear attack order when this close to target
 
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
@@ -758,7 +760,9 @@ export class FrenzyManager {
       if (
         unit.unitType === FrenzyUnitType.DefensePost ||
         unit.unitType === FrenzyUnitType.Artillery ||
-        unit.unitType === FrenzyUnitType.ShieldGenerator
+        unit.unitType === FrenzyUnitType.ShieldGenerator ||
+        unit.unitType === FrenzyUnitType.SAMLauncher ||
+        unit.unitType === FrenzyUnitType.MissileSilo
       ) {
         continue;
       }
@@ -771,48 +775,46 @@ export class FrenzyManager {
 
       const territory = territories.get(unit.playerId);
 
-      // Check if unit needs a new target
-      const distToTarget = Math.hypot(
-        unit.targetX - unit.x,
-        unit.targetY - unit.y,
-      );
-      const needsNewTarget =
-        distToTarget < RETARGET_DISTANCE ||
-        (unit.targetX === 0 && unit.targetY === 0);
-
-      // Check for attack orders - units assigned to attack get HQ-biased targeting
-      const attackOrder = this.attackOrders.get(unit.playerId);
-      const attackPlan = attackPlans.get(unit.playerId);
-      let isAttackingUnit = false;
-
-      if (attackPlan) {
-        const assigned = attackAllocations.get(unit.playerId) ?? 0;
-        if (assigned < attackPlan.quota) {
-          attackAllocations.set(unit.playerId, assigned + 1);
-          isAttackingUnit = true;
-        }
-      }
-
-      if (needsNewTarget && territory) {
-        // Calculate new target with attack target bias if attacking
-        const attackTargetId = isAttackingUnit
-          ? attackOrder?.targetPlayerId
-          : undefined;
-        const clickPos =
-          isAttackingUnit &&
-          attackOrder?.targetX !== undefined &&
-          attackOrder?.targetY !== undefined
-            ? { x: attackOrder.targetX, y: attackOrder.targetY }
-            : undefined;
-        const newTarget = this.calculateUnitTarget(
-          unit,
-          territory,
-          attackTargetId ?? undefined,
-          isAttackingUnit,
-          clickPos,
+      // Check if unit has a per-unit attack order
+      if (unit.hasAttackOrder && unit.attackOrderX !== undefined && unit.attackOrderY !== undefined) {
+        // Check if unit has arrived at attack order destination
+        const distToAttackTarget = Math.hypot(
+          unit.attackOrderX - unit.x,
+          unit.attackOrderY - unit.y,
         );
-        unit.targetX = newTarget.x;
-        unit.targetY = newTarget.y;
+        
+        if (distToAttackTarget < ATTACK_ORDER_ARRIVAL_DISTANCE) {
+          // Clear attack order - unit has arrived
+          unit.hasAttackOrder = false;
+          unit.attackOrderX = undefined;
+          unit.attackOrderY = undefined;
+        } else {
+          // Keep moving toward attack order target
+          unit.targetX = unit.attackOrderX;
+          unit.targetY = unit.attackOrderY;
+        }
+      } else {
+        // No attack order - use normal targeting logic
+        const distToTarget = Math.hypot(
+          unit.targetX - unit.x,
+          unit.targetY - unit.y,
+        );
+        const needsNewTarget =
+          distToTarget < RETARGET_DISTANCE ||
+          (unit.targetX === 0 && unit.targetY === 0);
+
+        if (needsNewTarget && territory) {
+          // Calculate new target based on defensive stance
+          const newTarget = this.calculateUnitTarget(
+            unit,
+            territory,
+            undefined,
+            false,
+            undefined,
+          );
+          unit.targetX = newTarget.x;
+          unit.targetY = newTarget.y;
+        }
       }
 
       const dx = unit.targetX - unit.x;
@@ -1080,61 +1082,225 @@ export class FrenzyManager {
 
   /**
    * Update warship movement - warships patrol on water near enemy coastlines
+   * Uses pre-computed paths for smooth movement
    */
   private updateWarshipMovement(unit: FrenzyUnit, deltaTime: number) {
-    const RETARGET_DISTANCE = 10;
+    const WAYPOINT_ARRIVAL_DISTANCE = 0.5; // Tiles
+    const ATTACK_ORDER_ARRIVAL_DISTANCE = 3; // Tiles
 
-    // Check if unit needs a new target
-    const distToTarget = Math.hypot(
-      unit.targetX - unit.x,
-      unit.targetY - unit.y,
-    );
-    const needsNewTarget =
-      distToTarget < RETARGET_DISTANCE ||
-      (unit.targetX === 0 && unit.targetY === 0);
-
-    if (needsNewTarget) {
-      const newTarget = this.findWarshipTarget(unit);
-      unit.targetX = newTarget.x;
-      unit.targetY = newTarget.y;
+    // Current tile position
+    const currentTileX = Math.floor(unit.x);
+    const currentTileY = Math.floor(unit.y);
+    const currentTile = this.game.ref(currentTileX, currentTileY);
+    if (!currentTile) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
     }
 
-    const dx = unit.targetX - unit.x;
-    const dy = unit.targetY - unit.y;
+    // Determine target coordinates
+    let destX: number = unit.targetX;
+    let destY: number = unit.targetY;
+    let hasAttackOrderTarget = false;
+
+    // Check if warship has a per-unit attack order
+    if (unit.hasAttackOrder && unit.attackOrderX !== undefined && unit.attackOrderY !== undefined) {
+      destX = unit.attackOrderX;
+      destY = unit.attackOrderY;
+      const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
+      
+      if (distToTarget < ATTACK_ORDER_ARRIVAL_DISTANCE) {
+        // Clear attack order - unit has arrived
+        unit.hasAttackOrder = false;
+        unit.attackOrderX = undefined;
+        unit.attackOrderY = undefined;
+        unit.path = undefined;
+        unit.pathIndex = undefined;
+        // Fall back to patrol target
+        destX = unit.targetX;
+        destY = unit.targetY;
+      } else {
+        hasAttackOrderTarget = true;
+      }
+    }
+
+    // If no attack order, use patrol target
+    if (!hasAttackOrderTarget) {
+      destX = unit.targetX;
+      destY = unit.targetY;
+      const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
+      
+      // Check if needs new patrol target
+      if (distToTarget < 2 || (unit.targetX === 0 && unit.targetY === 0)) {
+        const newTarget = this.findWarshipTarget(unit);
+        unit.targetX = newTarget.x;
+        unit.targetY = newTarget.y;
+        destX = newTarget.x;
+        destY = newTarget.y;
+        unit.path = undefined;
+        unit.pathIndex = undefined;
+      }
+    }
+
+    // Check if destination changed - need new path
+    if (unit.path && unit.pathDestX !== undefined && unit.pathDestY !== undefined) {
+      const destChanged = Math.abs(destX - unit.pathDestX) > 3 || Math.abs(destY - unit.pathDestY) > 3;
+      if (destChanged) {
+        unit.path = undefined;
+        unit.pathIndex = undefined;
+      }
+    }
+
+    // If we have a path, follow it
+    if (unit.path && unit.pathIndex !== undefined && unit.pathIndex < unit.path.length) {
+      const waypoint = unit.path[unit.pathIndex];
+      const waypointX = waypoint.x + 0.5;
+      const waypointY = waypoint.y + 0.5;
+      const dx = waypointX - unit.x;
+      const dy = waypointY - unit.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < WAYPOINT_ARRIVAL_DISTANCE) {
+        // Advance to next waypoint
+        unit.pathIndex++;
+        // Don't return - continue moving toward next waypoint this frame
+      }
+
+      if (unit.pathIndex < unit.path.length) {
+        const nextWaypoint = unit.path[unit.pathIndex];
+        const nextX = nextWaypoint.x + 0.5;
+        const nextY = nextWaypoint.y + 0.5;
+        const ndx = nextX - unit.x;
+        const ndy = nextY - unit.y;
+        const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
+
+        if (ndist > 0.05) {
+          const unitConfig = getUnitConfig(this.config, unit.unitType);
+          const speed = unitConfig.speed;
+          unit.vx = (ndx / ndist) * speed;
+          unit.vy = (ndy / ndist) * speed;
+          unit.x += unit.vx * deltaTime;
+          unit.y += unit.vy * deltaTime;
+          unit.x = Math.max(0, Math.min(this.game.width(), unit.x));
+          unit.y = Math.max(0, Math.min(this.game.height(), unit.y));
+          return;
+        }
+      } else {
+        // Finished path
+        unit.path = undefined;
+        unit.pathIndex = undefined;
+      }
+    }
+
+    // No path - request one if not already queued
+    if (!unit.path && !this.warshipPathfindQueue.includes(unit.id)) {
+      if (!this.activePathfind || this.activePathfind.unitId !== unit.id) {
+        this.warshipPathfindQueue.push(unit.id);
+      }
+    }
+
+    // Move directly toward target while waiting for path (if water)
+    const unitConfig = getUnitConfig(this.config, unit.unitType);
+    const speed = unitConfig.speed;
+    const dx = destX - unit.x;
+    const dy = destY - unit.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    const stopDistance = Math.max(0, this.config.stopDistance);
-    if (dist > stopDistance) {
-      const unitConfig = getUnitConfig(this.config, unit.unitType);
-      const speed = unitConfig.speed;
-
-      // Normalize direction
-      unit.vx = (dx / dist) * speed;
-      unit.vy = (dy / dist) * speed;
-
-      // Calculate next position
-      const nextX = unit.x + unit.vx * deltaTime;
-      const nextY = unit.y + unit.vy * deltaTime;
-
-      // Only move if next position is on water
+    if (dist > 0.5) {
+      const moveX = (dx / dist) * speed * deltaTime;
+      const moveY = (dy / dist) * speed * deltaTime;
+      const nextX = unit.x + moveX;
+      const nextY = unit.y + moveY;
       const nextTile = this.game.ref(Math.floor(nextX), Math.floor(nextY));
+      
       if (nextTile && this.game.isWater(nextTile)) {
         unit.x = nextX;
         unit.y = nextY;
-      } else {
-        // Can't move to land - pick a new target
-        unit.targetX = unit.x;
-        unit.targetY = unit.y;
-        unit.vx = 0;
-        unit.vy = 0;
+        unit.vx = (dx / dist) * speed;
+        unit.vy = (dy / dist) * speed;
+        return;
+      }
+    }
+
+    unit.vx = 0;
+    unit.vy = 0;
+  }
+
+  /**
+   * Process the warship pathfinding queue - compute paths incrementally
+   * Called once per tick, does limited work per tick
+   */
+  private processWarshipPathfindQueue() {
+    const ITERATIONS_PER_TICK = 2000; // Iterations of A* to run per tick
+
+    // Continue computing active pathfind
+    if (this.activePathfind) {
+      const result = this.activePathfind.aStar.compute();
+      
+      if (result === PathFindResultType.Completed) {
+        // Got the path - store it on the unit
+        const unit = this.units.find(u => u.id === this.activePathfind!.unitId);
+        if (unit) {
+          const pathTiles = this.activePathfind.aStar.reconstructPath();
+          unit.path = pathTiles.map(t => ({ x: this.game.x(t), y: this.game.y(t) }));
+          unit.pathIndex = 1; // Skip first tile (current position)
+          const destX = unit.hasAttackOrder ? unit.attackOrderX : unit.targetX;
+          const destY = unit.hasAttackOrder ? unit.attackOrderY : unit.targetY;
+          unit.pathDestX = destX;
+          unit.pathDestY = destY;
+        }
+        this.activePathfind = null;
+      } else if (result === PathFindResultType.PathNotFound) {
+        // No path - pick new target for this unit
+        const unit = this.units.find(u => u.id === this.activePathfind!.unitId);
+        if (unit) {
+          if (unit.hasAttackOrder) {
+            unit.hasAttackOrder = false;
+            unit.attackOrderX = undefined;
+            unit.attackOrderY = undefined;
+          } else {
+            const newTarget = this.findWarshipTarget(unit);
+            unit.targetX = newTarget.x;
+            unit.targetY = newTarget.y;
+          }
+        }
+        this.activePathfind = null;
+      }
+      // If Pending, continue next tick
+      return;
+    }
+
+    // Start next pathfind from queue
+    while (this.warshipPathfindQueue.length > 0) {
+      const unitId = this.warshipPathfindQueue.shift()!;
+      const unit = this.units.find(u => u.id === unitId && u.unitType === "warship");
+      if (!unit) continue; // Unit died
+
+      // Skip if unit already has a path
+      if (unit.path && unit.pathIndex !== undefined && unit.pathIndex < unit.path.length) {
+        continue;
       }
 
-      // Keep within map bounds
-      unit.x = Math.max(0, Math.min(this.game.width(), unit.x));
-      unit.y = Math.max(0, Math.min(this.game.height(), unit.y));
-    } else {
-      unit.vx = 0;
-      unit.vy = 0;
+      const currentTile = this.game.ref(Math.floor(unit.x), Math.floor(unit.y));
+      const destX = unit.hasAttackOrder ? unit.attackOrderX! : unit.targetX;
+      const destY = unit.hasAttackOrder ? unit.attackOrderY! : unit.targetY;
+      const destTile = this.game.ref(Math.floor(destX), Math.floor(destY));
+
+      if (!currentTile || !destTile) continue;
+
+      // Create A* instance - use high iterations since we control per-tick work
+      const aStar = new MiniAStar(
+        this.game.map(),
+        this.game.miniMap(),
+        currentTile,
+        destTile,
+        ITERATIONS_PER_TICK,
+        50, // maxTries
+        true, // waterPath
+      );
+
+      this.activePathfind = { unitId, aStar };
+      return; // Will compute on next call
     }
   }
 
@@ -1212,17 +1378,8 @@ export class FrenzyManager {
     targetX?: number,
     targetY?: number,
   ) {
-    // Allow wilderness attacks if targetX/targetY are provided (even without a targetPlayerId)
-    const isWildernessAttack =
-      !targetPlayerId && targetX !== undefined && targetY !== undefined;
-
-    if (!targetPlayerId && !isWildernessAttack) {
-      return;
-    }
-    if (targetPlayerId === playerId) {
-      return;
-    }
-    if (targetPlayerId && !this.game.hasPlayer(targetPlayerId)) {
+    // Require a target location
+    if (targetX === undefined || targetY === undefined) {
       return;
     }
     if (this.defeatedPlayers.has(playerId)) {
@@ -1231,122 +1388,78 @@ export class FrenzyManager {
 
     const clampedRatio = Math.min(Math.max(ratio, 0), 1);
     if (clampedRatio <= 0) {
-      this.attackOrders.delete(playerId);
       return;
     }
-    this.attackOrders.set(playerId, {
-      playerId,
-      targetPlayerId,
-      ratio: clampedRatio,
-      createdAtTick: this.game.ticks(),
-      targetX,
-      targetY,
+
+    // Check if target is on water or land
+    const targetTile = this.game.ref(Math.floor(targetX), Math.floor(targetY));
+    const targetIsWater = targetTile && this.game.isWater(targetTile);
+
+    // Get mobile units for this player based on target terrain
+    // Water target = warships only, Land target = soldiers only
+    const mobileUnits = this.units.filter((u) => {
+      if (u.playerId !== playerId) return false;
+      if (targetIsWater) {
+        // Water target: only warships
+        return u.unitType === FrenzyUnitType.Warship;
+      } else {
+        // Land target: only soldiers
+        return (
+          u.unitType === FrenzyUnitType.Soldier ||
+          u.unitType === FrenzyUnitType.EliteSoldier
+        );
+      }
     });
-  }
 
-  private buildUnitCounts(): Map<PlayerID, number> {
-    const counts = new Map<PlayerID, number>();
-    for (const unit of this.units) {
-      if (this.defeatedPlayers.has(unit.playerId)) {
-        continue;
-      }
-      counts.set(unit.playerId, (counts.get(unit.playerId) ?? 0) + 1);
-    }
-    return counts;
-  }
-
-  private cleanupAttackOrders(unitCounts: Map<PlayerID, number>) {
-    for (const [playerId, order] of this.attackOrders) {
-      const aliveUnits = unitCounts.get(playerId) ?? 0;
-      if (aliveUnits === 0 || this.defeatedPlayers.has(playerId)) {
-        this.attackOrders.delete(playerId);
-        continue;
-      }
-      if (
-        order.targetPlayerId &&
-        (this.defeatedPlayers.has(order.targetPlayerId) ||
-          !this.game.hasPlayer(order.targetPlayerId))
-      ) {
-        this.attackOrders.delete(playerId);
-        continue;
-      }
-      if (this.game.ticks() - order.createdAtTick > ATTACK_ORDER_TTL_TICKS) {
-        this.attackOrders.delete(playerId);
-      }
-    }
-  }
-
-  private buildAttackPlans(
-    unitCounts: Map<PlayerID, number>,
-    territories: Map<PlayerID, PlayerTerritorySnapshot>,
-  ): Map<PlayerID, FrenzyAttackPlan> {
-    const plans = new Map<PlayerID, FrenzyAttackPlan>();
-    for (const [playerId, order] of this.attackOrders) {
-      const units = unitCounts.get(playerId) ?? 0;
-      if (units === 0) {
-        continue;
-      }
-      const target = this.resolveAttackTarget(playerId, order, territories);
-      if (!target) {
-        this.attackOrders.delete(playerId);
-        continue;
-      }
-      const desired = Math.floor(units * order.ratio);
-      const quota = Math.min(units, Math.max(1, desired));
-      if (quota === 0) {
-        continue;
-      }
-      plans.set(playerId, {
-        target,
-        quota,
-      });
-    }
-    return plans;
-  }
-
-  private resolveAttackTarget(
-    attackerId: PlayerID,
-    order: FrenzyAttackOrder,
-    territories: Map<PlayerID, PlayerTerritorySnapshot>,
-  ): { x: number; y: number } | null {
-    // Wilderness attack: use the click position directly as target
-    if (!order.targetPlayerId) {
-      if (order.targetX !== undefined && order.targetY !== undefined) {
-        return { x: order.targetX, y: order.targetY };
-      }
-      return null;
+    if (mobileUnits.length === 0) {
+      return;
     }
 
-    const targetTerritory = territories.get(order.targetPlayerId);
-    if (!targetTerritory) {
-      return null;
+    // Calculate how many units to assign
+    const numToAssign = Math.max(1, Math.floor(mobileUnits.length * clampedRatio));
+
+    // Sort all units by distance to target
+    const sortByDistance = (a: FrenzyUnit, b: FrenzyUnit) => {
+      const distA = Math.hypot(a.x - targetX, a.y - targetY);
+      const distB = Math.hypot(b.x - targetX, b.y - targetY);
+      return distA - distB;
+    };
+
+    let sortedUnits: FrenzyUnit[];
+
+    // At minimum ratio (0.01 = 1%), select 1 closest FREE unit only (don't overwrite)
+    // At any other ratio, select closest X% regardless of order status (overwrite)
+    const isMinimumRatio = clampedRatio <= 0.01;
+
+    if (isMinimumRatio) {
+      // Minimum ratio: pick closest free unit only
+      const freeUnits = mobileUnits.filter((u) => !u.hasAttackOrder);
+      if (freeUnits.length === 0) {
+        // No free units available at minimum ratio - do nothing
+        return;
+      }
+      freeUnits.sort(sortByDistance);
+      sortedUnits = freeUnits;
+    } else {
+      // Any other ratio: pick closest units regardless of order status
+      sortedUnits = mobileUnits.slice().sort(sortByDistance);
     }
 
-    const attackerTerritory = territories.get(attackerId);
-    if (attackerTerritory && targetTerritory.borderTiles.length > 0) {
-      const origin = attackerTerritory.centroid;
-      let closestTile: TileRef | null = null;
-      let closestDist = Infinity;
-
-      for (const tile of targetTerritory.borderTiles) {
-        const tileX = this.game.x(tile);
-        const tileY = this.game.y(tile);
-        const dist = Math.hypot(tileX - origin.x, tileY - origin.y);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestTile = tile;
-        }
-      }
-
-      if (closestTile !== null) {
-        return {
-          x: this.game.x(closestTile),
-          y: this.game.y(closestTile),
-        };
-      }
+    // Assign attack orders to the selected units
+    for (let i = 0; i < numToAssign && i < sortedUnits.length; i++) {
+      const unit = sortedUnits[i];
+      unit.attackOrderX = targetX;
+      unit.attackOrderY = targetY;
+      unit.hasAttackOrder = true;
+      // Set the unit's movement target directly
+      unit.targetX = targetX;
+      unit.targetY = targetY;
     }
 
-    return targetTerritory.centroid;
+    const unitType = targetIsWater ? "warships" : "soldiers";
+    console.log(
+      `[FrenzyManager] Attack order: ${playerId} sending ${numToAssign} ${unitType} to (${targetX.toFixed(0)}, ${targetY.toFixed(0)})`,
+    );
   }
 
   private buildTerritorySnapshots(): Map<PlayerID, PlayerTerritorySnapshot> {
@@ -2030,6 +2143,16 @@ export class FrenzyManager {
       if (building) {
         building.unitCount--;
       }
+      // Clean up pathfinding queue for dead warships
+      if (unit.unitType === "warship") {
+        const queueIdx = this.warshipPathfindQueue.indexOf(unit.id);
+        if (queueIdx >= 0) {
+          this.warshipPathfindQueue.splice(queueIdx, 1);
+        }
+        if (this.activePathfind && this.activePathfind.unitId === unit.id) {
+          this.activePathfind = null;
+        }
+      }
     }
 
     this.units = this.units.filter((u) => u.health > 0);
@@ -2262,6 +2385,21 @@ export class FrenzyManager {
       const tiles = Array.from(loser.tiles());
       for (const tile of tiles) {
         winner.conquer(tile);
+        // Capture structures on this tile (mines, factories, ports, towers)
+        this.captureStructuresOnTile(tile, winnerId);
+      }
+    }
+
+    // Clean up pathfinding for defeated player's warships
+    for (const unit of this.units) {
+      if (unit.playerId === loserId && unit.unitType === "warship") {
+        const queueIdx = this.warshipPathfindQueue.indexOf(unit.id);
+        if (queueIdx >= 0) {
+          this.warshipPathfindQueue.splice(queueIdx, 1);
+        }
+        if (this.activePathfind && this.activePathfind.unitId === unit.id) {
+          this.activePathfind = null;
+        }
       }
     }
 
@@ -2435,8 +2573,8 @@ export class FrenzyManager {
       x,
       y,
       tile,
-      spawnTimer: this.config.spawnInterval * 1.5, // Warships spawn slower
-      spawnInterval: this.config.spawnInterval * 1.5,
+      spawnTimer: this.config.spawnInterval * 3, // Warships spawn slower (double normal)
+      spawnInterval: this.config.spawnInterval * 3,
       health: this.config.mineHealth,
       maxHealth: this.config.mineHealth,
       tier: 1,
@@ -3312,6 +3450,10 @@ export class FrenzyManager {
         tier: u.tier,
         shieldHealth: u.shieldHealth,
         maxShieldHealth: u.maxShieldHealth,
+        // Attack order data for rendering
+        hasAttackOrder: u.hasAttackOrder,
+        attackOrderX: u.attackOrderX,
+        attackOrderY: u.attackOrderY,
       })),
       // Unified structures array (new)
       structures,
@@ -3371,16 +3513,3 @@ interface PlayerTerritorySnapshot {
   centroid: { x: number; y: number };
 }
 
-interface FrenzyAttackOrder {
-  playerId: PlayerID;
-  targetPlayerId: PlayerID | null;
-  ratio: number;
-  createdAtTick: number;
-  targetX?: number; // Click location X for targeting bias
-  targetY?: number; // Click location Y for targeting bias
-}
-
-interface FrenzyAttackPlan {
-  target: { x: number; y: number };
-  quota: number;
-}

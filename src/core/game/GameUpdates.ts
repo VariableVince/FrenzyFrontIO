@@ -284,6 +284,10 @@ export interface FrenzyUpdate {
     tier?: number;
     shieldHealth?: number;
     maxShieldHealth?: number;
+    // Attack order data for rendering
+    hasAttackOrder?: boolean;
+    attackOrderX?: number;
+    attackOrderY?: number;
   }>;
   coreBuildings: Array<{
     playerId: string;
