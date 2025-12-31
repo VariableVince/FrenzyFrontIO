@@ -1,6 +1,4 @@
 import { PseudoRandom } from "../../PseudoRandom";
-import { PathFindResultType } from "../../pathfinding/AStar";
-import { MiniAStar } from "../../pathfinding/MiniAStar";
 import {
   Game,
   Player,
@@ -74,10 +72,6 @@ export class FrenzyManager {
 
   // Deterministic random number generator (seeded for multiplayer sync)
   private random: PseudoRandom;
-
-  // Warship pathfinding - compute full path, store on unit, process one at a time
-  private warshipPathfindQueue: number[] = []; // Unit IDs needing pathfinding
-  private activePathfind: { unitId: number; aStar: MiniAStar } | null = null;
 
   constructor(
     private game: Game,
@@ -353,9 +347,6 @@ export class FrenzyManager {
 
     this.updateSpawnTimers(deltaTime);
     this.updateMineGoldPayouts(deltaTime);
-
-    // Process warship pathfinding queue (one per tick)
-    this.processWarshipPathfindQueue();
 
     // Performance: Only rebuild territory cache periodically
     if (
@@ -1081,27 +1072,21 @@ export class FrenzyManager {
   }
 
   /**
-   * Update warship movement - warships patrol on water near enemy coastlines
-   * Uses pre-computed paths for smooth movement
+   * Update warship movement using polar coordinates.
+   * Since water forms a ring around the map center, we navigate by:
+   * 1. Adjusting angle (theta) to rotate around the ring
+   * 2. Adjusting radius (r) to move closer/further from center
    */
   private updateWarshipMovement(unit: FrenzyUnit, deltaTime: number) {
-    const WAYPOINT_ARRIVAL_DISTANCE = 0.5; // Tiles
     const ATTACK_ORDER_ARRIVAL_DISTANCE = 3; // Tiles
 
-    // Current tile position
-    const currentTileX = Math.floor(unit.x);
-    const currentTileY = Math.floor(unit.y);
-    const currentTile = this.game.ref(currentTileX, currentTileY);
-    if (!currentTile) {
-      unit.vx = 0;
-      unit.vy = 0;
-      return;
-    }
+    // Map center (water ring is around this point)
+    const centerX = this.game.width() / 2;
+    const centerY = this.game.height() / 2;
 
     // Determine target coordinates
     let destX: number = unit.targetX;
     let destY: number = unit.targetY;
-    let hasAttackOrderTarget = false;
 
     // Check if warship has a per-unit attack order
     if (unit.hasAttackOrder && unit.attackOrderX !== undefined && unit.attackOrderY !== undefined) {
@@ -1114,20 +1099,12 @@ export class FrenzyManager {
         unit.hasAttackOrder = false;
         unit.attackOrderX = undefined;
         unit.attackOrderY = undefined;
-        unit.path = undefined;
-        unit.pathIndex = undefined;
         // Fall back to patrol target
         destX = unit.targetX;
         destY = unit.targetY;
-      } else {
-        hasAttackOrderTarget = true;
       }
-    }
-
-    // If no attack order, use patrol target
-    if (!hasAttackOrderTarget) {
-      destX = unit.targetX;
-      destY = unit.targetY;
+    } else {
+      // Use patrol target
       const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
       
       // Check if needs new patrol target
@@ -1137,170 +1114,101 @@ export class FrenzyManager {
         unit.targetY = newTarget.y;
         destX = newTarget.x;
         destY = newTarget.y;
-        unit.path = undefined;
-        unit.pathIndex = undefined;
       }
     }
 
-    // Check if destination changed - need new path
-    if (unit.path && unit.pathDestX !== undefined && unit.pathDestY !== undefined) {
-      const destChanged = Math.abs(destX - unit.pathDestX) > 3 || Math.abs(destY - unit.pathDestY) > 3;
-      if (destChanged) {
-        unit.path = undefined;
-        unit.pathIndex = undefined;
-      }
-    }
+    // Convert positions to polar coordinates relative to map center
+    const unitR = Math.hypot(unit.x - centerX, unit.y - centerY);
+    const unitTheta = Math.atan2(unit.y - centerY, unit.x - centerX);
+    
+    const destR = Math.hypot(destX - centerX, destY - centerY);
+    const destTheta = Math.atan2(destY - centerY, destX - centerX);
 
-    // If we have a path, follow it
-    if (unit.path && unit.pathIndex !== undefined && unit.pathIndex < unit.path.length) {
-      const waypoint = unit.path[unit.pathIndex];
-      const waypointX = waypoint.x + 0.5;
-      const waypointY = waypoint.y + 0.5;
-      const dx = waypointX - unit.x;
-      const dy = waypointY - unit.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+    // Calculate deltas in polar space
+    const deltaR = destR - unitR;
+    
+    // Calculate shortest angular distance (handle wrap-around)
+    let deltaTheta = destTheta - unitTheta;
+    while (deltaTheta > Math.PI) deltaTheta -= 2 * Math.PI;
+    while (deltaTheta < -Math.PI) deltaTheta += 2 * Math.PI;
 
-      if (dist < WAYPOINT_ARRIVAL_DISTANCE) {
-        // Advance to next waypoint
-        unit.pathIndex++;
-        // Don't return - continue moving toward next waypoint this frame
-      }
-
-      if (unit.pathIndex < unit.path.length) {
-        const nextWaypoint = unit.path[unit.pathIndex];
-        const nextX = nextWaypoint.x + 0.5;
-        const nextY = nextWaypoint.y + 0.5;
-        const ndx = nextX - unit.x;
-        const ndy = nextY - unit.y;
-        const ndist = Math.sqrt(ndx * ndx + ndy * ndy);
-
-        if (ndist > 0.05) {
-          const unitConfig = getUnitConfig(this.config, unit.unitType);
-          const speed = unitConfig.speed;
-          unit.vx = (ndx / ndist) * speed;
-          unit.vy = (ndy / ndist) * speed;
-          unit.x += unit.vx * deltaTime;
-          unit.y += unit.vy * deltaTime;
-          unit.x = Math.max(0, Math.min(this.game.width(), unit.x));
-          unit.y = Math.max(0, Math.min(this.game.height(), unit.y));
-          return;
-        }
-      } else {
-        // Finished path
-        unit.path = undefined;
-        unit.pathIndex = undefined;
-      }
-    }
-
-    // No path - request one if not already queued
-    if (!unit.path && !this.warshipPathfindQueue.includes(unit.id)) {
-      if (!this.activePathfind || this.activePathfind.unitId !== unit.id) {
-        this.warshipPathfindQueue.push(unit.id);
-      }
-    }
-
-    // Move directly toward target while waiting for path (if water)
+    // Get unit speed
     const unitConfig = getUnitConfig(this.config, unit.unitType);
     const speed = unitConfig.speed;
-    const dx = destX - unit.x;
-    const dy = destY - unit.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > 0.5) {
-      const moveX = (dx / dist) * speed * deltaTime;
-      const moveY = (dy / dist) * speed * deltaTime;
-      const nextX = unit.x + moveX;
-      const nextY = unit.y + moveY;
-      const nextTile = this.game.ref(Math.floor(nextX), Math.floor(nextY));
+    // Convert polar velocity to cartesian
+    // Angular velocity component (tangent to circle)
+    const angularSpeed = deltaTheta > 0 ? speed : -speed;
+    const tangentX = -Math.sin(unitTheta); // Perpendicular to radius
+    const tangentY = Math.cos(unitTheta);
+    
+    // Radial velocity component (toward/away from center)
+    const radialSpeed = deltaR > 0 ? speed : -speed;
+    const radialX = Math.cos(unitTheta);
+    const radialY = Math.sin(unitTheta);
+
+    // Blend based on which delta is larger
+    const absR = Math.abs(deltaR);
+    const absTheta = Math.abs(deltaTheta) * unitR; // Convert to arc length
+    const totalDelta = absR + absTheta;
+
+    let vx = 0;
+    let vy = 0;
+    
+    if (totalDelta > 0.5) {
+      // Weight the movement by which direction needs more travel
+      const radialWeight = absR / totalDelta;
+      const angularWeight = absTheta / totalDelta;
       
-      if (nextTile && this.game.isWater(nextTile)) {
-        unit.x = nextX;
-        unit.y = nextY;
-        unit.vx = (dx / dist) * speed;
-        unit.vy = (dy / dist) * speed;
-        return;
+      vx = radialX * radialSpeed * radialWeight + tangentX * angularSpeed * angularWeight;
+      vy = radialY * radialSpeed * radialWeight + tangentY * angularSpeed * angularWeight;
+      
+      // Normalize to unit speed
+      const vmag = Math.hypot(vx, vy);
+      if (vmag > 0) {
+        vx = (vx / vmag) * speed;
+        vy = (vy / vmag) * speed;
       }
     }
 
-    unit.vx = 0;
-    unit.vy = 0;
-  }
-
-  /**
-   * Process the warship pathfinding queue - compute paths incrementally
-   * Called once per tick, does limited work per tick
-   */
-  private processWarshipPathfindQueue() {
-    const ITERATIONS_PER_TICK = 2000; // Iterations of A* to run per tick
-
-    // Continue computing active pathfind
-    if (this.activePathfind) {
-      const result = this.activePathfind.aStar.compute();
+    // Apply movement
+    const nextX = unit.x + vx * deltaTime;
+    const nextY = unit.y + vy * deltaTime;
+    
+    // Check if next position is water
+    const nextTile = this.game.ref(Math.floor(nextX), Math.floor(nextY));
+    if (nextTile && this.game.isWater(nextTile)) {
+      unit.x = nextX;
+      unit.y = nextY;
+      unit.vx = vx;
+      unit.vy = vy;
+    } else {
+      // Can't move in ideal direction - try just angular movement
+      const altX = unit.x + tangentX * angularSpeed * deltaTime;
+      const altY = unit.y + tangentY * angularSpeed * deltaTime;
+      const altTile = this.game.ref(Math.floor(altX), Math.floor(altY));
       
-      if (result === PathFindResultType.Completed) {
-        // Got the path - store it on the unit
-        const unit = this.units.find(u => u.id === this.activePathfind!.unitId);
-        if (unit) {
-          const pathTiles = this.activePathfind.aStar.reconstructPath();
-          unit.path = pathTiles.map(t => ({ x: this.game.x(t), y: this.game.y(t) }));
-          unit.pathIndex = 1; // Skip first tile (current position)
-          const destX = unit.hasAttackOrder ? unit.attackOrderX : unit.targetX;
-          const destY = unit.hasAttackOrder ? unit.attackOrderY : unit.targetY;
-          unit.pathDestX = destX;
-          unit.pathDestY = destY;
+      if (altTile && this.game.isWater(altTile)) {
+        unit.x = altX;
+        unit.y = altY;
+        unit.vx = tangentX * angularSpeed;
+        unit.vy = tangentY * angularSpeed;
+      } else {
+        // Try opposite angular direction
+        const alt2X = unit.x - tangentX * angularSpeed * deltaTime;
+        const alt2Y = unit.y - tangentY * angularSpeed * deltaTime;
+        const alt2Tile = this.game.ref(Math.floor(alt2X), Math.floor(alt2Y));
+        
+        if (alt2Tile && this.game.isWater(alt2Tile)) {
+          unit.x = alt2X;
+          unit.y = alt2Y;
+          unit.vx = -tangentX * angularSpeed;
+          unit.vy = -tangentY * angularSpeed;
+        } else {
+          unit.vx = 0;
+          unit.vy = 0;
         }
-        this.activePathfind = null;
-      } else if (result === PathFindResultType.PathNotFound) {
-        // No path - pick new target for this unit
-        const unit = this.units.find(u => u.id === this.activePathfind!.unitId);
-        if (unit) {
-          if (unit.hasAttackOrder) {
-            unit.hasAttackOrder = false;
-            unit.attackOrderX = undefined;
-            unit.attackOrderY = undefined;
-          } else {
-            const newTarget = this.findWarshipTarget(unit);
-            unit.targetX = newTarget.x;
-            unit.targetY = newTarget.y;
-          }
-        }
-        this.activePathfind = null;
       }
-      // If Pending, continue next tick
-      return;
-    }
-
-    // Start next pathfind from queue
-    while (this.warshipPathfindQueue.length > 0) {
-      const unitId = this.warshipPathfindQueue.shift()!;
-      const unit = this.units.find(u => u.id === unitId && u.unitType === "warship");
-      if (!unit) continue; // Unit died
-
-      // Skip if unit already has a path
-      if (unit.path && unit.pathIndex !== undefined && unit.pathIndex < unit.path.length) {
-        continue;
-      }
-
-      const currentTile = this.game.ref(Math.floor(unit.x), Math.floor(unit.y));
-      const destX = unit.hasAttackOrder ? unit.attackOrderX! : unit.targetX;
-      const destY = unit.hasAttackOrder ? unit.attackOrderY! : unit.targetY;
-      const destTile = this.game.ref(Math.floor(destX), Math.floor(destY));
-
-      if (!currentTile || !destTile) continue;
-
-      // Create A* instance - use high iterations since we control per-tick work
-      const aStar = new MiniAStar(
-        this.game.map(),
-        this.game.miniMap(),
-        currentTile,
-        destTile,
-        ITERATIONS_PER_TICK,
-        50, // maxTries
-        true, // waterPath
-      );
-
-      this.activePathfind = { unitId, aStar };
-      return; // Will compute on next call
     }
   }
 
@@ -2143,16 +2051,6 @@ export class FrenzyManager {
       if (building) {
         building.unitCount--;
       }
-      // Clean up pathfinding queue for dead warships
-      if (unit.unitType === "warship") {
-        const queueIdx = this.warshipPathfindQueue.indexOf(unit.id);
-        if (queueIdx >= 0) {
-          this.warshipPathfindQueue.splice(queueIdx, 1);
-        }
-        if (this.activePathfind && this.activePathfind.unitId === unit.id) {
-          this.activePathfind = null;
-        }
-      }
     }
 
     this.units = this.units.filter((u) => u.health > 0);
@@ -2387,19 +2285,6 @@ export class FrenzyManager {
         winner.conquer(tile);
         // Capture structures on this tile (mines, factories, ports, towers)
         this.captureStructuresOnTile(tile, winnerId);
-      }
-    }
-
-    // Clean up pathfinding for defeated player's warships
-    for (const unit of this.units) {
-      if (unit.playerId === loserId && unit.unitType === "warship") {
-        const queueIdx = this.warshipPathfindQueue.indexOf(unit.id);
-        if (queueIdx >= 0) {
-          this.warshipPathfindQueue.splice(queueIdx, 1);
-        }
-        if (this.activePathfind && this.activePathfind.unitId === unit.id) {
-          this.activePathfind = null;
-        }
       }
     }
 

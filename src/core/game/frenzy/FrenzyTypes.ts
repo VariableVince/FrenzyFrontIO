@@ -76,11 +76,6 @@ export interface FrenzyUnit {
   attackOrderX?: number; // Attack order target X
   attackOrderY?: number; // Attack order target Y
   hasAttackOrder?: boolean; // Whether unit has an active attack order
-  // Warship pathfinding - store full path for smooth movement
-  path?: Array<{ x: number; y: number }>; // Full path as array of tile coords
-  pathIndex?: number; // Current index in path
-  pathDestX?: number; // Destination X when path was computed (to detect if target changed)
-  pathDestY?: number; // Destination Y when path was computed
 }
 
 export interface FrenzyProjectile {
