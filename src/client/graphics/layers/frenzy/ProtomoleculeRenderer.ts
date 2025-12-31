@@ -11,6 +11,7 @@ export interface MineData {
   playerId: string;
   tier: number;
   crystalsInCell: Array<{ x: number; y: number; count: number }>;
+  territoryColor?: string; // Player's territory color for cell boundaries
 }
 
 /**
@@ -58,7 +59,21 @@ export class ProtomoleculeRenderer {
   constructor(private game: GameView) {}
 
   /**
+   * Check if a position is on land owned by a specific player
+   */
+  private isOwnedByPlayer(x: number, y: number, playerId: string): boolean {
+    const tileX = Math.floor(x);
+    const tileY = Math.floor(y);
+    const tile = this.game.ref(tileX, tileY);
+    if (!tile) return false;
+    const owner = this.game.owner(tile);
+    if (!owner.isPlayer()) return false;
+    return owner.id() === playerId;
+  }
+
+  /**
    * Assign crystals to their nearest mine's Voronoi cell
+   * Only assigns crystals that are on land owned by the mine's owner
    */
   assignCrystalsToMines(
     allMines: MineData[],
@@ -75,12 +90,18 @@ export class ProtomoleculeRenderer {
       let closestDist = Infinity;
 
       for (const mine of allMines) {
+        // Only consider crystals on land owned by the mine's owner
+        if (!this.isOwnedByPlayer(crystal.x, crystal.y, mine.playerId)) {
+          continue;
+        }
+
         const dist = Math.hypot(crystal.x - mine.x, crystal.y - mine.y);
         if (dist <= mineRadius && dist < closestDist) {
-          // Check if closer to this mine than any other
+          // Check if closer to this mine than any other owned by same player
           let isClosest = true;
           for (const other of allMines) {
             if (other === mine) continue;
+            if (other.playerId !== mine.playerId) continue; // Only compare same owner
             const otherDist = Math.hypot(
               crystal.x - other.x,
               crystal.y - other.y,
@@ -193,7 +214,7 @@ export class ProtomoleculeRenderer {
     // Clear vein cache
     this.cache.veins = [];
 
-    // Draw Voronoi boundaries
+    // Draw Voronoi boundaries (only between mines owned by same player and on their land)
     const drawnBisections = new Set<string>();
     ctx.strokeStyle = `rgba(100, 180, 255, 0.15)`;
     ctx.lineWidth = 1;
@@ -202,6 +223,10 @@ export class ProtomoleculeRenderer {
       const mine = allMines[i];
       for (let j = i + 1; j < allMines.length; j++) {
         const other = allMines[j];
+        
+        // Only draw bisection between mines owned by same player
+        if (mine.playerId !== other.playerId) continue;
+        
         const dist = Math.hypot(other.x - mine.x, other.y - mine.y);
 
         if (dist < mineRadius * 2) {
@@ -209,8 +234,24 @@ export class ProtomoleculeRenderer {
           if (!drawnBisections.has(pairKey)) {
             drawnBisections.add(pairKey);
 
-            const midX = (mine.x + other.x) / 2 - halfWidth;
-            const midY = (mine.y + other.y) / 2 - halfHeight;
+            const worldMidX = (mine.x + other.x) / 2;
+            const worldMidY = (mine.y + other.y) / 2;
+            
+            // Only draw if midpoint is on owned land
+            if (!this.isOwnedByPlayer(worldMidX, worldMidY, mine.playerId)) {
+              continue;
+            }
+            
+            // Use player's territory color
+            if (mine.territoryColor) {
+              const colorMatch = mine.territoryColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+              if (colorMatch) {
+                ctx.strokeStyle = `rgba(${colorMatch[1]}, ${colorMatch[2]}, ${colorMatch[3]}, 0.25)`;
+              }
+            }
+            
+            const midX = worldMidX - halfWidth;
+            const midY = worldMidY - halfHeight;
             const dx = other.x - mine.x;
             const dy = other.y - mine.y;
             const perpLen = Math.hypot(-dy, dx);
@@ -249,8 +290,15 @@ export class ProtomoleculeRenderer {
         const baseAngle = i * angleStep + mine.x * 0.1;
         const veinLength =
           mineRadius * (0.5 + 0.3 * Math.sin(baseAngle * 3 + mine.y * 0.05));
-        const vx = mine.x + Math.cos(baseAngle) * veinLength - halfWidth;
-        const vy = mine.y + Math.sin(baseAngle) * veinLength - halfHeight;
+        const worldVx = mine.x + Math.cos(baseAngle) * veinLength;
+        const worldVy = mine.y + Math.sin(baseAngle) * veinLength;
+        const vx = worldVx - halfWidth;
+        const vy = worldVy - halfHeight;
+
+        // Check if vein endpoint is on owned land
+        if (!this.isOwnedByPlayer(worldVx, worldVy, mine.playerId)) {
+          continue;
+        }
 
         // Simple Voronoi check
         let inCell = true;
@@ -332,10 +380,21 @@ export class ProtomoleculeRenderer {
     const mineRadius = 40;
     const sampleCount = 24;
 
-    ctx.strokeStyle = `rgba(80, 160, 220, 0.2)`;
-    ctx.lineWidth = 0.8;
+    // Use player's territory color if available, otherwise default blue
+    if (mine.territoryColor) {
+      // Parse the rgb color and add alpha
+      const colorMatch = mine.territoryColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (colorMatch) {
+        ctx.strokeStyle = `rgba(${colorMatch[1]}, ${colorMatch[2]}, ${colorMatch[3]}, 0.4)`;
+      } else {
+        ctx.strokeStyle = mine.territoryColor;
+      }
+    } else {
+      ctx.strokeStyle = `rgba(80, 160, 220, 0.4)`;
+    }
+    ctx.lineWidth = 1.2;
 
-    let lastPoint: { x: number; y: number } | null = null;
+    let lastPoint: { x: number; y: number; owned: boolean } | null = null;
 
     for (let i = 0; i <= sampleCount; i++) {
       const angle = (i / sampleCount) * Math.PI * 2;
@@ -359,17 +418,24 @@ export class ProtomoleculeRenderer {
         }
       }
 
-      const px = mine.x - halfWidth + Math.cos(angle) * radius;
-      const py = mine.y - halfHeight + Math.sin(angle) * radius;
+      // Calculate world position (add back halfWidth/halfHeight for ownership check)
+      const worldX = mine.x + Math.cos(angle) * radius;
+      const worldY = mine.y + Math.sin(angle) * radius;
+      const px = worldX - halfWidth;
+      const py = worldY - halfHeight;
 
-      if (lastPoint) {
+      // Check if this point is on owned land
+      const isOwned = this.isOwnedByPlayer(worldX, worldY, mine.playerId);
+
+      // Only draw segment if both points are on owned land
+      if (lastPoint && lastPoint.owned && isOwned) {
         ctx.beginPath();
         ctx.moveTo(lastPoint.x, lastPoint.y);
         ctx.lineTo(px, py);
         ctx.stroke();
       }
 
-      lastPoint = { x: px, y: py };
+      lastPoint = { x: px, y: py, owned: isOwned };
     }
   }
 

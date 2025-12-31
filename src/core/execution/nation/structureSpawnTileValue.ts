@@ -41,11 +41,13 @@ function getOtherStructureTiles(
       }
     }
 
-    // For towers (DefensePost, SAMLauncher, MissileSilo), get tower tiles
+    // For towers (DefensePost, SAMLauncher, MissileSilo, Artillery, ShieldGenerator), get tower tiles
     if (
       type === UnitType.DefensePost ||
       type === UnitType.SAMLauncher ||
-      type === UnitType.MissileSilo
+      type === UnitType.MissileSilo ||
+      type === UnitType.Artillery ||
+      type === UnitType.ShieldGenerator
     ) {
       for (const tile of frenzyManager.getTowerTilesForPlayer(player.id())) {
         otherTiles.add(tile);
@@ -189,6 +191,38 @@ export function structureSpawnTileValue(
           const distanceSquared = mg.euclideanDistSquared(tile, maybeProtected);
           if (distanceSquared > rangeSquared) continue;
           w += structureSpacing;
+        }
+
+        return w;
+      };
+    }
+    case UnitType.Artillery:
+    case UnitType.ShieldGenerator: {
+      // Artillery and Shield Generators should be placed defensively
+      // Similar to DefensePost but with different spacing preferences
+      return (tile) => {
+        let w = 0;
+
+        // Prefer higher elevations
+        w += mg.magnitude(tile);
+
+        const [closest, closestBorderDist] = closestTile(mg, borderTiles, tile);
+        if (closest !== null) {
+          // For artillery, prefer to be slightly back from the border
+          // For shield generators, prefer to be near structures to protect
+          w += Math.max(
+            0,
+            borderSpacing - Math.abs(borderSpacing * 1.5 - closestBorderDist),
+          );
+        }
+
+        // Prefer to be away from other structures of the same type
+        const otherTilesCopy4 = new Set(otherTiles);
+        otherTilesCopy4.delete(tile);
+        const closestOther = closestTwoTiles(mg, otherTilesCopy4, [tile]);
+        if (closestOther !== null) {
+          const d = mg.manhattanDist(closestOther.x, tile);
+          w += Math.min(d, structureSpacing);
         }
 
         return w;

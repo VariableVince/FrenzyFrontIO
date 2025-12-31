@@ -361,6 +361,7 @@ export class FrenzyManager {
     this.updateCombat(deltaTime);
     this.updateProjectiles(deltaTime);
     this.captureTerritory();
+    this.captureSurroundedWilderness();
     this.checkAllHQCaptures();
     this.removeDeadUnits();
     this.rebuildSpatialGrid();
@@ -2041,6 +2042,84 @@ export class FrenzyManager {
         }
       }
     }
+  }
+
+  /**
+   * Capture wilderness (neutral land) that is completely surrounded by a single player's territory.
+   * Uses flood fill to find connected wilderness regions and checks if they're entirely enclosed.
+   */
+  private captureSurroundedWilderness() {
+    // Only run every few ticks for performance
+    if (this.tickCount % 5 !== 0) return;
+
+    const visited = new Set<number>();
+    const mapWidth = this.game.width();
+    const mapHeight = this.game.height();
+
+    // Iterate through all tiles looking for unvisited wilderness
+    this.game.forEachTile((tile) => {
+      if (visited.has(tile)) return;
+
+      const owner = this.game.owner(tile);
+      if (owner.isPlayer()) return; // Not wilderness
+      if (this.game.isWater(tile)) return; // Skip water
+
+      // Found a wilderness tile - flood fill to find the connected region
+      const region: number[] = [];
+      const queue: number[] = [tile];
+      const surroundingPlayers = new Set<string>();
+      let touchesMapEdge = false;
+
+      while (queue.length > 0) {
+        const current = queue.pop()!;
+        if (visited.has(current)) continue;
+        visited.add(current);
+
+        const currentOwner = this.game.owner(current);
+        
+        if (currentOwner.isPlayer()) {
+          // This is owned territory - record the owner
+          surroundingPlayers.add(currentOwner.id());
+          continue;
+        }
+
+        if (this.game.isWater(current)) {
+          // Water acts as a boundary
+          continue;
+        }
+
+        // This is wilderness - add to region
+        region.push(current);
+
+        // Check if on map edge
+        const x = this.game.x(current);
+        const y = this.game.y(current);
+        if (x === 0 || x === mapWidth - 1 || y === 0 || y === mapHeight - 1) {
+          touchesMapEdge = true;
+        }
+
+        // Add neighbors to queue
+        const neighbors = this.game.neighbors(current);
+        for (const neighbor of neighbors) {
+          if (!visited.has(neighbor)) {
+            queue.push(neighbor);
+          }
+        }
+      }
+
+      // If region doesn't touch map edge and is surrounded by exactly one player, capture it
+      if (!touchesMapEdge && surroundingPlayers.size === 1 && region.length > 0) {
+        const playerId = Array.from(surroundingPlayers)[0];
+        if (!this.defeatedPlayers.has(playerId) && this.game.hasPlayer(playerId)) {
+          const player = this.game.player(playerId);
+          for (const wildTile of region) {
+            player.conquer(wildTile);
+            // Also capture any structures on this tile
+            this.captureStructuresOnTile(wildTile, playerId);
+          }
+        }
+      }
+    });
   }
 
   private removeDeadUnits() {

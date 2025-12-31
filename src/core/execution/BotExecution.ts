@@ -1,6 +1,9 @@
-import { Execution, Game, GameFork, Player } from "../game/Game";
+import { Execution, Game, GameFork, Player, UnitType } from "../game/Game";
+import { TileRef } from "../game/GameMap";
 import { PseudoRandom } from "../PseudoRandom";
 import { simpleHash } from "../Util";
+import { ConstructionExecution } from "./ConstructionExecution";
+import { structureSpawnTileValue } from "./nation/structureSpawnTileValue";
 import { BotBehavior } from "./utils/BotBehavior";
 
 export class BotExecution implements Execution {
@@ -64,8 +67,9 @@ export class BotExecution implements Execution {
     this.behavior.handleAllianceRequests();
     this.behavior.handleAllianceExtensionRequests();
 
-    // In Frenzy mode, bots don't send attacks - units handle expansion
+    // In Frenzy mode, build structures based on defensive stance
     if (isFrenzyMode) {
+      this.handleFrenzyUnits();
       return;
     }
 
@@ -109,5 +113,110 @@ export class BotExecution implements Execution {
 
   isActive(): boolean {
     return this.active;
+  }
+
+  /**
+   * Handle structure building in Frenzy mode for bots.
+   * Uses defensive stance to determine priority.
+   */
+  private handleFrenzyUnits(): boolean {
+    if (!this.mg.frenzyManager()) return false;
+
+    const stance = this.mg.frenzyManager()!.getPlayerDefensiveStance(this.bot.id());
+    
+    // In Frenzy: UnitType.City = Mine (gold generation)
+    
+    if (stance < 0.5) {
+      // Defensive: Prioritize defense, then economy
+      return (
+        this.maybeSpawnStructure(UnitType.DefensePost, (num) => Math.max(1, num)) ||
+        this.maybeSpawnStructure(UnitType.ShieldGenerator, (num) => (num + 1) ** 2) ||
+        this.maybeSpawnStructure(UnitType.SAMLauncher, (num) => (num + 1) ** 2) ||
+        this.maybeSpawnStructure(UnitType.Artillery, (num) => (num + 1) ** 2) ||
+        this.maybeSpawnStructure(UnitType.City, (num) => Math.max(1, num)) || // Mine
+        this.maybeSpawnStructure(UnitType.Factory, (num) => (num + 1) ** 2) ||
+        this.maybeSpawnStructure(UnitType.Port, (num) => (num + 1) ** 2) ||
+        this.maybeSpawnStructure(UnitType.MissileSilo, (num) => (num + 1) ** 2)
+      );
+    } else {
+      // Offensive: Prioritize economy/offense, then defense
+      return (
+        this.maybeSpawnStructure(UnitType.City, (num) => Math.max(1, num)) || // Mine
+        this.maybeSpawnStructure(UnitType.Factory, (num) => Math.max(1, num)) ||
+        this.maybeSpawnStructure(UnitType.Port, (num) => Math.max(1, num)) ||
+        this.maybeSpawnStructure(UnitType.DefensePost, (num) => (num + 2) ** 2) ||
+        this.maybeSpawnStructure(UnitType.ShieldGenerator, (num) => (num + 2) ** 2) ||
+        this.maybeSpawnStructure(UnitType.SAMLauncher, (num) => (num + 1) ** 2) ||
+        this.maybeSpawnStructure(UnitType.Artillery, (num) => (num + 2) ** 2) ||
+        this.maybeSpawnStructure(UnitType.MissileSilo, (num) => (num + 1) ** 2)
+      );
+    }
+  }
+
+  private maybeSpawnStructure(
+    type: UnitType,
+    multiplier: (num: number) => number,
+  ): boolean {
+    const owned = this.bot.unitsOwned(type);
+    const perceivedCostMultiplier = multiplier(owned + 1);
+    const realCost = this.mg.unitInfo(type).cost(this.bot);
+    const perceivedCost = realCost * BigInt(perceivedCostMultiplier);
+    if (this.bot.gold() < perceivedCost) {
+      return false;
+    }
+    const tile = this.structureSpawnTile(type);
+    if (tile === null) {
+      return false;
+    }
+    const canBuild = this.bot.canBuild(type, tile);
+    if (canBuild === false) {
+      return false;
+    }
+    this.mg.addExecution(new ConstructionExecution(this.bot, type, tile));
+    return true;
+  }
+
+  private structureSpawnTile(type: UnitType): TileRef | null {
+    const tiles =
+      type === UnitType.Port
+        ? this.randCoastalTileArray(25)
+        : this.randTerritoryTileArray(25);
+    if (tiles.length === 0) return null;
+    const valueFunction = structureSpawnTileValue(this.mg, this.bot, type);
+    let bestTile: TileRef | null = null;
+    let bestValue = 0;
+    for (const t of tiles) {
+      const v = valueFunction(t);
+      if (v <= bestValue && bestTile !== null) continue;
+      if (!this.bot.canBuild(type, t)) continue;
+      bestTile = t;
+      bestValue = v;
+    }
+    return bestTile;
+  }
+
+  private randCoastalTileArray(numTiles: number): TileRef[] {
+    const tiles = Array.from(this.bot.borderTiles()).filter((t) =>
+      this.mg.isOceanShore(t),
+    );
+    return Array.from(this.arraySampler(tiles, numTiles));
+  }
+
+  private randTerritoryTileArray(numTiles: number): TileRef[] {
+    const tiles = Array.from(this.bot.tiles());
+    return Array.from(this.arraySampler(tiles, numTiles));
+  }
+
+  private *arraySampler<T>(a: T[], sampleSize: number): Generator<T> {
+    if (a.length <= sampleSize) {
+      yield* a;
+    } else {
+      const remaining = new Set<T>(a);
+      while (sampleSize--) {
+        const t = this.random.randFromSet(remaining);
+        remaining.delete(t);
+        yield t;
+      }
+    }
   }
 }

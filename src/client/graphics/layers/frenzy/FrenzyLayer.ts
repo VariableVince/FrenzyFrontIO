@@ -107,13 +107,22 @@ export class FrenzyLayer implements Layer {
     const mineStart = FrameProfiler.start();
     const allMines: MineData[] = structures
       .filter((s) => s.type === FrenzyStructureType.Mine)
-      .map((s) => ({
-        x: s.x,
-        y: s.y,
-        playerId: s.playerId,
-        tier: s.tier,
-        crystalsInCell: [],
-      }));
+      .map((s) => {
+        // Get player's territory color
+        let territoryColor: string | undefined;
+        if (this.game.hasPlayer(s.playerId)) {
+          const player = this.game.player(s.playerId);
+          territoryColor = player.territoryColor().toRgbString();
+        }
+        return {
+          x: s.x,
+          y: s.y,
+          playerId: s.playerId,
+          tier: s.tier,
+          crystalsInCell: [],
+          territoryColor,
+        };
+      });
 
     const crystals: CrystalData[] = (frenzyState.crystals ?? []).map((c: any) => ({
       id: c.id,
