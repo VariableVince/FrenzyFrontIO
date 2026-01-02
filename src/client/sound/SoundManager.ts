@@ -1,6 +1,10 @@
 import { Howl } from "howler";
 import kaChingSound from "../../../resources/sounds/effects/ka-ching.mp3";
-import of4 from "../../../sounds/music/enveloped-mission-4-operation-alpha-116601.mp3";
+
+// Music loaded from static path - not bundled in repo
+// Download from: https://pixabay.com/music/supernatural-enveloped-mission-4-operation-alpha-116601/
+const MUSIC_PATH =
+  "/sounds/music/enveloped-mission-4-operation-alpha-116601.mp3";
 
 export enum SoundEffect {
   KaChing = "ka-ching",
@@ -19,7 +23,7 @@ class SoundManager {
   constructor() {
     this.backgroundMusic = [
       new Howl({
-        src: [of4],
+        src: [MUSIC_PATH],
         loop: false,
         onend: this.playNext.bind(this),
         volume: 0,
@@ -40,7 +44,7 @@ class SoundManager {
 
     // Menu music - same track as in-game, but for the main menu
     this.menuMusic = new Howl({
-      src: [of4],
+      src: [MUSIC_PATH],
       loop: true,
       volume: this.menuMusicVolume,
     });

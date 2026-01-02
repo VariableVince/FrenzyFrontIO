@@ -11,3 +11,6 @@ resources/.DS_Store
 .clinic/
 CLAUDE.md
 .idea/
+
+# External sound assets (download separately - see sounds/README.md)
+sounds/music/*.mp3
