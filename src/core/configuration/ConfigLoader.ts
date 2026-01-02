@@ -3,6 +3,7 @@ import { GameConfig } from "../Schemas";
 import { Config, GameEnv, ServerConfig } from "./Config";
 import { DefaultConfig } from "./DefaultConfig";
 import { DevConfig, DevServerConfig } from "./DevConfig";
+import { frenzyConfig } from "./FrenzyConfig";
 import { preprodConfig } from "./PreprodConfig";
 import { prodConfig } from "./ProdConfig";
 
@@ -55,6 +56,9 @@ export function getServerConfig(gameEnv: string) {
     case "staging":
       console.log("using preprod server config");
       return preprodConfig;
+    case "frenzy":
+      console.log("using frenzy server config");
+      return frenzyConfig;
     case "prod":
       console.log("using prod server config");
       return prodConfig;

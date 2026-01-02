@@ -1,6 +1,5 @@
 import cluster from "cluster";
 import * as dotenv from "dotenv";
-import { GameEnv } from "../core/configuration/Config";
 import { getServerConfigFromServer } from "../core/configuration/ConfigLoader";
 import { Cloudflare, TunnelConfig } from "./Cloudflare";
 import { startMaster } from "./Master";
@@ -10,12 +9,25 @@ const config = getServerConfigFromServer();
 
 dotenv.config();
 
+// Check if tunnels should be skipped based on GAME_ENV
+// Skip for: dev, frenzy (self-hosted deployments without Cloudflare)
+function shouldSkipTunnels(): boolean {
+  const gameEnv = process.env.GAME_ENV ?? "dev";
+  return gameEnv === "dev" || gameEnv === "frenzy";
+}
+
 // Main entry point of the application
 async function main() {
   // Check if this is the primary (master) process
   if (cluster.isPrimary) {
-    if (config.env() !== GameEnv.Dev) {
+    if (!shouldSkipTunnels()) {
       await setupTunnels();
+    } else {
+      console.log(
+        "Skipping Cloudflare tunnel setup (GAME_ENV=" +
+          (process.env.GAME_ENV ?? "dev") +
+          ")",
+      );
     }
     console.log("Starting master process...");
     await startMaster();
