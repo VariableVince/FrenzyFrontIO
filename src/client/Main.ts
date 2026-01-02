@@ -15,8 +15,9 @@ import "./FlagInput";
 import { FlagInput } from "./FlagInput";
 import { FlagInputModal } from "./FlagInputModal";
 import { GameStartingModal } from "./GameStartingModal";
-import "./GoogleAdElement";
-import { GutterAds } from "./GutterAds";
+// DISABLED: Ads disabled until own AdSense account is set up
+// import "./GoogleAdElement";
+// import { GutterAds } from "./GutterAds";
 import { HelpModal } from "./HelpModal";
 import { HostLobbyModal as HostPrivateLobbyModal } from "./HostLobbyModal";
 import { JoinPrivateLobbyModal } from "./JoinPrivateLobbyModal";
@@ -106,7 +107,8 @@ class Client {
   private tokenLoginModal: TokenLoginModal;
   private matchmakingModal: MatchmakingModal;
 
-  private gutterAds: GutterAds;
+  // DISABLED: Ads disabled until own AdSense account is set up
+  // private gutterAds: GutterAds;
 
   constructor() {}
 
@@ -160,10 +162,11 @@ class Client {
       }
     });
 
-    const gutterAds = document.querySelector("gutter-ads");
-    if (!(gutterAds instanceof GutterAds))
-      throw new Error("Missing gutter-ads");
-    this.gutterAds = gutterAds;
+    // DISABLED: Ads disabled until own AdSense account is set up
+    // const gutterAds = document.querySelector("gutter-ads");
+    // if (!(gutterAds instanceof GutterAds))
+    //   throw new Error("Missing gutter-ads");
+    // this.gutterAds = gutterAds;
 
     document.addEventListener("join-lobby", this.handleJoinLobby.bind(this));
     document.addEventListener("leave-lobby", this.handleLeaveLobby.bind(this));
@@ -608,7 +611,8 @@ class Client {
         if (startingModal && startingModal instanceof GameStartingModal) {
           startingModal.show();
         }
-        this.gutterAds.hide();
+        // DISABLED: Ads disabled
+        // this.gutterAds.hide();
       },
       () => {
         this.joinModal.close();
@@ -635,7 +639,8 @@ class Client {
     console.log("leaving lobby, cancelling game");
     this.gameStop();
     this.gameStop = null;
-    this.gutterAds.hide();
+    // DISABLED: Ads disabled
+    // this.gutterAds.hide();
     this.publicLobby.leaveLobby();
 
     // Restart menu music when returning to main menu
