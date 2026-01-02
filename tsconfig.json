@@ -26,7 +26,7 @@
   "include": [
     "src/**/*",
     "resources/**/*",
-    "proprietary/**/*",
+    "sounds/**/*",
     "generated/**/*",
     "tests/**/*",
     "src/scripts"

@@ -153,8 +153,8 @@ export default async (env, argv) => {
             noErrorOnMissing: true,
           },
           {
-            from: path.resolve(__dirname, "proprietary"),
-            to: path.resolve(__dirname, "static"),
+            from: path.resolve(__dirname, "sounds"),
+            to: path.resolve(__dirname, "static/sounds"),
             noErrorOnMissing: true,
           },
         ],

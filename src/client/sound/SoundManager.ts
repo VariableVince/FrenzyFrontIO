@@ -1,6 +1,6 @@
 import { Howl } from "howler";
-import of4 from "../../../proprietary/sounds/music/enveloped-mission-4-operation-alpha-116601.mp3";
 import kaChingSound from "../../../resources/sounds/effects/ka-ching.mp3";
+import of4 from "../../../sounds/music/enveloped-mission-4-operation-alpha-116601.mp3";
 
 export enum SoundEffect {
   KaChing = "ka-ching",
