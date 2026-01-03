@@ -1,14 +1,10 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/images/OpenFrontLogoDark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="resources/images/OpenFrontLogo.svg">
-    <img src="resources/images/OpenFrontLogo.svg" alt="OpenFrontIO Logo" width="300">
-  </picture>
+  <h1 align="center">FrenzyFront</h1>
 </p>
 
-[OpenFront.io](https://openfront.io/) is an online real-time strategy game focused on territorial control and alliance building. Players compete to expand their territory, build structures, and form strategic alliances in various maps based on real-world geography.
+[FrenzyFront.io](https://frenzyfront.io/) is an online real-time strategy game focused on territorial control and alliance building. Players compete to expand their territory, build structures, and form strategic alliances in various maps based on real-world geography.
 
-This is a fork/rewrite of WarFront.io. Credit to https://github.com/WarFrontIO.
+This is a fork of [OpenFront.io](https://openfront.io/) (credit to https://github.com/openfrontio/OpenFrontIO), which is itself a fork/rewrite of [WarFront.io](https://warfront.io/) (credit to https://github.com/WarFrontIO).
 
 ![CI](https://github.com/openfrontio/OpenFrontIO/actions/workflows/ci.yml/badge.svg)
 [![Crowdin](https://badges.crowdin.net/openfront-mls/localized.svg)](https://crowdin.com/project/openfront-mls)
@@ -18,9 +14,9 @@ This is a fork/rewrite of WarFront.io. Credit to https://github.com/WarFrontIO.
 
 ## License
 
-OpenFront source code is licensed under the **GNU Affero General Public License v3.0** with additional attribution requirements:
+FrenzyFront source code is licensed under the **GNU Affero General Public License v3.0** with additional attribution requirements:
 
-- Any forks or derivative works must display attribution (e.g., "Based on OpenFront", "Derived from OpenFront", "Powered by OpenFront", or "Fork of OpenFront") prominently on the main menu and/or initial title screen.
+- Any forks or derivative works must display attribution to **both FrenzyFront and OpenFront** prominently on the main menu and/or initial title screen (e.g., "Based on FrenzyFront and OpenFront", "Fork of FrenzyFront, derived from OpenFront").
 
 See the `ADDITIONAL TERMS` section in [LICENSE](LICENSE) for complete requirements.
 
