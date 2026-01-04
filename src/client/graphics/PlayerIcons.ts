@@ -48,11 +48,22 @@ export interface PlayerIconParams {
 }
 
 export function getFirstPlacePlayer(game: GameView): PlayerView | null {
-  const sorted = game
-    .playerViews()
-    .sort((a, b) => b.numTilesOwned() - a.numTilesOwned());
+  // Use reduce instead of sort for O(n) instead of O(n log n)
+  const players = game.playerViews();
+  if (players.length === 0) return null;
 
-  return sorted.length > 0 ? sorted[0] : null;
+  let firstPlace = players[0];
+  let maxTiles = firstPlace.numTilesOwned();
+
+  for (let i = 1; i < players.length; i++) {
+    const tiles = players[i].numTilesOwned();
+    if (tiles > maxTiles) {
+      maxTiles = tiles;
+      firstPlace = players[i];
+    }
+  }
+
+  return firstPlace;
 }
 
 export function getPlayerIcons(
@@ -104,7 +115,7 @@ export function getPlayerIcons(
   }
 
   // Target icon (centered on the map, but regular in overlays)
-  if (myPlayer !== null && new Set(myPlayer.transitiveTargets()).has(player)) {
+  if (myPlayer !== null && myPlayer.transitiveTargets().includes(player)) {
     icons.push({ id: "target", kind: "image", src: targetIcon, center: true });
   }
 

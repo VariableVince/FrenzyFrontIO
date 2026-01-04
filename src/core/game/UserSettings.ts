@@ -61,6 +61,20 @@ export class UserSettings {
     return this.get("settings.structureSprites", true);
   }
 
+  // Player Info Overlay - default OFF on mobile, ON on desktop
+  playerInfoOverlay(): boolean {
+    const saved = localStorage.getItem("settings.playerInfoOverlay");
+    if (saved !== null) {
+      return saved === "true";
+    }
+    // Default: OFF on mobile, ON on desktop
+    const isMobile =
+      /android|webos|iphone|ipad|ipod|blackberry|windows phone|opera mini|mobile/i.test(
+        navigator.userAgent,
+      );
+    return !isMobile;
+  }
+
   darkMode() {
     return this.get("settings.darkMode", false);
   }
@@ -113,6 +127,10 @@ export class UserSettings {
 
   toggleStructureSprites() {
     this.set("settings.structureSprites", !this.structureSprites());
+  }
+
+  togglePlayerInfoOverlay() {
+    this.set("settings.playerInfoOverlay", !this.playerInfoOverlay());
   }
 
   toggleTerritoryPatterns() {
@@ -197,5 +215,18 @@ export class UserSettings {
 
   setSoundEffectsVolume(volume: number): void {
     this.setFloat("settings.soundEffectsVolume", volume);
+  }
+
+  // Render quality: "auto" | "lowend" | "mobile" | "pc"
+  renderQuality(): string {
+    return localStorage.getItem("settings.renderQuality") ?? "auto";
+  }
+
+  setRenderQuality(quality: string): void {
+    localStorage.setItem("settings.renderQuality", quality);
+    // Dispatch event so MobileOptimizations can react
+    window.dispatchEvent(
+      new CustomEvent("render-quality-changed", { detail: { quality } }),
+    );
   }
 }

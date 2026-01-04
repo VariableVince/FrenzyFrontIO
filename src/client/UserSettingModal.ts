@@ -5,6 +5,7 @@ import { UserSettings } from "../core/game/UserSettings";
 import "./components/baseComponents/setting/SettingKeybind";
 import { SettingKeybind } from "./components/baseComponents/setting/SettingKeybind";
 import "./components/baseComponents/setting/SettingNumber";
+import "./components/baseComponents/setting/SettingSelect";
 import "./components/baseComponents/setting/SettingSlider";
 import "./components/baseComponents/setting/SettingToggle";
 
@@ -143,6 +144,15 @@ export class UserSettingModal extends LitElement {
     console.log("🏠 Structure sprites:", enabled ? "ON" : "OFF");
   }
 
+  private togglePlayerInfoOverlay(e: CustomEvent<{ checked: boolean }>) {
+    const enabled = e.detail?.checked;
+    if (typeof enabled !== "boolean") return;
+
+    this.userSettings.set("settings.playerInfoOverlay", enabled);
+
+    console.log("ℹ️ Player Info Overlay:", enabled ? "ON" : "OFF");
+  }
+
   private toggleAnonymousNames(e: CustomEvent<{ checked: boolean }>) {
     const enabled = e.detail?.checked;
     if (typeof enabled !== "boolean") return;
@@ -216,6 +226,14 @@ export class UserSettingModal extends LitElement {
     this.userSettings.set("settings.performanceOverlay", enabled);
   }
 
+  private handleRenderQualityChange(e: CustomEvent<{ value: string }>) {
+    const value = e.detail?.value;
+    if (typeof value !== "string") return;
+
+    this.userSettings.setRenderQuality(value);
+    console.log("🖥️ Render Quality:", value);
+  }
+
   private handleKeybindChange(
     e: CustomEvent<{ action: string; value: string; key: string }>,
   ) {
@@ -282,7 +300,33 @@ export class UserSettingModal extends LitElement {
   }
 
   private renderBasicSettings() {
+    const renderQualityOptions = [
+      {
+        value: "auto",
+        label: translateText("user_setting.render_quality_auto"),
+      },
+      { value: "pc", label: translateText("user_setting.render_quality_pc") },
+      {
+        value: "mobile",
+        label: translateText("user_setting.render_quality_mobile"),
+      },
+      {
+        value: "lowend",
+        label: translateText("user_setting.render_quality_lowend"),
+      },
+    ];
+
     return html`
+      <!-- 🖥️ Render Quality -->
+      <setting-select
+        label="${translateText("user_setting.render_quality_label")}"
+        description="${translateText("user_setting.render_quality_desc")}"
+        id="render-quality-select"
+        .value=${this.userSettings.renderQuality()}
+        .options=${renderQualityOptions}
+        @change=${this.handleRenderQualityChange}
+      ></setting-select>
+
       <!-- 🌙 Dark Mode -->
       <setting-toggle
         label="${translateText("user_setting.dark_mode_label")}"
@@ -327,6 +371,15 @@ export class UserSettingModal extends LitElement {
         id="structure_sprites-toggle"
         .checked=${this.userSettings.structureSprites()}
         @change=${this.toggleStructureSprites}
+      ></setting-toggle>
+
+      <!-- ℹ️ Player Info Overlay -->
+      <setting-toggle
+        label="${translateText("user_setting.player_info_overlay_label")}"
+        description="${translateText("user_setting.player_info_overlay_desc")}"
+        id="player-info-overlay-toggle"
+        .checked=${this.userSettings.playerInfoOverlay()}
+        @change=${this.togglePlayerInfoOverlay}
       ></setting-toggle>
 
       <!-- 🖱️ Left Click Menu -->
@@ -380,8 +433,9 @@ export class UserSettingModal extends LitElement {
         description="${translateText("user_setting.defensive_stance_desc")}"
         min="0"
         max="100"
-        .value=${Number(localStorage.getItem("settings.defensiveStance") ?? "1.0") *
-        100}
+        .value=${Number(
+          localStorage.getItem("settings.defensiveStance") ?? "1.0",
+        ) * 100}
         @change=${this.sliderDefensiveStance}
       ></setting-slider>
 

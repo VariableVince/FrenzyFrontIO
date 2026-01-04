@@ -1,11 +1,15 @@
 /**
  * Mobile-specific optimizations for rendering performance.
  * Detects mobile devices and provides configuration for reduced visual fidelity.
+ * Now supports user-selectable quality presets.
  */
+
+export type RenderQualityPreset = "auto" | "lowend" | "mobile" | "pc";
 
 export interface MobileConfig {
   isMobile: boolean;
   isLowEnd: boolean;
+  qualityPreset: RenderQualityPreset;
 
   // Rendering quality settings
   devicePixelRatio: number; // Lower = faster rendering
@@ -60,48 +64,40 @@ function detectLowEnd(): boolean {
   return false;
 }
 
-// Create mobile config based on device detection
-function createMobileConfig(): MobileConfig {
-  const isMobile = detectMobile();
-  const isLowEnd = detectLowEnd();
-
-  if (!isMobile) {
-    // Desktop: full quality
-    return {
-      isMobile: false,
-      isLowEnd: false,
-      devicePixelRatio: window.devicePixelRatio || 1,
-      maxFPS: 60,
-      skipMiningCellsEffects: false,
-      reducedParticles: false,
-      simplifiedUnits: false,
-      reducedAnimations: false,
-      aggressiveCulling: false,
-      batchSize: 1000,
-    };
+// Get the saved quality preference from localStorage
+function getSavedQuality(): RenderQualityPreset {
+  if (typeof localStorage === "undefined") return "auto";
+  const saved = localStorage.getItem("settings.renderQuality");
+  if (saved === "lowend" || saved === "mobile" || saved === "pc") {
+    return saved;
   }
+  return "auto";
+}
 
-  if (isLowEnd) {
-    // Low-end mobile: minimal quality
-    return {
-      isMobile: true,
-      isLowEnd: true,
-      devicePixelRatio: 1, // Render at 1x regardless of screen
-      maxFPS: 30,
-      skipMiningCellsEffects: true,
-      reducedParticles: true,
-      simplifiedUnits: true,
-      reducedAnimations: true,
-      aggressiveCulling: true,
-      batchSize: 200,
-    };
-  }
+// Create config for PC/Desktop quality
+function createPCConfig(): MobileConfig {
+  return {
+    isMobile: false,
+    isLowEnd: false,
+    qualityPreset: "pc",
+    devicePixelRatio: window.devicePixelRatio || 1,
+    maxFPS: 60,
+    skipMiningCellsEffects: false,
+    reducedParticles: false,
+    simplifiedUnits: false,
+    reducedAnimations: false,
+    aggressiveCulling: false,
+    batchSize: 1000,
+  };
+}
 
-  // Standard mobile: balanced quality
+// Create config for standard mobile quality
+function createMobileQualityConfig(): MobileConfig {
   return {
     isMobile: true,
     isLowEnd: false,
-    devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2), // Cap at 2x
+    qualityPreset: "mobile",
+    devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
     maxFPS: 45,
     skipMiningCellsEffects: false,
     reducedParticles: true,
@@ -110,6 +106,61 @@ function createMobileConfig(): MobileConfig {
     aggressiveCulling: true,
     batchSize: 500,
   };
+}
+
+// Create config for low-end quality
+function createLowEndConfig(): MobileConfig {
+  return {
+    isMobile: true,
+    isLowEnd: true,
+    qualityPreset: "lowend",
+    devicePixelRatio: 1,
+    maxFPS: 30,
+    skipMiningCellsEffects: true,
+    reducedParticles: true,
+    simplifiedUnits: true,
+    reducedAnimations: true,
+    aggressiveCulling: true,
+    batchSize: 200,
+  };
+}
+
+// Create mobile config based on device detection or user preference
+function createMobileConfig(): MobileConfig {
+  const savedQuality = getSavedQuality();
+
+  // If user has manually selected a quality preset, use it
+  if (savedQuality !== "auto") {
+    console.log(`Using user-selected render quality: ${savedQuality}`);
+    switch (savedQuality) {
+      case "pc":
+        return createPCConfig();
+      case "mobile":
+        return createMobileQualityConfig();
+      case "lowend":
+        return createLowEndConfig();
+    }
+  }
+
+  // Auto-detect based on device
+  const isMobile = detectMobile();
+  const isLowEnd = detectLowEnd();
+
+  if (!isMobile) {
+    const config = createPCConfig();
+    config.qualityPreset = "auto";
+    return config;
+  }
+
+  if (isLowEnd) {
+    const config = createLowEndConfig();
+    config.qualityPreset = "auto";
+    return config;
+  }
+
+  const config = createMobileQualityConfig();
+  config.qualityPreset = "auto";
+  return config;
 }
 
 // Singleton instance
@@ -121,6 +172,20 @@ export function getMobileConfig(): MobileConfig {
     console.log("Mobile optimization config:", mobileConfig);
   }
   return mobileConfig;
+}
+
+// Force refresh of mobile config (call after user changes quality setting)
+export function refreshMobileConfig(): MobileConfig {
+  mobileConfig = createMobileConfig();
+  console.log("Mobile optimization config refreshed:", mobileConfig);
+  return mobileConfig;
+}
+
+// Listen for quality changes from settings
+if (typeof window !== "undefined") {
+  window.addEventListener("render-quality-changed", () => {
+    refreshMobileConfig();
+  });
 }
 
 // Utility to check if we should skip expensive rendering

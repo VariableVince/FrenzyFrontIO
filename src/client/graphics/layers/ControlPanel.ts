@@ -8,6 +8,7 @@ import { ClientID } from "../../../core/Schemas";
 import { AttackRatioEvent } from "../../InputHandler";
 import { SendDefensiveStanceIntentEvent } from "../../Transport";
 import { renderNumber, renderTroops } from "../../Utils";
+import { isMobileDevice } from "../MobileOptimizations";
 import { UIState } from "../UIState";
 import { Layer } from "./Layer";
 
@@ -253,44 +254,65 @@ export class ControlPanel extends LitElement implements Layer {
         <div
           class="block bg-black/40 text-white mb-4 p-2 rounded border border-red-900/30"
         >
-          <div class="flex justify-between mb-1">
-            <span class="font-bold"
-              >${translateText(
-                this._isFrenzy ? "control_panel.units" : "control_panel.troops",
-              )}:</span
-            >
-            <span translate="no"
-              >${this._isFrenzy ? this._troops : renderTroops(this._troops)} /
-              ${this._isFrenzy
-                ? this._maxTroops
-                : renderTroops(this._maxTroops)}
-              ${this._isFrenzy
-                ? ""
-                : html`<span
-                    class="${this._troopRateIsIncreasing
-                      ? "text-green-500"
-                      : "text-yellow-500"}"
-                    translate="no"
-                    >(+${renderTroops(this.troopRate)})</span
-                  >`}</span
-            >
-          </div>
-          ${this._isFrenzy
-            ? html`<div class="flex justify-between mb-1">
-                <span class="font-bold"
-                  >${translateText("control_panel.warships")}:</span
-                >
-                <span translate="no"
-                  >${this._warshipCount} / ${this._maxWarships}</span
-                >
-              </div>`
-            : ""}
-          <div class="flex justify-between">
-            <span class="font-bold"
-              >${translateText("control_panel.gold")}:</span
-            >
-            <span translate="no">${renderNumber(this._gold)}</span>
-          </div>
+          ${isMobileDevice() && this._isFrenzy
+            ? html`<!-- Mobile compact layout: Units | Ships | Gold in one row -->
+                <div class="flex justify-between text-xs gap-2">
+                  <span
+                    ><b>${translateText("control_panel.units")}:</b> ${this
+                      ._troops}/${this._maxTroops}</span
+                  >
+                  <span
+                    ><b>${translateText("control_panel.ships")}:</b> ${this
+                      ._warshipCount}/${this._maxWarships}</span
+                  >
+                  <span
+                    ><b>${translateText("control_panel.gold")}:</b>
+                    ${renderNumber(this._gold)}</span
+                  >
+                </div>`
+            : html`<div class="flex justify-between mb-1">
+                  <span class="font-bold"
+                    >${translateText(
+                      this._isFrenzy
+                        ? "control_panel.units"
+                        : "control_panel.troops",
+                    )}:</span
+                  >
+                  <span translate="no"
+                    >${this._isFrenzy
+                      ? this._troops
+                      : renderTroops(this._troops)}
+                    /
+                    ${this._isFrenzy
+                      ? this._maxTroops
+                      : renderTroops(this._maxTroops)}
+                    ${this._isFrenzy
+                      ? ""
+                      : html`<span
+                          class="${this._troopRateIsIncreasing
+                            ? "text-green-500"
+                            : "text-yellow-500"}"
+                          translate="no"
+                          >(+${renderTroops(this.troopRate)})</span
+                        >`}</span
+                  >
+                </div>
+                ${this._isFrenzy
+                  ? html`<div class="flex justify-between mb-1">
+                      <span class="font-bold"
+                        >${translateText("control_panel.ships")}:</span
+                      >
+                      <span translate="no"
+                        >${this._warshipCount} / ${this._maxWarships}</span
+                      >
+                    </div>`
+                  : ""}
+                <div class="flex justify-between">
+                  <span class="font-bold"
+                    >${translateText("control_panel.gold")}:</span
+                  >
+                  <span translate="no">${renderNumber(this._gold)}</span>
+                </div>`}
         </div>
 
         <!-- Defensive Stance Slider -->
@@ -332,11 +354,13 @@ export class ControlPanel extends LitElement implements Layer {
               class="absolute left-0 right-0 top-2 m-0 h-4 cursor-pointer defensiveStance"
             />
           </div>
-          <div class="flex justify-between text-xs text-white/60 mt-1">
-            <span>${translateText("control_panel.stance_defensive")}</span>
-            <span>${translateText("control_panel.stance_balanced")}</span>
-            <span>${translateText("control_panel.stance_offensive")}</span>
-          </div>
+          ${isMobileDevice()
+            ? ""
+            : html`<div class="flex justify-between text-xs text-white/60 mt-1">
+                <span>${translateText("control_panel.stance_defensive")}</span>
+                <span>${translateText("control_panel.stance_balanced")}</span>
+                <span>${translateText("control_panel.stance_offensive")}</span>
+              </div>`}
         </div>
 
         <div class="relative mb-0 sm:mb-4">

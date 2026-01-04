@@ -21,6 +21,7 @@ import {
 import { TileRef } from "../../../core/game/GameMap";
 import { AllianceView } from "../../../core/game/GameUpdates";
 import { GameView, PlayerView, UnitView } from "../../../core/game/GameView";
+import { UserSettings } from "../../../core/game/UserSettings";
 import { ContextMenuEvent, MouseMoveEvent } from "../../InputHandler";
 import {
   renderDuration,
@@ -82,6 +83,8 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
 
   private showDetails = true;
 
+  private userSettings = new UserSettings();
+
   init() {
     this.eventBus.on(MouseMoveEvent, (e: MouseMoveEvent) =>
       this.onMouseEvent(e),
@@ -94,6 +97,11 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
   }
 
   private onMouseEvent(event: MouseMoveEvent) {
+    // Check if overlay is enabled in settings
+    if (!this.userSettings.playerInfoOverlay()) {
+      this.hide();
+      return;
+    }
     const now = Date.now();
     if (now - this.lastMouseUpdate < 100) {
       return;
@@ -109,6 +117,11 @@ export class PlayerInfoOverlay extends LitElement implements Layer {
   }
 
   public maybeShow(x: number, y: number) {
+    // Check if overlay is enabled in settings
+    if (!this.userSettings.playerInfoOverlay()) {
+      this.hide();
+      return;
+    }
     this.hide();
     const worldCoord = this.transform.screenToWorldCoordinates(x, y);
     if (!this.game.isValidCoord(worldCoord.x, worldCoord.y)) {

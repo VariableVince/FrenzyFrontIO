@@ -1,4 +1,3 @@
-import shieldIcon from "../../../../resources/images/ShieldIconBlack.svg";
 import { renderPlayerFlag } from "../../../core/CustomFlag";
 import { EventBus } from "../../../core/EventBus";
 import { PseudoRandom } from "../../../core/PseudoRandom";
@@ -7,7 +6,7 @@ import { Cell } from "../../../core/game/Game";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { UserSettings } from "../../../core/game/UserSettings";
 import { AlternateViewEvent } from "../../InputHandler";
-import { createCanvas, renderNumber, renderTroops } from "../../Utils";
+import { createCanvas } from "../../Utils";
 import {
   computeAllianceClipPath,
   createAllianceProgressIcon,
@@ -20,6 +19,14 @@ import { Layer } from "./Layer";
 
 class RenderInfo {
   public icons: Map<PlayerIconId, HTMLElement> = new Map(); // Track icon elements
+  // Cached DOM references to avoid querySelector calls
+  public nameDiv: HTMLDivElement | null = null;
+  public flagDiv: HTMLDivElement | null = null;
+  public iconsDiv: HTMLDivElement | null = null;
+  public nameSpan: HTMLSpanElement | null = null;
+  public shieldDiv: HTMLDivElement | null = null;
+  public shieldImg: HTMLImageElement | null = null;
+  public shieldNumber: HTMLSpanElement | null = null;
 
   constructor(
     public player: PlayerView,
@@ -39,23 +46,19 @@ export class NameLayer implements Layer {
   private rand = new PseudoRandom(10);
   private renders: RenderInfo[] = [];
   private seenPlayers: Set<PlayerView> = new Set();
-  private shieldIconImage: HTMLImageElement;
   private container: HTMLDivElement;
   private theme: Theme = this.game.config().theme();
   private userSettings: UserSettings = new UserSettings();
   private isVisible: boolean = true;
   private firstPlace: PlayerView | null = null;
+  // Reusable Cell object for coordinate transform
+  private originCell: Cell = new Cell(0, 0);
 
   constructor(
     private game: GameView,
     private transformHandler: TransformHandler,
     private eventBus: EventBus,
-  ) {
-    this.shieldIconImage = new Image();
-    this.shieldIconImage.src = shieldIcon;
-    this.shieldIconImage = new Image();
-    this.shieldIconImage.src = shieldIcon;
-  }
+  ) {}
 
   resizeCanvas() {
     this.canvas.width = window.innerWidth;
@@ -145,16 +148,7 @@ export class NameLayer implements Layer {
       if (player.isAlive()) {
         if (!this.seenPlayers.has(player)) {
           this.seenPlayers.add(player);
-          this.renders.push(
-            new RenderInfo(
-              player,
-              0,
-              null,
-              0,
-              "",
-              this.createPlayerElement(player),
-            ),
-          );
+          this.renders.push(this.createPlayerRenderInfo(player));
         }
       }
     }
@@ -162,13 +156,11 @@ export class NameLayer implements Layer {
 
   public renderLayer(mainContex: CanvasRenderingContext2D) {
     const screenPosOld = this.transformHandler.worldToScreenCoordinates(
-      new Cell(0, 0),
+      this.originCell,
     );
-    const screenPos = new Cell(
-      screenPosOld.x - window.innerWidth / 2,
-      screenPosOld.y - window.innerHeight / 2,
-    );
-    this.container.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px) scale(${this.transformHandler.scale})`;
+    const screenX = screenPosOld.x - window.innerWidth / 2;
+    const screenY = screenPosOld.y - window.innerHeight / 2;
+    this.container.style.transform = `translate(${screenX}px, ${screenY}px) scale(${this.transformHandler.scale})`;
 
     const now = Date.now();
     if (now > this.lastChecked + this.renderCheckRate) {
@@ -187,7 +179,7 @@ export class NameLayer implements Layer {
     );
   }
 
-  private createPlayerElement(player: PlayerView): HTMLDivElement {
+  private createPlayerRenderInfo(player: PlayerView): RenderInfo {
     const element = document.createElement("div");
     element.style.position = "absolute";
     element.style.display = "flex";
@@ -206,11 +198,13 @@ export class NameLayer implements Layer {
     element.appendChild(iconsDiv);
 
     const nameDiv = document.createElement("div");
-    const applyFlagStyles = (element: HTMLElement): void => {
-      element.classList.add("player-flag");
-      element.style.opacity = "0.8";
-      element.style.zIndex = "1";
-      element.style.aspectRatio = "3/4";
+    let flagDiv: HTMLDivElement | null = null;
+
+    const applyFlagStyles = (el: HTMLElement): void => {
+      el.classList.add("player-flag");
+      el.style.opacity = "0.8";
+      el.style.zIndex = "1";
+      el.style.aspectRatio = "3/4";
     };
 
     if (player.cosmetics.flag) {
@@ -220,11 +214,16 @@ export class NameLayer implements Layer {
         applyFlagStyles(flagWrapper);
         renderPlayerFlag(flag, flagWrapper);
         nameDiv.appendChild(flagWrapper);
+        flagDiv = flagWrapper;
       } else if (flag !== undefined && flag !== null) {
-        const flagImg = document.createElement("img");
+        const flagImg = document.createElement(
+          "img",
+        ) as unknown as HTMLDivElement;
         applyFlagStyles(flagImg);
-        flagImg.src = "/flags/" + flag + ".svg";
+        (flagImg as unknown as HTMLImageElement).src =
+          "/flags/" + flag + ".svg";
         nameDiv.appendChild(flagImg);
+        flagDiv = flagImg;
       }
     }
     nameDiv.classList.add("player-name");
@@ -243,48 +242,19 @@ export class NameLayer implements Layer {
     nameDiv.appendChild(nameSpan);
     element.appendChild(nameDiv);
 
-    const troopsDiv = document.createElement("div");
-    troopsDiv.classList.add("player-troops");
-    troopsDiv.setAttribute("translate", "no");
-    troopsDiv.textContent = renderTroops(player.troops());
-    troopsDiv.style.color = this.theme.textColor(player);
-    troopsDiv.style.fontFamily = this.theme.font();
-    troopsDiv.style.zIndex = "3";
-    troopsDiv.style.marginTop = "-5%";
-    element.appendChild(troopsDiv);
-
-    // TODO: Remove the shield icon.
-    /* eslint-disable no-constant-condition */
-    if (false) {
-      const shieldDiv = document.createElement("div");
-      shieldDiv.classList.add("player-shield");
-      shieldDiv.style.zIndex = "3";
-      shieldDiv.style.marginTop = "-5%";
-      shieldDiv.style.display = "flex";
-      shieldDiv.style.alignItems = "center";
-      shieldDiv.style.gap = "0px";
-      const shieldImg = document.createElement("img");
-      shieldImg.src = this.shieldIconImage.src;
-      shieldImg.style.width = "16px";
-      shieldImg.style.height = "16px";
-
-      const shieldSpan = document.createElement("span");
-      shieldSpan.textContent = "0";
-      shieldSpan.style.color = "black";
-      shieldSpan.style.fontSize = "10px";
-      shieldSpan.style.marginTop = "-2px";
-
-      shieldDiv.appendChild(shieldImg);
-      shieldDiv.appendChild(shieldSpan);
-      element.appendChild(shieldDiv);
-    }
-    /* eslint-enable no-constant-condition */
-
     // Start off invisible so it doesn't flash at 0,0
     element.style.display = "none";
 
     this.container.appendChild(element);
-    return element;
+
+    // Create RenderInfo with cached DOM references
+    const renderInfo = new RenderInfo(player, 0, null, 0, "", element);
+    renderInfo.nameDiv = nameDiv;
+    renderInfo.flagDiv = flagDiv;
+    renderInfo.iconsDiv = iconsDiv;
+    renderInfo.nameSpan = nameSpan;
+
+    return renderInfo;
   }
 
   renderPlayerInfo(render: RenderInfo) {
@@ -294,16 +264,24 @@ export class NameLayer implements Layer {
       return;
     }
 
-    const oldLocation = render.location;
-    render.location = new Cell(
-      render.player.nameLocation().x,
-      render.player.nameLocation().y,
-    );
+    // Update location
+    const nameLoc = render.player.nameLocation();
+    const locationChanged =
+      !render.location ||
+      render.location.x !== nameLoc.x ||
+      render.location.y !== nameLoc.y;
+    render.location = new Cell(nameLoc.x, nameLoc.y);
 
     // Calculate base size and scale
-    const baseSize = Math.max(1, Math.floor(render.player.nameLocation().size));
+    const baseSize = Math.max(1, Math.floor(nameLoc.size));
     render.fontSize = Math.max(4, Math.floor(baseSize * 0.4));
     render.fontColor = this.theme.textColor(render.player);
+
+    // Update position if changed (do this before visibility check)
+    if (locationChanged) {
+      const scale = Math.min(baseSize * 0.25, 3);
+      render.element.style.transform = `translate(${render.location.x}px, ${render.location.y}px) translate(-50%, -50%) scale(${scale})`;
+    }
 
     // Update element visibility (handles Ctrl key, size, and screen position)
     this.updateElementVisibility(render);
@@ -320,51 +298,25 @@ export class NameLayer implements Layer {
     }
     render.lastRenderCalc = now + this.rand.nextInt(0, 100);
 
-    // Update text sizes
-    const nameDiv = render.element.querySelector(
-      ".player-name",
-    ) as HTMLDivElement;
-    const flagDiv = render.element.querySelector(
-      ".player-flag",
-    ) as HTMLDivElement;
-    const troopsDiv = render.element.querySelector(
-      ".player-troops",
-    ) as HTMLDivElement;
-    nameDiv.style.fontSize = `${render.fontSize}px`;
-    nameDiv.style.lineHeight = `${render.fontSize}px`;
-    nameDiv.style.color = render.fontColor;
-    const span = nameDiv.querySelector(".player-name-span");
-    if (span) {
-      span.innerHTML = render.player.name();
+    // Update text sizes using cached DOM references
+    const nameDiv = render.nameDiv;
+    const flagDiv = render.flagDiv;
+    if (nameDiv) {
+      nameDiv.style.fontSize = `${render.fontSize}px`;
+      nameDiv.style.lineHeight = `${render.fontSize}px`;
+      nameDiv.style.color = render.fontColor;
+    }
+    if (render.nameSpan) {
+      render.nameSpan.innerHTML = render.player.name();
     }
     if (flagDiv) {
       flagDiv.style.height = `${render.fontSize}px`;
     }
-    troopsDiv.style.fontSize = `${render.fontSize}px`;
-    troopsDiv.style.color = render.fontColor;
-    troopsDiv.textContent = renderTroops(render.player.troops());
 
-    const density = renderNumber(
-      render.player.troops() / render.player.numTilesOwned(),
-    );
-    const shieldDiv: HTMLDivElement | null =
-      render.element.querySelector(".player-shield");
-    const shieldImg = shieldDiv?.querySelector("img");
-    const shieldNumber = shieldDiv?.querySelector("span");
-    if (shieldImg) {
-      shieldImg.style.width = `${render.fontSize * 0.8}px`;
-      shieldImg.style.height = `${render.fontSize * 0.8}px`;
-    }
-    if (shieldNumber) {
-      shieldNumber.style.fontSize = `${render.fontSize * 0.6}px`;
-      shieldNumber.style.marginTop = `${-render.fontSize * 0.1}px`;
-      shieldNumber.textContent = density;
-    }
+    // Handle icons using cached reference
+    const iconsDiv = render.iconsDiv;
+    if (!iconsDiv) return;
 
-    // Handle icons
-    const iconsDiv = render.element.querySelector(
-      ".player-icons",
-    ) as HTMLDivElement;
     const iconSize = Math.min(render.fontSize * 1.5, 48);
 
     // Compute which icons should be shown for this player using shared logic
@@ -512,12 +464,6 @@ export class NameLayer implements Layer {
           }
         }
       }
-    }
-
-    // Position element with scale
-    if (render.location && render.location !== oldLocation) {
-      const scale = Math.min(baseSize * 0.25, 3);
-      render.element.style.transform = `translate(${render.location.x}px, ${render.location.y}px) translate(-50%, -50%) scale(${scale})`;
     }
   }
 
