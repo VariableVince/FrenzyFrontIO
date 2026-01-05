@@ -3092,6 +3092,44 @@ export class FrenzyManager {
   }
 
   /**
+   * Spawn a SAM launcher at the given location.
+   * Note: No unit count check - structures always complete once building starts.
+   */
+  spawnSAMLauncher(playerId: PlayerID, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    const building = this.coreBuildings.get(playerId);
+    if (!building) {
+      return;
+    }
+    // Check for nearby static structures
+    if (this.hasNearbyStaticStructure(x, y)) {
+      return;
+    }
+    this.spawnUnit(playerId, x, y, FrenzyUnitType.SAMLauncher);
+  }
+
+  /**
+   * Spawn a missile silo at the given location.
+   * Note: No unit count check - structures always complete once building starts.
+   */
+  spawnMissileSilo(playerId: PlayerID, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    const building = this.coreBuildings.get(playerId);
+    if (!building) {
+      return;
+    }
+    // Check for nearby static structures
+    if (this.hasNearbyStaticStructure(x, y)) {
+      return;
+    }
+    this.spawnUnit(playerId, x, y, FrenzyUnitType.MissileSilo);
+  }
+
+  /**
    * Register a factory as a unit spawner
    */
   registerFactory(playerId: PlayerID, tile: TileRef, x: number, y: number) {
@@ -3240,6 +3278,11 @@ export class FrenzyManager {
   upgradeHQ(playerId: PlayerID): boolean {
     const building = this.coreBuildings.get(playerId);
     if (!building) {
+      return false;
+    }
+
+    // Max HQ tier is 2
+    if (building.tier >= 2) {
       return false;
     }
 
@@ -3800,17 +3843,15 @@ export class FrenzyManager {
    * Upgrade missile silo to tier 2 (can launch hydrogen bombs)
    */
   upgradeSilo(playerId: PlayerID, tile: TileRef): boolean {
-    const player = this.game.player(playerId);
-    if (!player) return false;
+    // Use canUpgradeSilo for all checks
+    if (!this.canUpgradeSilo(playerId, tile)) return false;
 
+    const player = this.game.player(playerId)!;
     const silos = player.units(UnitType.MissileSilo);
-    const silo = silos.find((s) => s.tile() === tile);
-    if (!silo) return false;
+    const silo = silos.find((s) => s.tile() === tile)!;
 
-    if (silo.level() >= 2) return false;
-
-    const upgradeCost = BigInt(this.config.factoryUpgradeCost);
-    if (player.gold() < upgradeCost) return false;
+    const upgradeInfo = STRUCTURE_UPGRADES["silo"];
+    const upgradeCost = BigInt(upgradeInfo.upgradeCost);
 
     player.removeGold(upgradeCost);
     silo.increaseLevel();

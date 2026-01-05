@@ -473,12 +473,15 @@ export class DefaultConfig implements Config {
         };
       case UnitType.Port:
         return {
-          cost: this.costWrapper(
-            (numUnits: number) =>
-              Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
-            UnitType.Port,
-            UnitType.Factory,
-          ),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(DEFAULT_FRENZY_CONFIG.factoryCost)
+              : this.costWrapper(
+                  (numUnits: number) =>
+                    Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
+                  UnitType.Port,
+                  UnitType.Factory,
+                ),
           territoryBound: true,
           constructionDuration: this.instantBuild() ? 0 : 2 * 10,
           upgradable: true,

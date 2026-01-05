@@ -531,7 +531,7 @@ export const upgradeHQElement: MenuElement = {
   id: "upgrade_hq",
   name: "upgrade_hq",
   displayed: (params: MenuElementParams) => {
-    // Only show in Frenzy mode when clicking on own HQ
+    // Only show in Frenzy mode when clicking on own HQ that can be upgraded
     const frenzyState = params.game.frenzyManager();
     if (!frenzyState) return false;
 
@@ -539,6 +539,9 @@ export const upgradeHQElement: MenuElement = {
       (b) => b.playerId === params.myPlayer.id(),
     );
     if (!myHQ) return false;
+
+    // HQ max tier is 2
+    if ((myHQ.tier ?? 1) >= 2) return false;
 
     // Check if the click is near the HQ (within 10 pixels)
     const tileX = params.game.x(params.tile);
@@ -1266,7 +1269,8 @@ export const rootMenuElement: MenuElement = {
         const tileX = params.game.x(params.tile);
         const tileY = params.game.y(params.tile);
         const dist = Math.hypot(tileX - myHQ.x, tileY - myHQ.y);
-        isClickingOnHQ = dist <= 20;
+        // Only show upgrade option if HQ can be upgraded (tier < 2)
+        isClickingOnHQ = dist <= 20 && (myHQ.tier ?? 1) < 2;
       }
 
       // Check each structure type and set appropriate upgrade element

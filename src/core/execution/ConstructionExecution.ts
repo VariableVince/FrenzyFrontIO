@@ -132,6 +132,15 @@ export class ConstructionExecution implements Execution {
         }
         break;
       case UnitType.MissileSilo:
+        // In Frenzy mode, spawn a missile silo frenzy unit
+        if (
+          this.mg.config().gameConfig().gameFork === GameFork.Frenzy &&
+          this.mg.frenzyManager()
+        ) {
+          const tileX = this.mg.x(this.tile);
+          const tileY = this.mg.y(this.tile);
+          this.mg.frenzyManager()!.spawnMissileSilo(player.id(), tileX, tileY);
+        }
         this.mg.addExecution(new MissileSiloExecution(player, this.tile));
         break;
       case UnitType.DefensePost:
@@ -172,6 +181,15 @@ export class ConstructionExecution implements Execution {
         }
         break;
       case UnitType.SAMLauncher:
+        // In Frenzy mode, spawn a SAM launcher frenzy unit
+        if (
+          this.mg.config().gameConfig().gameFork === GameFork.Frenzy &&
+          this.mg.frenzyManager()
+        ) {
+          const tileX = this.mg.x(this.tile);
+          const tileY = this.mg.y(this.tile);
+          this.mg.frenzyManager()!.spawnSAMLauncher(player.id(), tileX, tileY);
+        }
         this.mg.addExecution(new SAMLauncherExecution(player, this.tile));
         break;
       case UnitType.City:

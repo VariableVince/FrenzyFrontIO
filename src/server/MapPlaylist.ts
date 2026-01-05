@@ -10,9 +10,10 @@ import {
 import { GameConfig } from "../core/Schemas";
 
 // CircleMap-only playlist with max 20 players
-// Bots are set to 20 here; the actual number spawned will be 20 - numRealPlayers
+// Bots are set to 10 here; the actual number spawned will be 10 - numRealPlayers
 // (calculated in GameRunner.init())
 const CIRCLE_MAP_MAX_PLAYERS = 20;
+const FRENZY_BOT_TARGET = 10;
 
 export class MapPlaylist {
   constructor(private disableTeams: boolean = false) {}
@@ -36,7 +37,7 @@ export class MapPlaylist {
       disableNPCs: false,
       gameMode: GameMode.FFA,
       playerTeams: undefined,
-      bots: 0, // Disabled for performance - only FakeHumans remain
+      bots: FRENZY_BOT_TARGET, // Actual bots = 10 - numRealPlayers (calculated in GameRunner)
       disabledUnits: [UnitType.MIRV, UnitType.MIRVWarhead], // MIRVs removed from Frenzy
     } satisfies GameConfig;
   }
