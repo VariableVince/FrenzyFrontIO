@@ -405,7 +405,8 @@ export class FrenzyManager {
     this.updateCombat(deltaTime);
     this.updateProjectiles(deltaTime);
     this.captureTerritory();
-    this.captureSurroundedWilderness();
+    // TODO: captureSurroundedWilderness disabled - needs rewrite with incremental approach
+    // this.captureSurroundedWilderness();
     this.checkAllHQCaptures();
     this.removeDeadUnits();
     this.rebuildSpatialGrid();
@@ -2641,11 +2642,14 @@ export class FrenzyManager {
 
   /**
    * Capture wilderness (neutral land) that is completely surrounded by a single player's territory.
-   * Uses flood fill to find connected wilderness regions and checks if they're entirely enclosed.
+   * OPTIMIZED: Only captures small pockets (max 100 tiles) to avoid expensive full-map scans.
    */
   private captureSurroundedWilderness() {
-    // Only run every few ticks for performance
-    if (this.tickCount % 5 !== 0) return;
+    // Only run every 10 ticks for performance
+    if (this.tickCount % 10 !== 0) return;
+
+    // Max size of a pocket we'll capture - larger regions are skipped
+    const MAX_POCKET_SIZE = 100;
 
     const visited = new Set<number>();
     const mapWidth = this.game.width();
@@ -2664,8 +2668,10 @@ export class FrenzyManager {
       const queue: number[] = [tile];
       const surroundingPlayers = new Set<string>();
       let touchesMapEdge = false;
+      let touchesWater = false;
+      let tooBig = false;
 
-      while (queue.length > 0) {
+      while (queue.length > 0 && !tooBig) {
         const current = queue.pop()!;
         if (visited.has(current)) continue;
         visited.add(current);
@@ -2679,12 +2685,19 @@ export class FrenzyManager {
         }
 
         if (this.game.isWater(current)) {
-          // Water acts as a boundary
+          // Water boundary - region is open to water
+          touchesWater = true;
           continue;
         }
 
         // This is wilderness - add to region
         region.push(current);
+
+        // Check if region is too big to bother with
+        if (region.length > MAX_POCKET_SIZE) {
+          tooBig = true;
+          continue;
+        }
 
         // Check if on map edge
         const x = this.game.x(current);
@@ -2702,9 +2715,13 @@ export class FrenzyManager {
         }
       }
 
-      // If region doesn't touch map edge and is surrounded by exactly one player, capture it
+      // Skip large regions - they're expensive and unlikely to be enclosed
+      if (tooBig) return;
+
+      // If region doesn't touch map edge, doesn't touch water, and is surrounded by exactly one player, capture it
       if (
         !touchesMapEdge &&
+        !touchesWater &&
         surroundingPlayers.size === 1 &&
         region.length > 0
       ) {
