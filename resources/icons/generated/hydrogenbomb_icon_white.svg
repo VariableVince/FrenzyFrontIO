@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- HydrogenBomb icon (cross) -->
+  <g fill="#FFFFFF">
+        <!-- Vertical bar -->
+        <rect x="29.44" y="6.4" width="5.12" height="51.2" rx="1" />
+        <!-- Horizontal bar -->
+        <rect x="6.4" y="29.44" width="51.2" height="5.12" rx="1" />
+        <!-- Center gap (white circle) -->
+        <circle cx="32" cy="32" r="9.6" fill="#FFFFFF" />
+      </g>
+</svg>

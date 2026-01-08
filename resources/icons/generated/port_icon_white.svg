@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Port icon (pentagon) -->
+  <polygon 
+        points="32.00,6.40 56.35,24.09 47.05,52.71 16.95,52.71 7.65,24.09" 
+        fill="#FFFFFF" 
+        stroke="#FFFFFF" 
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+</svg>

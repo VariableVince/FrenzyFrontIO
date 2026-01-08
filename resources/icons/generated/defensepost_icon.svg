@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- DefensePost icon (octagon) -->
+  <polygon 
+        points="55.65,22.20 55.65,41.80 41.80,55.65 22.20,55.65 8.35,41.80 8.35,22.20 22.20,8.35 41.80,8.35" 
+        fill="#FFFFFF" 
+        stroke="#333333" 
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+</svg>
