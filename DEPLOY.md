@@ -10,6 +10,10 @@
 ## Quick Deploy (Copy & Paste)
 
 ```powershell
+# 0. Update version and changelog (DON'T FORGET!)
+# - Edit resources/version.txt (e.g., v0.03 → v0.04)
+# - Add release notes to resources/changelog.md
+
 # 1. Build production bundle
 npm run build-prod
 
@@ -22,6 +26,13 @@ ssh root@167.235.146.119 "systemctl restart nginx"
 ```
 
 ## Step-by-Step
+
+### 0. Update Version & Changelog (DON'T FORGET!)
+
+Before deploying, update:
+
+- `resources/version.txt` - Increment version (e.g., v0.03 → v0.04)
+- `resources/changelog.md` - Add release notes at the top
 
 ### 1. Build Production Bundle
 
@@ -87,21 +98,26 @@ ssh root@167.235.146.119 "ps aux | grep node"
 - API/WebSocket requests proxy to Node.js on ports 3000-3002
 - Node.js runs via ts-node directly (not Docker/PM2)
 
-
 ## fetch statistics
+
 # Fetch the log file to your local machine
+
 scp root@167.235.146.119:/var/log/frenzyfront/games.log C:\Users\hauke\openfront\frenzyfront-games.log
 
 # View it
+
 Get-Content C:\Users\hauke\openfront\frenzyfront-games.log
 
 OR
 
 # View last 20 entries
+
 ssh root@167.235.146.119 "tail -20 /var/log/frenzyfront/games.log"
 
 # View all entries
+
 ssh root@167.235.146.119 "cat /var/log/frenzyfront/games.log"
 
 # Count games today
+
 ssh root@167.235.146.119 "grep GAME_START /var/log/frenzyfront/games.log | wc -l"
