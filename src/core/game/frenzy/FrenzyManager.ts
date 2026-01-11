@@ -2647,12 +2647,18 @@ export class FrenzyManager {
     const checkedTiles = new Set<number>();
 
     // Performance: Stagger unit captures - only process subset each tick
+    // But always process all units if there are fewer than 100 (early game)
     const unitCount = this.units.length;
-    const unitsPerTick = Math.max(50, Math.ceil(unitCount / 3));
-    const startIdx = (this.tickCount * unitsPerTick) % unitCount;
-    const endIdx = Math.min(startIdx + unitsPerTick, unitCount);
+    const processAll = unitCount < 100;
+    const unitsPerTick = processAll
+      ? unitCount
+      : Math.max(50, Math.ceil(unitCount / 3));
+    const startIdx = processAll
+      ? 0
+      : (this.tickCount * unitsPerTick) % unitCount;
 
-    for (let i = startIdx; i < endIdx; i++) {
+    for (let j = 0; j < unitsPerTick && j < unitCount; j++) {
+      const i = (startIdx + j) % unitCount;
       const unit = this.units[i];
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
