@@ -317,7 +317,11 @@ export class ClientGameRunner {
 
       // Emit tick metrics event for performance overlay
       this.eventBus.emit(
-        new TickMetricsEvent(gu.tickExecutionDuration, this.currentTickDelay),
+        new TickMetricsEvent(
+          gu.tickExecutionDuration,
+          this.currentTickDelay,
+          gu.frenzyTickBreakdown,
+        ),
       );
 
       // Reset tick delay for next measurement

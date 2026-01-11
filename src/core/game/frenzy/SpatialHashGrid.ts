@@ -3,9 +3,16 @@ import { FrenzyUnit } from "./FrenzyTypes";
 /**
  * Spatial hash grid for efficient nearest neighbor queries
  * Divides space into cells and allows O(1) lookups of nearby units
+ *
+ * Performance optimized:
+ * - Uses numeric keys instead of string concatenation
+ * - Avoids array allocations in hot paths
+ * - Uses squared distance comparisons
  */
 export class SpatialHashGrid {
-  private grid: Map<string, FrenzyUnit[]> = new Map();
+  private grid: Map<number, FrenzyUnit[]> = new Map();
+  // Large multiplier to ensure unique keys for reasonable map sizes
+  private readonly KEY_MULTIPLIER = 100000;
 
   constructor(private cellSize: number = 50) {}
 
@@ -15,22 +22,38 @@ export class SpatialHashGrid {
 
   insert(unit: FrenzyUnit) {
     const key = this.getKey(unit.x, unit.y);
-    if (!this.grid.has(key)) {
-      this.grid.set(key, []);
+    let cell = this.grid.get(key);
+    if (!cell) {
+      cell = [];
+      this.grid.set(key, cell);
     }
-    this.grid.get(key)!.push(unit);
+    cell.push(unit);
   }
 
   getNearby(x: number, y: number, radius: number): FrenzyUnit[] {
     const nearby: FrenzyUnit[] = [];
-    const cells = this.getCellsInRadius(x, y, radius);
+    const radiusSq = radius * radius;
+    const invCellSize = 1 / this.cellSize;
 
-    for (const key of cells) {
-      const units = this.grid.get(key) ?? [];
-      for (const unit of units) {
-        const dist = Math.hypot(unit.x - x, unit.y - y);
-        if (dist <= radius) {
-          nearby.push(unit);
+    const minCellX = Math.floor((x - radius) * invCellSize);
+    const maxCellX = Math.floor((x + radius) * invCellSize);
+    const minCellY = Math.floor((y - radius) * invCellSize);
+    const maxCellY = Math.floor((y + radius) * invCellSize);
+
+    for (let cx = minCellX; cx <= maxCellX; cx++) {
+      for (let cy = minCellY; cy <= maxCellY; cy++) {
+        const key = cx * this.KEY_MULTIPLIER + cy;
+        const units = this.grid.get(key);
+        if (!units) continue;
+
+        for (let i = 0; i < units.length; i++) {
+          const unit = units[i];
+          const dx = unit.x - x;
+          const dy = unit.y - y;
+          const distSq = dx * dx + dy * dy;
+          if (distSq <= radiusSq) {
+            nearby.push(unit);
+          }
         }
       }
     }
@@ -38,25 +61,9 @@ export class SpatialHashGrid {
     return nearby;
   }
 
-  private getKey(x: number, y: number): string {
+  private getKey(x: number, y: number): number {
     const cellX = Math.floor(x / this.cellSize);
     const cellY = Math.floor(y / this.cellSize);
-    return `${cellX},${cellY}`;
-  }
-
-  private getCellsInRadius(x: number, y: number, radius: number): string[] {
-    const cells: string[] = [];
-    const minCellX = Math.floor((x - radius) / this.cellSize);
-    const maxCellX = Math.floor((x + radius) / this.cellSize);
-    const minCellY = Math.floor((y - radius) / this.cellSize);
-    const maxCellY = Math.floor((y + radius) / this.cellSize);
-
-    for (let cx = minCellX; cx <= maxCellX; cx++) {
-      for (let cy = minCellY; cy <= maxCellY; cy++) {
-        cells.push(`${cx},${cy}`);
-      }
-    }
-
-    return cells;
+    return cellX * this.KEY_MULTIPLIER + cellY;
   }
 }

@@ -78,6 +78,9 @@ export class PerformanceOverlay extends LitElement implements Layer {
     total: number;
   }[] = [];
 
+  // Frenzy tick breakdown (last values)
+  private frenzyTickBreakdown: Record<string, number> = {};
+
   static styles = css`
     .performance-overlay {
       position: fixed;
@@ -230,7 +233,11 @@ export class PerformanceOverlay extends LitElement implements Layer {
       this.setVisible(this.userSettings.performanceOverlay());
     });
     this.eventBus.on(TickMetricsEvent, (event: TickMetricsEvent) => {
-      this.updateTickMetrics(event.tickExecutionDuration, event.tickDelay);
+      this.updateTickMetrics(
+        event.tickExecutionDuration,
+        event.tickDelay,
+        event.frenzyTickBreakdown,
+      );
     });
   }
 
@@ -309,6 +316,9 @@ export class PerformanceOverlay extends LitElement implements Layer {
     this.tickDelayAvg = 0;
     this.tickDelayMax = 0;
 
+    // reset frenzy tick breakdown
+    this.frenzyTickBreakdown = {};
+
     // reset layer breakdown
     this.layerStats.clear();
     this.layerBreakdown = [];
@@ -381,9 +391,13 @@ export class PerformanceOverlay extends LitElement implements Layer {
 
     if (layerDurations) {
       this.updateLayerStats(layerDurations);
-      
+
       // Record to PerformanceLogger for file export
-      PerformanceLogger.recordFrame(this.currentFPS, this.frameTime, layerDurations);
+      PerformanceLogger.recordFrame(
+        this.currentFPS,
+        this.frameTime,
+        layerDurations,
+      );
     }
 
     this.requestUpdate();
@@ -422,8 +436,17 @@ export class PerformanceOverlay extends LitElement implements Layer {
     this.layerBreakdown = breakdown;
   }
 
-  updateTickMetrics(tickExecutionDuration?: number, tickDelay?: number) {
+  updateTickMetrics(
+    tickExecutionDuration?: number,
+    tickDelay?: number,
+    frenzyBreakdown?: Record<string, number>,
+  ) {
     if (!this.isVisible || !this.userSettings.performanceOverlay()) return;
+
+    // Store frenzy tick breakdown
+    if (frenzyBreakdown) {
+      this.frenzyTickBreakdown = frenzyBreakdown;
+    }
 
     // Record to PerformanceLogger for file export
     PerformanceLogger.recordTick(tickExecutionDuration ?? 0, tickDelay ?? 0);
@@ -492,6 +515,7 @@ export class PerformanceOverlay extends LitElement implements Layer {
         executionSamples: [...this.tickExecutionTimes],
         delaySamples: [...this.tickDelayTimes],
       },
+      frenzyTick: { ...this.frenzyTickBreakdown },
       layers: this.layerBreakdown.map((layer) => ({ ...layer })),
     };
   }

@@ -70,6 +70,9 @@ export class FrenzyManager {
   // Performance: Track tick count for staggered updates
   private tickCount = 0;
 
+  // Performance profiling: stores last tick breakdown
+  private lastTickBreakdown: Record<string, number> = {};
+
   // Deterministic random number generator (seeded for multiplayer sync)
   private random: PseudoRandom;
 
@@ -397,16 +400,29 @@ export class FrenzyManager {
 
     this.tickCount++;
 
+    // Profiling: always track time for each operation
+    const times: Record<string, number> = {};
+    const mark = (name: string) => {
+      times[name] = performance.now();
+    };
+
+    mark("start");
+
     // Check for newly spawned players and create their HQs
+    // Performance: Use numTilesOwned() instead of tiles() to avoid creating a Set copy
     for (const player of this.game.players()) {
-      const tiles = player.tiles();
-      if (tiles.size > 0 && !this.coreBuildings.has(player.id())) {
+      if (player.numTilesOwned() > 0 && !this.coreBuildings.has(player.id())) {
         this.onPlayerSpawn(player.id());
       }
     }
 
+    mark("checkPlayers");
+
     this.updateSpawnTimers(deltaTime);
+    mark("spawnTimers");
+
     this.updateMineGoldPayouts(deltaTime);
+    mark("minePayouts");
 
     // Performance: Only rebuild territory cache periodically
     if (
@@ -416,16 +432,47 @@ export class FrenzyManager {
       this.territoryCache = this.buildTerritorySnapshots();
       this.territoryCacheTick = this.tickCount;
     }
+    mark("territoryCache");
 
     this.updateUnits(deltaTime, this.territoryCache);
+    mark("updateUnits");
+
     this.updateCombat(deltaTime);
+    mark("updateCombat");
+
     this.updateProjectiles(deltaTime);
+    mark("projectiles");
+
     this.captureTerritory();
+    mark("captureTerritory");
+
     // TODO: captureSurroundedWilderness disabled - needs rewrite with incremental approach
     // this.captureSurroundedWilderness();
     this.checkAllHQCaptures();
+    mark("hqCaptures");
+
     this.removeDeadUnits();
+    mark("removeDeadUnits");
+
     this.rebuildSpatialGrid();
+    mark("rebuildSpatialGrid");
+
+    // Store breakdown for performance overlay
+    const keys = Object.keys(times);
+    this.lastTickBreakdown = {};
+    for (let i = 1; i < keys.length; i++) {
+      this.lastTickBreakdown[keys[i]] = times[keys[i]] - times[keys[i - 1]];
+    }
+    // Calculate total
+    this.lastTickBreakdown["_total"] =
+      times[keys[keys.length - 1]] - times["start"];
+  }
+
+  /**
+   * Get the breakdown of time spent in each tick operation
+   */
+  getTickBreakdown(): Record<string, number> {
+    return this.lastTickBreakdown;
   }
 
   private updateSpawnTimers(deltaTime: number) {
@@ -823,9 +870,9 @@ export class FrenzyManager {
     deltaTime: number,
     territories: Map<PlayerID, PlayerTerritorySnapshot>,
   ) {
-    // Performance: Only recalculate targets for a subset of units each tick
-    const RETARGET_DISTANCE = 15; // Recalculate when within this distance of target
-    const ATTACK_ORDER_ARRIVAL_DISTANCE = 20; // Clear attack order when this close to target
+    // Performance: Use squared distances to avoid sqrt calls
+    const RETARGET_DISTANCE_SQ = 15 * 15; // Recalculate when within this distance of target
+    const ATTACK_ORDER_ARRIVAL_DISTANCE_SQ = 20 * 20; // Clear attack order when this close to target
 
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
@@ -857,12 +904,11 @@ export class FrenzyManager {
         unit.attackOrderY !== undefined
       ) {
         // Check if unit has arrived at attack order destination
-        const distToAttackTarget = Math.hypot(
-          unit.attackOrderX - unit.x,
-          unit.attackOrderY - unit.y,
-        );
+        const dxAtk = unit.attackOrderX - unit.x;
+        const dyAtk = unit.attackOrderY - unit.y;
+        const distToAttackTargetSq = dxAtk * dxAtk + dyAtk * dyAtk;
 
-        if (distToAttackTarget < ATTACK_ORDER_ARRIVAL_DISTANCE) {
+        if (distToAttackTargetSq < ATTACK_ORDER_ARRIVAL_DISTANCE_SQ) {
           // Clear attack order - unit has arrived
           unit.hasAttackOrder = false;
           unit.attackOrderX = undefined;
@@ -874,12 +920,11 @@ export class FrenzyManager {
         }
       } else {
         // No attack order - use normal targeting logic
-        const distToTarget = Math.hypot(
-          unit.targetX - unit.x,
-          unit.targetY - unit.y,
-        );
+        const dxTgt = unit.targetX - unit.x;
+        const dyTgt = unit.targetY - unit.y;
+        const distToTargetSq = dxTgt * dxTgt + dyTgt * dyTgt;
         const needsNewTarget =
-          distToTarget < RETARGET_DISTANCE ||
+          distToTargetSq < RETARGET_DISTANCE_SQ ||
           (unit.targetX === 0 && unit.targetY === 0);
 
         if (needsNewTarget && territory) {
@@ -1538,25 +1583,29 @@ export class FrenzyManager {
   }
 
   private applySeparation(unit: FrenzyUnit) {
-    const nearby = this.spatialGrid.getNearby(
-      unit.x,
-      unit.y,
-      this.config.separationRadius,
-    );
+    const separationRadius = this.config.separationRadius;
+    const separationRadiusSq = separationRadius * separationRadius;
+    const nearby = this.spatialGrid.getNearby(unit.x, unit.y, separationRadius);
 
     let sepX = 0;
     let sepY = 0;
     let count = 0;
+    const unitX = unit.x;
+    const unitY = unit.y;
+    const unitId = unit.id;
+    const unitPlayerId = unit.playerId;
 
     for (const other of nearby) {
-      if (other.id !== unit.id && other.playerId === unit.playerId) {
-        const dx = unit.x - other.x;
-        const dy = unit.y - other.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+      if (other.id !== unitId && other.playerId === unitPlayerId) {
+        const dx = unitX - other.x;
+        const dy = unitY - other.y;
+        const distSq = dx * dx + dy * dy;
 
-        if (dist > 0 && dist < this.config.separationRadius) {
-          sepX += dx / dist;
-          sepY += dy / dist;
+        if (distSq > 0 && distSq < separationRadiusSq) {
+          // Performance: Use inverse square root approximation
+          const invDist = 1 / Math.sqrt(distSq);
+          sepX += dx * invDist;
+          sepY += dy * invDist;
           count++;
         }
       }
@@ -1632,27 +1681,33 @@ export class FrenzyManager {
         unit.fireInterval = effectiveFireInterval;
       }
 
-      const enemies = this.spatialGrid
-        .getNearby(unit.x, unit.y, combatRange)
-        .filter((u) => {
-          if (u.playerId === unit.playerId) return false;
-          // Don't attack allies
-          const otherPlayer = this.game.player(u.playerId);
-          if (unitPlayer.isAlliedWith(otherPlayer)) return false;
-          return true;
-        });
+      // Performance: Find nearest enemy without creating intermediate arrays
+      const nearbyUnits = this.spatialGrid.getNearby(
+        unit.x,
+        unit.y,
+        combatRange,
+      );
+      let nearest: FrenzyUnit | null = null;
+      let nearestDistSq = Infinity;
+      const unitX = unit.x;
+      const unitY = unit.y;
 
-      if (enemies.length > 0) {
-        // Attack nearest enemy
-        const nearest = enemies.reduce((closest, enemy) => {
-          const distToEnemy = Math.hypot(enemy.x - unit.x, enemy.y - unit.y);
-          const distToClosest = Math.hypot(
-            closest.x - unit.x,
-            closest.y - unit.y,
-          );
-          return distToEnemy < distToClosest ? enemy : closest;
-        }, enemies[0]);
+      for (const other of nearbyUnits) {
+        if (other.playerId === unit.playerId) continue;
+        // Don't attack allies
+        const otherPlayer = this.game.player(other.playerId);
+        if (unitPlayer.isAlliedWith(otherPlayer)) continue;
 
+        const dx = other.x - unitX;
+        const dy = other.y - unitY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < nearestDistSq) {
+          nearestDistSq = distSq;
+          nearest = other;
+        }
+      }
+
+      if (nearest !== null) {
         // Artillery fires at enemy position with area damage
         if (isArtillery) {
           if (unit.weaponCooldown <= 0) {
@@ -2585,37 +2640,45 @@ export class FrenzyManager {
   private captureTerritory() {
     const captureRadius = Math.max(1, Math.floor(this.config.captureRadius));
     const radiusSquared = captureRadius * captureRadius;
+    const mapWidth = this.game.width();
+    const mapHeight = this.game.height();
 
     // Performance: Track tiles we've already checked this tick to avoid duplicate work
     const checkedTiles = new Set<number>();
 
-    for (const unit of this.units) {
+    // Performance: Stagger unit captures - only process subset each tick
+    const unitCount = this.units.length;
+    const unitsPerTick = Math.max(50, Math.ceil(unitCount / 3));
+    const startIdx = (this.tickCount * unitsPerTick) % unitCount;
+    const endIdx = Math.min(startIdx + unitsPerTick, unitCount);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const unit = this.units[i];
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
       const player = this.game.player(unit.playerId);
+      const playerId = unit.playerId;
 
       // Check tiles in a radius around the unit
       const centerX = Math.floor(unit.x);
       const centerY = Math.floor(unit.y);
 
       for (let dx = -captureRadius; dx <= captureRadius; dx++) {
+        const tileX = centerX + dx;
+        if (tileX < 0 || tileX >= mapWidth) continue;
+
         for (let dy = -captureRadius; dy <= captureRadius; dy++) {
           if (dx * dx + dy * dy > radiusSquared) {
             continue; // Skip tiles outside circular capture zone
           }
-          const tileX = centerX + dx;
           const tileY = centerY + dy;
-
-          // Check if tile is valid
-          if (!this.game.isValidCoord(tileX, tileY)) {
-            continue;
-          }
+          if (tileY < 0 || tileY >= mapHeight) continue;
 
           const tile = this.game.ref(tileX, tileY);
 
           // Performance: Skip if already checked by this player this tick
-          const tileKey = tile * 1000 + unit.playerId.charCodeAt(0);
+          const tileKey = tile * 1000 + playerId.charCodeAt(0);
           if (checkedTiles.has(tileKey)) {
             continue;
           }
@@ -2626,8 +2689,9 @@ export class FrenzyManager {
           }
 
           const currentOwner = this.game.owner(tile);
+          const currentOwnerId = currentOwner.id();
 
-          if (currentOwner.id() === unit.playerId) {
+          if (currentOwnerId === playerId) {
             continue; // Already own this tile
           }
 
@@ -2636,20 +2700,46 @@ export class FrenzyManager {
             continue;
           }
 
-          // Check if ANY of our tiles border this tile
-          const neighbors = this.game.neighbors(tile);
-          const bordersOurTerritory = neighbors.some(
-            (n) => this.game.owner(n).id() === unit.playerId,
-          );
+          // Performance: Inline neighbor check instead of calling game.neighbors()
+          // Check if ANY of our tiles border this tile (4-connected)
+          let bordersOurTerritory = false;
+          // Check up
+          if (tileY > 0) {
+            const nTile = tile - mapWidth;
+            if (this.game.owner(nTile).id() === playerId) {
+              bordersOurTerritory = true;
+            }
+          }
+          // Check down
+          if (!bordersOurTerritory && tileY < mapHeight - 1) {
+            const nTile = tile + mapWidth;
+            if (this.game.owner(nTile).id() === playerId) {
+              bordersOurTerritory = true;
+            }
+          }
+          // Check left
+          if (!bordersOurTerritory && tileX > 0) {
+            const nTile = tile - 1;
+            if (this.game.owner(nTile).id() === playerId) {
+              bordersOurTerritory = true;
+            }
+          }
+          // Check right
+          if (!bordersOurTerritory && tileX < mapWidth - 1) {
+            const nTile = tile + 1;
+            if (this.game.owner(nTile).id() === playerId) {
+              bordersOurTerritory = true;
+            }
+          }
 
           if (bordersOurTerritory) {
             // Capture the tile
             player.conquer(tile);
 
             // Capture structures on this tile
-            this.captureStructuresOnTile(tile, unit.playerId);
+            this.captureStructuresOnTile(tile, playerId);
 
-            this.checkForHQCapture(currentOwner, tileX, tileY, unit.playerId);
+            this.checkForHQCapture(currentOwner, tileX, tileY, playerId);
           }
         }
       }

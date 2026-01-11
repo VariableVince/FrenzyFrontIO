@@ -187,12 +187,16 @@ export class GameRunner {
     const packedTileUpdates = updates[GameUpdateType.Tile].map((u) => u.update);
     updates[GameUpdateType.Tile] = [];
 
+    // Get frenzy tick breakdown if available
+    const frenzyBreakdown = this.game.frenzyManager()?.getTickBreakdown();
+
     this.callBack({
       tick: this.game.ticks(),
       packedTileUpdates: new BigUint64Array(packedTileUpdates),
       updates: updates,
       playerNameViewData: this.playerViewData,
       tickExecutionDuration: tickExecutionDuration,
+      frenzyTickBreakdown: frenzyBreakdown,
     });
     this.isExecuting = false;
   }
