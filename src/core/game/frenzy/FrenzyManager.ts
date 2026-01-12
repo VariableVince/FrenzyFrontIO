@@ -67,6 +67,18 @@ export class FrenzyManager {
   private territoryCacheTick = 0;
   private readonly TERRITORY_CACHE_INTERVAL = 5; // Rebuild every 5 ticks
 
+  // Performance: Cache Voronoi cell data for mines
+  private mineCellCache: Map<
+    TileRef,
+    {
+      cellArea: number;
+      crystals: Array<{ x: number; y: number; count: number }>;
+    }
+  > = new Map();
+  private mineCellCacheDirty = true; // Invalidate when mines change
+  private mineCellCacheTick = 0;
+  private readonly MINE_CELL_CACHE_INTERVAL = 10; // Rebuild every 10 ticks for territory changes
+
   // Performance: Track tick count for staggered updates
   private tickCount = 0;
 
@@ -614,6 +626,8 @@ export class FrenzyManager {
    * Update mine gold payouts - every 10 seconds, mines pay gold based on their Voronoi territory.
    * Territory is: owned land within mineRadius, closer to this mine than any other.
    * Gold = base amount + (area of cell) + (crystals inside cell bonus)
+   *
+   * OPTIMIZED: Uses cached Voronoi cell data, only recalculates when mines change or periodically.
    */
   private updateMineGoldPayouts(deltaTime: number) {
     this.mineGoldTimer -= deltaTime;
@@ -623,129 +637,38 @@ export class FrenzyManager {
 
     if (this.mineGoldTimer <= 0) {
       this.mineGoldTimer = this.config.mineGoldInterval;
-      const mineRadius = this.config.mineRadius;
 
-      // Collect all mines from FrenzyManager (not game units)
-      const allMines: Array<{
-        structure: FrenzyStructure;
-        player: Player;
-        x: number;
-        y: number;
-        tile: TileRef;
-      }> = [];
+      // Check if we need to rebuild the cache
+      const needsCacheRebuild =
+        this.mineCellCacheDirty ||
+        this.tickCount - this.mineCellCacheTick >=
+          this.MINE_CELL_CACHE_INTERVAL;
 
-      for (const mine of this.mines.values()) {
-        const player = this.game.player(mine.playerId);
-        if (!player) continue;
-        allMines.push({
-          structure: mine,
-          player,
-          x: mine.x,
-          y: mine.y,
-          tile: mine.tile,
-        });
+      if (needsCacheRebuild) {
+        this.rebuildMineCellCache();
+        this.mineCellCacheDirty = false;
+        this.mineCellCacheTick = this.tickCount;
       }
 
-      // Calculate gold for each mine based on Voronoi territory
-      for (const mine of allMines) {
-        let cellArea = 0; // Count of sampled points in cell
-        const crystalsInCell: Array<{ x: number; y: number; count: number }> =
-          [];
+      // Use cached data to calculate payouts
+      for (const [tile, mine] of this.mines) {
+        const player = this.game.player(mine.playerId);
+        if (!player) continue;
 
-        // Check crystals - must be within mineRadius AND in Voronoi cell AND on owned territory
-        for (const crystal of this.crystals) {
-          const distToThis = Math.hypot(crystal.x - mine.x, crystal.y - mine.y);
-
-          // Must be within mine radius
-          if (distToThis > mineRadius) continue;
-
-          // Must be on owned territory
-          const crystalTile = this.game.ref(
-            Math.floor(crystal.x),
-            Math.floor(crystal.y),
-          );
-          if (!crystalTile) continue;
-          const tileOwner = this.game.owner(crystalTile);
-          if (!tileOwner || tileOwner.id() !== mine.player.id()) continue;
-
-          // Must be closer to this mine than any other (Voronoi)
-          let isClosest = true;
-          for (const otherMine of allMines) {
-            if (otherMine === mine) continue;
-            const distToOther = Math.hypot(
-              crystal.x - otherMine.x,
-              crystal.y - otherMine.y,
-            );
-            if (distToOther < distToThis) {
-              isClosest = false;
-              break;
-            }
-          }
-
-          if (isClosest) {
-            crystalsInCell.push({
-              x: crystal.x,
-              y: crystal.y,
-              count: crystal.crystalCount,
-            });
-          }
-        }
-
-        // Sample owned tiles within mineRadius to calculate cell area
-        const sampleStep = 4; // Check every 4 pixels for better accuracy
-        const ownerPlayer = mine.player;
-
-        for (
-          let sx = mine.x - mineRadius;
-          sx <= mine.x + mineRadius;
-          sx += sampleStep
-        ) {
-          for (
-            let sy = mine.y - mineRadius;
-            sy <= mine.y + mineRadius;
-            sy += sampleStep
-          ) {
-            // Must be within circular radius
-            const distToMine = Math.hypot(sx - mine.x, sy - mine.y);
-            if (distToMine > mineRadius) continue;
-
-            const tile = this.game.ref(Math.floor(sx), Math.floor(sy));
-            if (!tile) continue;
-
-            // Must be owned by this player
-            const tileOwner = this.game.owner(tile);
-            if (!tileOwner || tileOwner.id() !== ownerPlayer.id()) continue;
-
-            // Must be in Voronoi cell (closest to this mine)
-            let isClosest = true;
-            for (const otherMine of allMines) {
-              if (otherMine === mine) continue;
-              const distToOther = Math.hypot(
-                sx - otherMine.x,
-                sy - otherMine.y,
-              );
-              if (distToOther < distToMine) {
-                isClosest = false;
-                break;
-              }
-            }
-
-            if (isClosest) {
-              cellArea++;
-            }
-          }
-        }
+        const cached = this.mineCellCache.get(tile);
+        const cellArea = cached?.cellArea ?? 0;
+        const crystalsInCell = cached?.crystals ?? [];
 
         // Calculate gold: base income + area bonus + crystal bonus
         // Tier 2 mines double the gold generation
-        const tierMultiplier = mine.structure.tier >= 2 ? 2 : 1;
+        const tierMultiplier = mine.tier >= 2 ? 2 : 1;
         const baseGold = Math.round(
           (this.config.mineGoldPerMinute / 60) *
             this.config.mineGoldInterval *
             tierMultiplier,
         );
-        // Each sampled point represents ~16 sq pixels (4x4 area)
-        const areaGold = cellArea * 5 * tierMultiplier; // 5 gold per sampled point
+        // Each sampled point represents ~64 sq pixels (8x8 area with step=8)
+        const areaGold = cellArea * 20 * tierMultiplier; // Adjusted for larger step
         const crystalCount = crystalsInCell.reduce(
           (sum, c) => sum + c.count,
           0,
@@ -755,11 +678,11 @@ export class FrenzyManager {
         const totalGold = baseGold + areaGold + crystalBonus;
 
         if (totalGold > 0) {
-          mine.player.addGold(BigInt(totalGold));
+          player.addGold(BigInt(totalGold));
 
           // Queue floating text display with crystal positions for animation
           this.pendingGoldPayouts.push({
-            playerId: mine.player.id(),
+            playerId: player.id(),
             x: mine.x,
             y: mine.y,
             gold: totalGold,
@@ -772,13 +695,141 @@ export class FrenzyManager {
   }
 
   /**
+   * Rebuild the Voronoi cell cache for all mines.
+   * This is expensive but only runs when mines change or every ~1 second.
+   */
+  private rebuildMineCellCache() {
+    this.mineCellCache.clear();
+    const mineRadius = this.config.mineRadius;
+    const mineRadiusSq = mineRadius * mineRadius;
+
+    // Collect all mines with their positions
+    const allMines: Array<{
+      tile: TileRef;
+      playerId: PlayerID;
+      x: number;
+      y: number;
+    }> = [];
+
+    for (const [tile, mine] of this.mines) {
+      allMines.push({
+        tile,
+        playerId: mine.playerId,
+        x: mine.x,
+        y: mine.y,
+      });
+    }
+
+    // For each mine, calculate its Voronoi cell data
+    for (const mine of allMines) {
+      let cellArea = 0;
+      const crystalsInCell: Array<{ x: number; y: number; count: number }> = [];
+      const mineX = mine.x;
+      const mineY = mine.y;
+      const playerId = mine.playerId;
+
+      // Check crystals - use squared distances
+      for (const crystal of this.crystals) {
+        const dxCrystal = crystal.x - mineX;
+        const dyCrystal = crystal.y - mineY;
+        const distSqToThis = dxCrystal * dxCrystal + dyCrystal * dyCrystal;
+
+        // Must be within mine radius
+        if (distSqToThis > mineRadiusSq) continue;
+
+        // Must be on owned territory
+        const crystalTile = this.game.ref(
+          Math.floor(crystal.x),
+          Math.floor(crystal.y),
+        );
+        const tileOwner = this.game.owner(crystalTile);
+        if (!tileOwner || tileOwner.id() !== playerId) continue;
+
+        // Must be closer to this mine than any other (Voronoi)
+        let isClosest = true;
+        for (const otherMine of allMines) {
+          if (otherMine.tile === mine.tile) continue;
+          const dxOther = crystal.x - otherMine.x;
+          const dyOther = crystal.y - otherMine.y;
+          const distSqToOther = dxOther * dxOther + dyOther * dyOther;
+          if (distSqToOther < distSqToThis) {
+            isClosest = false;
+            break;
+          }
+        }
+
+        if (isClosest) {
+          crystalsInCell.push({
+            x: crystal.x,
+            y: crystal.y,
+            count: crystal.crystalCount,
+          });
+        }
+      }
+
+      // Sample owned tiles within mineRadius to calculate cell area
+      // Performance: Use step=8 instead of 4 (4x fewer samples)
+      const sampleStep = 8;
+
+      for (
+        let sx = mineX - mineRadius;
+        sx <= mineX + mineRadius;
+        sx += sampleStep
+      ) {
+        for (
+          let sy = mineY - mineRadius;
+          sy <= mineY + mineRadius;
+          sy += sampleStep
+        ) {
+          // Must be within circular radius (squared comparison)
+          const dxSample = sx - mineX;
+          const dySample = sy - mineY;
+          const distSqToMine = dxSample * dxSample + dySample * dySample;
+          if (distSqToMine > mineRadiusSq) continue;
+
+          const tile = this.game.ref(Math.floor(sx), Math.floor(sy));
+          if (tile === undefined) continue;
+
+          // Must be owned by this player
+          const tileOwner = this.game.owner(tile);
+          if (!tileOwner || tileOwner.id() !== playerId) continue;
+
+          // Must be in Voronoi cell (closest to this mine)
+          let isClosest = true;
+          for (const otherMine of allMines) {
+            if (otherMine.tile === mine.tile) continue;
+            const dxOther = sx - otherMine.x;
+            const dyOther = sy - otherMine.y;
+            const distSqToOther = dxOther * dxOther + dyOther * dyOther;
+            if (distSqToOther < distSqToMine) {
+              isClosest = false;
+              break;
+            }
+          }
+
+          if (isClosest) {
+            cellArea++;
+          }
+        }
+      }
+
+      this.mineCellCache.set(mine.tile, {
+        cellArea,
+        crystals: crystalsInCell,
+      });
+    }
+  }
+
+  /**
    * Count crystals within range of a position
    */
   countCrystalsInRange(x: number, y: number, range: number): number {
     let count = 0;
+    const rangeSq = range * range;
     for (const crystal of this.crystals) {
-      const dist = Math.hypot(crystal.x - x, crystal.y - y);
-      if (dist <= range) {
+      const dx = crystal.x - x;
+      const dy = crystal.y - y;
+      if (dx * dx + dy * dy <= rangeSq) {
         count += crystal.crystalCount;
       }
     }
@@ -2316,6 +2367,7 @@ export class FrenzyManager {
     switch (structure.type) {
       case FrenzyStructureType.Mine:
         this.mines.delete(structure.tile);
+        this.mineCellCacheDirty = true; // Invalidate Voronoi cache
         break;
       case FrenzyStructureType.Factory:
         this.factories.delete(structure.tile);
@@ -2597,6 +2649,7 @@ export class FrenzyManager {
         mine.health -= damage * falloff;
         if (mine.health <= 0) {
           this.mines.delete(tile);
+          this.mineCellCacheDirty = true; // Invalidate Voronoi cache
         }
       }
     }
@@ -3287,6 +3340,7 @@ export class FrenzyManager {
       maxHealth: this.config.mineHealth,
       tier: 1,
     });
+    this.mineCellCacheDirty = true; // Invalidate Voronoi cache
   }
 
   /**
