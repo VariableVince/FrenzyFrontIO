@@ -3481,6 +3481,10 @@ export class FrenzyManager {
     } else {
       // Map UnitType to FrenzyStructureType
       switch (structureType) {
+        case UnitType.City:
+          // In Frenzy mode, City = Mine
+          frenzyType = FrenzyStructureType.Mine;
+          break;
         case UnitType.Port:
           frenzyType = FrenzyStructureType.Port;
           break;
