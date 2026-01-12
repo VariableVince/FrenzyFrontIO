@@ -1,7 +1,6 @@
 import { colord } from "colord";
 import { Theme } from "../../../core/configuration/Config";
-import { GameFork } from "../../../core/configuration/GameForkConfig";
-import { PlayerID } from "../../../core/game/Game";
+import { GameFork, PlayerID } from "../../../core/game/Game";
 import { TileRef } from "../../../core/game/GameMap";
 import {
   GameUpdateType,

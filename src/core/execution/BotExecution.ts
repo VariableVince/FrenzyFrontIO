@@ -118,17 +118,19 @@ export class BotExecution implements Execution {
   /**
    * Handle structure building in Frenzy mode for bots.
    * Uses defensive stance to determine priority.
-   * 
+   *
    * Multiplier formula: Higher multiplier = higher perceived cost = builds fewer of that type
    * We use (num + X) where X controls how many are built before cost becomes prohibitive
    */
   private handleFrenzyUnits(): boolean {
     if (!this.mg.frenzyManager()) return false;
 
-    const stance = this.mg.frenzyManager()!.getPlayerDefensiveStance(this.bot.id());
-    
+    const stance = this.mg
+      .frenzyManager()!
+      .getPlayerDefensiveStance(this.bot.id());
+
     // In Frenzy: UnitType.City = Mine (gold generation)
-    
+
     if (stance < 0.5) {
       // Defensive: Prioritize defense, then economy
       // Lower base multiplier = will build more before moving to next type
@@ -166,7 +168,12 @@ export class BotExecution implements Execution {
     const owned = frenzyManager
       ? frenzyManager.getStructureCountForPlayer(this.bot.id(), type)
       : this.bot.unitsOwned(type);
-      
+
+    // Limit mines for bots to 10 in Frenzy mode (City = Mine)
+    if (frenzyManager && type === UnitType.City && owned >= 10) {
+      return false;
+    }
+
     const perceivedCostMultiplier = multiplier(owned + 1);
     const realCost = this.mg.unitInfo(type).cost(this.bot);
     const perceivedCost = realCost * BigInt(perceivedCostMultiplier);

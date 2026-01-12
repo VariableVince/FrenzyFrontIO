@@ -461,18 +461,20 @@ export class FakeHumanExecution implements Execution {
    * Uses defensive stance to determine priority:
    * - Defensive (stance < 0.5): Prioritize defensive structures (DefensePost, SAM, Shield, Artillery)
    * - Offensive (stance >= 0.5): Prioritize economy/offense (Factory, Port, Mine)
-   * 
+   *
    * Multiplier formula: Higher multiplier = higher perceived cost = builds fewer of that type
    * We use (num + X) where X controls how many are built before cost becomes prohibitive
    */
   private handleFrenzyUnits(): boolean {
     if (!this.player || !this.mg.frenzyManager()) return false;
 
-    const stance = this.mg.frenzyManager()!.getPlayerDefensiveStance(this.player.id());
-    
+    const stance = this.mg
+      .frenzyManager()!
+      .getPlayerDefensiveStance(this.player.id());
+
     // In Frenzy: UnitType.City = Mine (gold generation)
     // Everyone needs mines for economy, but at different priorities
-    
+
     if (stance < 0.5) {
       // Defensive: Prioritize defense, then economy
       // Lower base multiplier = will build more before moving to next type
@@ -512,13 +514,18 @@ export class FakeHumanExecution implements Execution {
     multiplier: (num: number) => number,
   ) {
     if (this.player === null) throw new Error("not initialized");
-    
+
     // In Frenzy mode, use FrenzyManager's structure count instead of game units
     const frenzyManager = this.mg.frenzyManager();
     const owned = frenzyManager
       ? frenzyManager.getStructureCountForPlayer(this.player.id(), type)
       : this.player.unitsOwned(type);
-      
+
+    // Limit mines for FakeHumans to 20 in Frenzy mode (City = Mine)
+    if (frenzyManager && type === UnitType.City && owned >= 20) {
+      return false;
+    }
+
     const perceivedCostMultiplier = multiplier(owned + 1);
     const realCost = this.cost(type);
     const perceivedCost = realCost * BigInt(perceivedCostMultiplier);
