@@ -364,3 +364,37 @@ The `minePayouts` O(n²) bug was fixed by caching Voronoi cell data and only rec
 1. ~~Fix `minePayouts` O(n²) complexity~~ ✅ DONE
 2. Cache Voronoi geometry for rendering
 3. Consider sprite batching for structures
+
+---
+
+## Latest Measurements (2026-01-12)
+
+### PC (local test)
+
+- `ticks.executionAvgMs`: **11.05ms** (vs documented optimized **10.42ms**) — small regression (~+0.63ms, ~6%).
+- Frenzy tick `_total`: **7.3ms** (vs documented latest **6.8ms**) — similar range.
+- `FrenzyLayer:miningCells` avg: **0.285ms** (previous documented ~**5.46ms**) — large improvement (cache + renderer optimizations reduced avg render cost significantly).
+
+Notes: PC frame performance improved overall; tick execution remains low and stable. The small regression in average tick time is within variability of different run states.
+
+### Mobile (Android)
+
+- `ticks.executionAvgMs`: **53.11ms** (vs documented optimized **49.13ms**) — regression of ~4ms.
+- Frenzy tick `_total`: **36.4ms** (matches higher CPU cost on mobile; still within acceptable range but approaching budget).
+- `FrenzyLayer:miningCells` avg: **5.71ms** (vs documented ~**8.3ms** earlier) — improved or comparable depending on sample window; max spikes reduced but still present (max ~49.7ms in samples).
+
+Notes: Mobile continues to be CPU-limited. Tick execution on mobile is the primary contributor to frame drops; render spikes (mining cells) still produce occasional high frames.
+
+### Quick Comparison Summary
+
+- PC: Tick execution and rendering are healthy; mining cells rendering is now very cheap on average due to caching.
+- Mobile: Tick execution (game logic) dominates; rendering still has intermittent spikes from `miningCells` and some layers.
+
+### Recommendations (next immediate steps)
+
+- For mobile stability: throttle or skip non-essential effects (already provided via `shouldSkipExpensiveEffect()`), and consider lowering `cacheCheckRate` or deferring `rebuildCache` during heavy ticks.
+- Further reduce renderer rebuilds by ensuring cache keys change only on mine position/ownership change (crystals are fixed; you're correct to exclude them).
+- Consider moving heavy precomputation to a background worker or perform incremental updates across frames (stagger boundary sampling across frames).
+- Investigate `updateCombat` and `updateUnits` on mobile: they remain the main tick costs — consider additional staggering or cheaper heuristics when many units are active.
+
+---
