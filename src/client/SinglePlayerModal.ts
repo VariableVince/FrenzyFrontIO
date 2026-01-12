@@ -14,7 +14,6 @@ import {
   Quads,
   Trios,
   UnitType,
-  mapCategories,
 } from "../core/game/Game";
 import { UserSettings } from "../core/game/UserSettings";
 import { TeamCountConfig } from "../core/Schemas";
@@ -29,13 +28,52 @@ import { JoinLobbyEvent } from "./types/JoinLobbyEvent";
 import { UsernameInput } from "./UsernameInput";
 import { renderUnitTypeOptions } from "./utilities/RenderUnitTypeOptions";
 
+// Singleplayer-specific map categories: Frenzy maps at top, experimental maps below
+const singlePlayerMapCategories: Record<string, GameMapType[]> = {
+  frenzy: [GameMapType.CircleMap],
+  experimental: [
+    GameMapType.World,
+    GameMapType.GiantWorldMap,
+    GameMapType.NorthAmerica,
+    GameMapType.SouthAmerica,
+    GameMapType.Europe,
+    GameMapType.EuropeClassic,
+    GameMapType.Asia,
+    GameMapType.Africa,
+    GameMapType.Oceania,
+    GameMapType.BlackSea,
+    GameMapType.Britannia,
+    GameMapType.GatewayToTheAtlantic,
+    GameMapType.BetweenTwoSeas,
+    GameMapType.Iceland,
+    GameMapType.EastAsia,
+    GameMapType.Mena,
+    GameMapType.Australia,
+    GameMapType.FaroeIslands,
+    GameMapType.FalklandIslands,
+    GameMapType.Baikal,
+    GameMapType.Halkidiki,
+    GameMapType.StraitOfGibraltar,
+    GameMapType.Italia,
+    GameMapType.Japan,
+    GameMapType.Montreal,
+    GameMapType.Pangaea,
+    GameMapType.Pluto,
+    GameMapType.Mars,
+    GameMapType.DeglaciatedAntarctica,
+    GameMapType.Achiran,
+    GameMapType.BaikalNukeWars,
+    GameMapType.FourIslands,
+  ],
+};
+
 @customElement("single-player-modal")
 export class SinglePlayerModal extends LitElement {
   @query("o-modal") private modalEl!: HTMLElement & {
     open: () => void;
     close: () => void;
   };
-  @state() private selectedMap: GameMapType = GameMapType.World;
+  @state() private selectedMap: GameMapType = GameMapType.CircleMap;
   @state() private selectedDifficulty: Difficulty = Difficulty.Medium;
   @state() private disableNPCs: boolean = false;
   @state() private bots: number = 20;
@@ -80,8 +118,8 @@ export class SinglePlayerModal extends LitElement {
           <div class="options-section">
             <div class="option-title">${translateText("map.map")}</div>
             <div class="option-cards flex-col">
-              <!-- Use the imported mapCategories -->
-              ${Object.entries(mapCategories).map(
+              <!-- Use singleplayer-specific map categories: Frenzy maps first, then experimental -->
+              ${Object.entries(singlePlayerMapCategories).map(
                 ([categoryKey, maps]) => html`
                   <div class="w-full mb-4">
                     <h3
@@ -243,7 +281,7 @@ export class SinglePlayerModal extends LitElement {
                   type="range"
                   id="bots-count"
                   min="0"
-                  max="20"
+                  max="80"
                   step="1"
                   @input=${this.handleBotsChange}
                   @change=${this.handleBotsChange}
@@ -412,19 +450,11 @@ export class SinglePlayerModal extends LitElement {
           </div>
         </div>
 
-        <div
-          style="display:flex;gap:8px;align-items:center;justify-content:center;"
-        >
-          <o-button
-            title=${translateText("single_modal.start")}
-            @click=${this.startGame}
-            blockDesktop
-          ></o-button>
-          <span
-            style="font-size:12px;padding:6px 8px;border-radius:6px;background:#ffcc00;color:#111;font-weight:600;"
-            >experimental</span
-          >
-        </div>
+        <o-button
+          title=${translateText("single_modal.start")}
+          @click=${this.startGame}
+          blockDesktop
+        ></o-button>
       </o-modal>
     `;
   }
@@ -457,7 +487,7 @@ export class SinglePlayerModal extends LitElement {
 
   private handleBotsChange(e: Event) {
     const value = parseInt((e.target as HTMLInputElement).value);
-    if (isNaN(value) || value < 0 || value > 20) {
+    if (isNaN(value) || value < 0 || value > 400) {
       return;
     }
     this.bots = value;

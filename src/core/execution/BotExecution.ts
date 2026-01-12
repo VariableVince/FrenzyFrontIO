@@ -20,7 +20,9 @@ export class BotExecution implements Execution {
   private expandRatio: number;
 
   // Frenzy mode: cached mine limit based on territory size
+  // Bots get 2x the base limit (territory / TILES_PER_MINE)
   private static readonly TILES_PER_MINE = 2500;
+  private static readonly MINE_LIMIT_MULTIPLIER = 2;
   private static readonly MINE_LIMIT_UPDATE_INTERVAL = 100;
   private cachedMaxMines = 0;
   private lastMineLimitUpdateTick = -1000; // Force update on first check
@@ -176,15 +178,18 @@ export class BotExecution implements Execution {
       : this.bot.unitsOwned(type);
 
     // Limit mines for bots based on territory size (City = Mine in Frenzy)
+    // Bots get 2x the base limit
     if (frenzyManager && type === UnitType.City) {
       const currentTick = this.mg.ticks();
       if (
         currentTick - this.lastMineLimitUpdateTick >=
         BotExecution.MINE_LIMIT_UPDATE_INTERVAL
       ) {
+        const baseLimit =
+          this.bot.numTilesOwned() / BotExecution.TILES_PER_MINE;
         this.cachedMaxMines = Math.max(
           1,
-          Math.floor(this.bot.numTilesOwned() / BotExecution.TILES_PER_MINE),
+          Math.floor(baseLimit * BotExecution.MINE_LIMIT_MULTIPLIER),
         );
         this.lastMineLimitUpdateTick = currentTick;
       }

@@ -113,8 +113,8 @@
     "build_desc": "Description",
     "build_city": "Mine",
     "build_city_desc": "Generates gold over time. Build mines to boost your economy and fund your war machine.",
-    "build_factory": "Unit Factory",
-    "build_factory_desc": "Produces units over time. Essential for building your army. Upgrade your HQ to increase factory output.",
+    "build_factory": "Factory",
+    "build_factory_desc": "Produces troops over time. Essential for building your army. Upgrade your HQ to increase factory output.",
     "build_defense": "Defense Tower",
     "build_defense_desc": "Attacks nearby enemies automatically. Place towers strategically to defend your territory and slow enemy advances.",
     "build_port": "Port",
@@ -225,7 +225,9 @@
   "map_categories": {
     "continental": "Continental",
     "regional": "Regional",
-    "fantasy": "Other"
+    "fantasy": "Other",
+    "frenzy": "Frenzy Maps",
+    "experimental": "Experimental Maps"
   },
   "map_component": {
     "loading": "Loading..."
@@ -337,7 +339,7 @@
     "atom_bomb": "Atom Bomb",
     "hydrogen_bomb": "Hydrogen Bomb",
     "mirv": "MIRV",
-    "factory": "Unit Factory",
+    "factory": "Factory",
     "shield_generator": "Shield Generator",
     "artillery": "Artillery"
   },

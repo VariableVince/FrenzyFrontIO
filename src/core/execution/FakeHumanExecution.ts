@@ -74,9 +74,9 @@ export class FakeHumanExecution implements Execution {
   private static readonly STEAMROLL_MIN_LEADER_CITIES = 10;
 
   // Frenzy mode: cached mine limit based on territory size
-  // FakeHumans get 1.5x the base limit (territory / TILES_PER_MINE)
+  // FakeHumans (Nations) get 4x the base limit (territory / TILES_PER_MINE)
   private static readonly TILES_PER_MINE = 2500;
-  private static readonly MINE_LIMIT_MULTIPLIER = 1.5;
+  private static readonly MINE_LIMIT_MULTIPLIER = 4;
   private static readonly MINE_LIMIT_UPDATE_INTERVAL = 100;
   private cachedMaxMines = 0;
   private lastMineLimitUpdateTick = -1000; // Force update on first check
