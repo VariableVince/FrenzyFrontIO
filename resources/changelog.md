@@ -1,3 +1,26 @@
+📦 **FrenzyFront Patch Notes - v0.04**
+
+🚀 **Performance**
+
+- Major tick performance improvements for smoother gameplay
+  → Optimized mine gold payouts: O(n²) → O(1) per tick with Voronoi cell caching
+  → Optimized mining cell rendering: reduced expensive calculations
+  → Disabled trains and railroad rendering (not used in Frenzy mode)
+
+⚖️ **Balance Changes**
+
+- Bots and Nations now have territory-based mine limits
+  → Bots: Can build up to 2× (territory / 2500) mines
+  → Nations: Can build up to 4× (territory / 2500) mines
+  → Prevents AI from spamming mines and improves performance
+
+🎮 **Single Player**
+
+- Simplified map selection: Only Circle Map available for now
+- Default bots reduced to 20 for more stable gameplay
+
+---
+
 📦 **FrenzyFront Patch Notes - v0.03**
 
 ⚖️ **Balance Changes**
