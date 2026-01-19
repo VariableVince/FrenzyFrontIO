@@ -1,6 +1,7 @@
 import { PseudoRandom } from "../../PseudoRandom";
 import {
   Game,
+  GameMapType,
   Player,
   PlayerID,
   PlayerType,
@@ -168,6 +169,17 @@ export class FrenzyManager {
   }
 
   /**
+   * Safely get a player by ID, returning null if player doesn't exist
+   * Use this instead of this.game.player() to avoid crashes when players are eliminated
+   */
+  private safeGetPlayer(playerId: PlayerID): Player | null {
+    if (!this.game.hasPlayer(playerId)) {
+      return null;
+    }
+    return this.game.player(playerId);
+  }
+
+  /**
    * Set the defensive stance for a player
    * @param playerId The player ID
    * @param stance 0 = defensive (near HQ), 0.5 = balanced (fire range), 1 = offensive (border)
@@ -201,8 +213,11 @@ export class FrenzyManager {
    * Bots get half the cap of humans and nations (FakeHumans).
    */
   getMaxUnitsForPlayer(playerId: PlayerID): number {
+    if (!this.game.hasPlayer(playerId)) {
+      return this.config.maxUnitsPerPlayer;
+    }
     const player = this.game.player(playerId);
-    if (player && player.type() === PlayerType.Bot) {
+    if (player.type() === PlayerType.Bot) {
       return Math.floor(this.config.maxUnitsPerPlayer / 2);
     }
     return this.config.maxUnitsPerPlayer;
@@ -213,8 +228,11 @@ export class FrenzyManager {
    * Bots get half the cap.
    */
   getMaxWarshipsForPlayer(playerId: PlayerID): number {
+    if (!this.game.hasPlayer(playerId)) {
+      return this.config.maxWarshipsPerPlayer;
+    }
     const player = this.game.player(playerId);
-    if (player && player.type() === PlayerType.Bot) {
+    if (player.type() === PlayerType.Bot) {
       return Math.floor(this.config.maxWarshipsPerPlayer / 2);
     }
     return this.config.maxWarshipsPerPlayer;
@@ -246,6 +264,11 @@ export class FrenzyManager {
     const existingStance = this.playerDefensiveStance.get(playerId);
     if (existingStance !== undefined) {
       return existingStance;
+    }
+
+    // Check if player exists
+    if (!this.game.hasPlayer(playerId)) {
+      return 1.0; // Default for missing players
     }
 
     // For bots and fake humans, use random stance with distribution
@@ -573,6 +596,7 @@ export class FrenzyManager {
   /**
    * Generate crystal clusters on the map
    * Higher density toward the center of the map
+   * For SquareMap: crystals only spawn in center 10% zone
    */
   private generateCrystals() {
     const mapWidth = this.game.width();
@@ -580,17 +604,29 @@ export class FrenzyManager {
     const centerX = mapWidth / 2;
     const centerY = mapHeight / 2;
     const maxRadius = Math.min(mapWidth, mapHeight) / 2;
+    const mapType = this.game.config().gameConfig().gameMap;
 
     const count = this.config.crystalClusterCount;
 
     for (let i = 0; i < count; i++) {
-      // Use gaussian-like distribution favoring center
-      // Square root of random gives higher density toward center
-      const distFactor = Math.sqrt(this.random.next()) * 0.85; // 0.85 to keep some space from edges
-      const angle = this.random.next() * Math.PI * 2;
+      let x: number, y: number;
 
-      const x = centerX + Math.cos(angle) * distFactor * maxRadius;
-      const y = centerY + Math.sin(angle) * distFactor * maxRadius;
+      if (mapType === GameMapType.SquareMap) {
+        // SquareMap: crystals only in center 10% zone (square distribution)
+        const crystalZoneSize = Math.min(mapWidth, mapHeight) * 0.1;
+        // Random position within the crystal zone square
+        x = centerX + (this.random.next() - 0.5) * 2 * crystalZoneSize;
+        y = centerY + (this.random.next() - 0.5) * 2 * crystalZoneSize;
+      } else {
+        // CircleMap and others: use polar distribution favoring center
+        // Use gaussian-like distribution favoring center
+        // Square root of random gives higher density toward center
+        const distFactor = Math.sqrt(this.random.next()) * 0.85; // 0.85 to keep some space from edges
+        const angle = this.random.next() * Math.PI * 2;
+
+        x = centerX + Math.cos(angle) * distFactor * maxRadius;
+        y = centerY + Math.sin(angle) * distFactor * maxRadius;
+      }
 
       // Only place on land
       const tile = this.game.ref(Math.floor(x), Math.floor(y));
@@ -598,8 +634,16 @@ export class FrenzyManager {
         continue;
       }
 
+      // For SquareMap: calculate distance from center for cluster size
+      const dx = Math.abs(x - centerX);
+      const dy = Math.abs(y - centerY);
+      const distFromCenter =
+        mapType === GameMapType.SquareMap
+          ? Math.max(dx, dy) / (Math.min(mapWidth, mapHeight) * 0.1)
+          : Math.sqrt(dx * dx + dy * dy) / maxRadius;
+
       // Random cluster size (1-5 crystals), higher chance for more crystals near center
-      const centerBonus = 1 - distFactor; // 0-1, higher near center
+      const centerBonus = Math.max(0, 1 - distFromCenter); // 0-1, higher near center
       const crystalCount = Math.min(
         5,
         Math.max(1, Math.floor(1 + centerBonus * 3 + this.random.next() * 2)),
@@ -1051,7 +1095,10 @@ export class FrenzyManager {
       };
     }
 
-    const unitPlayer = this.game.player(unit.playerId);
+    // Get unit player for alliance checks (may be null if player was defeated)
+    const unitPlayer = this.game.hasPlayer(unit.playerId)
+      ? this.game.player(unit.playerId)
+      : null;
 
     // If attacking, get enemy HQ position for directional bias
     let enemyHQPos: { x: number; y: number } | null = null;
@@ -1096,6 +1143,7 @@ export class FrenzyManager {
         }
         // Skip allied territory - units should not gather at allied borders
         if (
+          unitPlayer &&
           neighborOwner.isPlayer() &&
           unitPlayer.isAlliedWith(neighborOwner)
         ) {
@@ -1256,12 +1304,26 @@ export class FrenzyManager {
   }
 
   /**
-   * Update warship movement using polar coordinates.
+   * Update warship movement using map-appropriate pathfinding.
+   * - CircleMap: Uses polar coordinates (ring navigation)
+   * - SquareMap: Uses diagonal-based linear interpolation
+   */
+  private updateWarshipMovement(unit: FrenzyUnit, deltaTime: number) {
+    const mapType = this.game.config().gameConfig().gameMap;
+    if (mapType === GameMapType.SquareMap) {
+      this.updateWarshipMovementSquare(unit, deltaTime);
+    } else {
+      this.updateWarshipMovementPolar(unit, deltaTime);
+    }
+  }
+
+  /**
+   * Update warship movement using polar coordinates (for CircleMap).
    * Since water forms a ring around the map center, we navigate by:
    * 1. Adjusting angle (theta) to rotate around the ring
    * 2. Adjusting radius (r) to move closer/further from center
    */
-  private updateWarshipMovement(unit: FrenzyUnit, deltaTime: number) {
+  private updateWarshipMovementPolar(unit: FrenzyUnit, deltaTime: number) {
     const ATTACK_ORDER_ARRIVAL_DISTANCE = 3; // Tiles
 
     // Map center (water ring is around this point)
@@ -1425,7 +1487,7 @@ export class FrenzyManager {
    */
   private findWarshipTarget(unit: FrenzyUnit): { x: number; y: number } {
     const searchRadius = 30;
-    const unitPlayer = this.game.player(unit.playerId);
+    const unitPlayer = this.safeGetPlayer(unit.playerId);
 
     // Look for water tiles near enemy/neutral land
     let bestTarget: { x: number; y: number } | null = null;
@@ -1450,7 +1512,7 @@ export class FrenzyManager {
         if (!this.game.isWater(neighbor)) {
           const owner = this.game.owner(neighbor);
           if (owner.isPlayer() && owner.id() !== unit.playerId) {
-            if (!unitPlayer.isAlliedWith(owner)) {
+            if (!unitPlayer || !unitPlayer.isAlliedWith(owner)) {
               coastScore += 10; // Near enemy land
             }
           } else if (!owner.isPlayer()) {
@@ -1489,6 +1551,216 @@ export class FrenzyManager {
     }
 
     return bestTarget;
+  }
+
+  /**
+   * Update warship movement using diagonal-based linear interpolation (for SquareMap).
+   * Since the SquareMap has water on the edges forming a square frame,
+   * we navigate by:
+   * 1. Determining which edge the unit is on (top, right, bottom, left)
+   * 2. Moving along the edge (tangent) toward the target
+   * 3. When at a corner, transitioning to the next edge
+   * 4. Adjusting distance from center to move between inner/outer water
+   *
+   * The square geometry uses linear interpolation along each edge,
+   * with corners acting as transition points between edges.
+   */
+  private updateWarshipMovementSquare(unit: FrenzyUnit, deltaTime: number) {
+    const ATTACK_ORDER_ARRIVAL_DISTANCE = 3;
+
+    const centerX = this.game.width() / 2;
+    const centerY = this.game.height() / 2;
+
+    // Determine target coordinates
+    let destX: number = unit.targetX;
+    let destY: number = unit.targetY;
+
+    // Check if warship has a per-unit attack order
+    if (
+      unit.hasAttackOrder &&
+      unit.attackOrderX !== undefined &&
+      unit.attackOrderY !== undefined
+    ) {
+      destX = unit.attackOrderX;
+      destY = unit.attackOrderY;
+      const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
+
+      if (distToTarget < ATTACK_ORDER_ARRIVAL_DISTANCE) {
+        unit.hasAttackOrder = false;
+        unit.attackOrderX = undefined;
+        unit.attackOrderY = undefined;
+        destX = unit.targetX;
+        destY = unit.targetY;
+      }
+    } else {
+      const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
+
+      if (distToTarget < 2 || (unit.targetX === 0 && unit.targetY === 0)) {
+        const newTarget = this.findWarshipTarget(unit);
+        unit.targetX = newTarget.x;
+        unit.targetY = newTarget.y;
+        destX = newTarget.x;
+        destY = newTarget.y;
+      }
+    }
+
+    // For square geometry, we use "square coordinates":
+    // Convert position to relative coordinates from center
+    const relX = unit.x - centerX;
+    const relY = unit.y - centerY;
+    const destRelX = destX - centerX;
+    const destRelY = destY - centerY;
+
+    // Chebyshev distance gives us the "ring" we're on (distance to square edge)
+    const unitChebyshev = Math.max(Math.abs(relX), Math.abs(relY));
+    const destChebyshev = Math.max(Math.abs(destRelX), Math.abs(destRelY));
+
+    // The "square angle" is the position along the perimeter of the square
+    // We use atan2 to get an angle, then map to perimeter position
+    const unitAngle = Math.atan2(relY, relX);
+    const destAngle = Math.atan2(destRelY, destRelX);
+
+    // Calculate angular delta (shortest path around square)
+    let deltaAngle = destAngle - unitAngle;
+    while (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+    while (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+    // Calculate radial delta (distance from center in Chebyshev terms)
+    const deltaChebyshev = destChebyshev - unitChebyshev;
+
+    // Get unit speed
+    const unitConfig = getUnitConfig(this.config, unit.unitType);
+    const speed = unitConfig.speed;
+
+    // For square movement, tangent direction follows the square edge
+    // Determine which edge we're on based on which coordinate is maxed
+    let tangentX = 0;
+    let tangentY = 0;
+    let radialX = 0;
+    let radialY = 0;
+
+    // Determine edge: compare |relX| vs |relY|
+    if (Math.abs(relX) >= Math.abs(relY)) {
+      // On left or right edge - tangent is vertical
+      tangentX = 0;
+      tangentY = deltaAngle > 0 ? 1 : -1;
+      // Radial is horizontal
+      radialX = relX > 0 ? 1 : -1;
+      radialY = 0;
+    } else {
+      // On top or bottom edge - tangent is horizontal
+      tangentX = deltaAngle > 0 ? -1 : 1;
+      tangentY = 0;
+      // Radial is vertical
+      radialX = 0;
+      radialY = relY > 0 ? 1 : -1;
+    }
+
+    // Adjust tangent direction based on which side we're on
+    // For right edge (relX > 0): increasing angle means moving up (+Y)
+    // For left edge (relX < 0): increasing angle means moving down (-Y)
+    // For top edge (relY > 0): increasing angle means moving left (-X)
+    // For bottom edge (relY < 0): increasing angle means moving right (+X)
+    if (Math.abs(relX) >= Math.abs(relY)) {
+      if (relX > 0) {
+        tangentY = deltaAngle > 0 ? 1 : -1;
+      } else {
+        tangentY = deltaAngle > 0 ? -1 : 1;
+      }
+    } else {
+      if (relY > 0) {
+        tangentX = deltaAngle > 0 ? -1 : 1;
+      } else {
+        tangentX = deltaAngle > 0 ? 1 : -1;
+      }
+    }
+
+    // Blend tangent and radial based on deltas
+    const absChebyshev = Math.abs(deltaChebyshev);
+    // Convert angle to perimeter distance for fair comparison
+    const perimeterDelta = Math.abs(deltaAngle) * unitChebyshev;
+    const totalDelta = absChebyshev + perimeterDelta;
+
+    let vx = 0;
+    let vy = 0;
+
+    if (totalDelta > 0.5) {
+      const radialWeight = absChebyshev / totalDelta;
+      const tangentWeight = perimeterDelta / totalDelta;
+
+      const radialSpeed = deltaChebyshev > 0 ? speed : -speed;
+      const tangentSpeed = speed;
+
+      vx =
+        radialX * radialSpeed * radialWeight +
+        tangentX * tangentSpeed * tangentWeight;
+      vy =
+        radialY * radialSpeed * radialWeight +
+        tangentY * tangentSpeed * tangentWeight;
+
+      // Normalize to unit speed
+      const vmag = Math.hypot(vx, vy);
+      if (vmag > 0) {
+        vx = (vx / vmag) * speed;
+        vy = (vy / vmag) * speed;
+      }
+    }
+
+    // Apply movement
+    const nextX = unit.x + vx * deltaTime;
+    const nextY = unit.y + vy * deltaTime;
+
+    // Check if next position is water
+    const floorNextX = Math.floor(nextX);
+    const floorNextY = Math.floor(nextY);
+    if (this.game.isValidCoord(floorNextX, floorNextY)) {
+      const nextTile = this.game.ref(floorNextX, floorNextY);
+      if (nextTile && this.game.isWater(nextTile)) {
+        unit.x = nextX;
+        unit.y = nextY;
+        unit.vx = vx;
+        unit.vy = vy;
+        return;
+      }
+    }
+
+    // Can't move in ideal direction - try just tangent movement
+    const altX = unit.x + tangentX * speed * deltaTime;
+    const altY = unit.y + tangentY * speed * deltaTime;
+    const floorAltX = Math.floor(altX);
+    const floorAltY = Math.floor(altY);
+
+    if (this.game.isValidCoord(floorAltX, floorAltY)) {
+      const altTile = this.game.ref(floorAltX, floorAltY);
+      if (altTile && this.game.isWater(altTile)) {
+        unit.x = altX;
+        unit.y = altY;
+        unit.vx = tangentX * speed;
+        unit.vy = tangentY * speed;
+        return;
+      }
+    }
+
+    // Try opposite tangent direction
+    const alt2X = unit.x - tangentX * speed * deltaTime;
+    const alt2Y = unit.y - tangentY * speed * deltaTime;
+    const floorAlt2X = Math.floor(alt2X);
+    const floorAlt2Y = Math.floor(alt2Y);
+
+    if (this.game.isValidCoord(floorAlt2X, floorAlt2Y)) {
+      const alt2Tile = this.game.ref(floorAlt2X, floorAlt2Y);
+      if (alt2Tile && this.game.isWater(alt2Tile)) {
+        unit.x = alt2X;
+        unit.y = alt2Y;
+        unit.vx = -tangentX * speed;
+        unit.vy = -tangentY * speed;
+        return;
+      }
+    }
+
+    // Can't move at all
+    unit.vx = 0;
+    unit.vy = 0;
   }
 
   queueAttackOrder(
@@ -1705,7 +1977,8 @@ export class FrenzyManager {
 
       unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
 
-      const unitPlayer = this.game.player(unit.playerId);
+      const unitPlayer = this.safeGetPlayer(unit.playerId);
+      if (!unitPlayer) continue; // Skip if player no longer exists
 
       // Get unit-specific combat range
       const unitConfig = getUnitConfig(this.config, unit.unitType);
@@ -1746,8 +2019,8 @@ export class FrenzyManager {
       for (const other of nearbyUnits) {
         if (other.playerId === unit.playerId) continue;
         // Don't attack allies
-        const otherPlayer = this.game.player(other.playerId);
-        if (unitPlayer.isAlliedWith(otherPlayer)) continue;
+        const otherPlayer = this.safeGetPlayer(other.playerId);
+        if (otherPlayer && unitPlayer.isAlliedWith(otherPlayer)) continue;
 
         const dx = other.x - unitX;
         const dy = other.y - unitY;
@@ -2129,7 +2402,8 @@ export class FrenzyManager {
     unitConfig: UnitTypeConfig,
     combatRange: number,
   ) {
-    const unitPlayer = this.game.player(unit.playerId);
+    const unitPlayer = this.safeGetPlayer(unit.playerId);
+    if (!unitPlayer) return; // Skip if player no longer exists
 
     // Convert pixel position to tile ref
     const tileX = Math.floor(unit.x);
@@ -2164,8 +2438,8 @@ export class FrenzyManager {
         if (!structureOwner.isPlayer()) return false;
         if (structureOwner.id() === unit.playerId) return false;
         // Don't attack allied structures
-        const ownerPlayer = this.game.player(structureOwner.id());
-        if (unitPlayer.isAlliedWith(ownerPlayer)) return false;
+        const ownerPlayer = this.safeGetPlayer(structureOwner.id());
+        if (ownerPlayer && unitPlayer.isAlliedWith(ownerPlayer)) return false;
         // Only attack structures with health
         return structure.hasHealth();
       },
@@ -2211,7 +2485,8 @@ export class FrenzyManager {
     unitConfig: UnitTypeConfig,
     combatRange: number,
   ) {
-    const unitPlayer = this.game.player(unit.playerId);
+    const unitPlayer = this.safeGetPlayer(unit.playerId);
+    if (!unitPlayer) return; // Skip if player no longer exists
 
     // Find nearest enemy HQ within combat range
     let nearestHQ: CoreBuilding | null = null;
@@ -2222,8 +2497,8 @@ export class FrenzyManager {
       if (playerId === unit.playerId) continue;
 
       // Skip allied HQs
-      const hqOwner = this.game.player(playerId);
-      if (unitPlayer.isAlliedWith(hqOwner)) continue;
+      const hqOwner = this.safeGetPlayer(playerId);
+      if (hqOwner && unitPlayer.isAlliedWith(hqOwner)) continue;
 
       // Check distance
       const dx = building.x - unit.x;
@@ -2272,15 +2547,17 @@ export class FrenzyManager {
     unit: FrenzyUnit,
     combatRange: number,
   ): FrenzyStructure | null {
-    const unitPlayer = this.game.player(unit.playerId);
+    const unitPlayer = this.safeGetPlayer(unit.playerId);
+    if (!unitPlayer) return null; // Skip if player no longer exists
+
     let nearestStructure: FrenzyStructure | null = null;
     let nearestDistSquared = combatRange * combatRange;
 
     // Check mines
     for (const mine of this.mines.values()) {
       if (mine.playerId === unit.playerId) continue;
-      const minePlayer = this.game.player(mine.playerId);
-      if (unitPlayer.isAlliedWith(minePlayer)) continue;
+      const minePlayer = this.safeGetPlayer(mine.playerId);
+      if (minePlayer && unitPlayer.isAlliedWith(minePlayer)) continue;
 
       const dx = mine.x - unit.x;
       const dy = mine.y - unit.y;
@@ -2295,8 +2572,8 @@ export class FrenzyManager {
     // Check factories
     for (const factory of this.factories.values()) {
       if (factory.playerId === unit.playerId) continue;
-      const factoryPlayer = this.game.player(factory.playerId);
-      if (unitPlayer.isAlliedWith(factoryPlayer)) continue;
+      const factoryPlayer = this.safeGetPlayer(factory.playerId);
+      if (factoryPlayer && unitPlayer.isAlliedWith(factoryPlayer)) continue;
 
       const dx = factory.x - unit.x;
       const dy = factory.y - unit.y;
@@ -2311,8 +2588,8 @@ export class FrenzyManager {
     // Check ports
     for (const port of this.ports.values()) {
       if (port.playerId === unit.playerId) continue;
-      const portPlayer = this.game.player(port.playerId);
-      if (unitPlayer.isAlliedWith(portPlayer)) continue;
+      const portPlayer = this.safeGetPlayer(port.playerId);
+      if (portPlayer && unitPlayer.isAlliedWith(portPlayer)) continue;
 
       const dx = port.x - unit.x;
       const dy = port.y - unit.y;
@@ -2572,10 +2849,15 @@ export class FrenzyManager {
       // Don't damage friendly units
       if (unit.playerId === projectile.playerId) continue;
 
-      // Check if allied
-      const projectilePlayer = this.game.player(projectile.playerId);
-      const unitPlayer = this.game.player(unit.playerId);
-      if (projectilePlayer.isAlliedWith(unitPlayer)) continue;
+      // Check if allied (safely handle missing players)
+      const projectilePlayer = this.safeGetPlayer(projectile.playerId);
+      const unitPlayer = this.safeGetPlayer(unit.playerId);
+      if (
+        projectilePlayer &&
+        unitPlayer &&
+        projectilePlayer.isAlliedWith(unitPlayer)
+      )
+        continue;
 
       const dist = Math.hypot(unit.x - impactX, unit.y - impactY);
       if (dist <= radius) {
@@ -2594,7 +2876,7 @@ export class FrenzyManager {
     const impactY = projectile.targetY ?? projectile.y;
     const radius = projectile.areaRadius ?? 8;
     const damage = projectile.damage ?? 25;
-    const projectilePlayer = this.game.player(projectile.playerId);
+    const projectilePlayer = this.safeGetPlayer(projectile.playerId);
 
     // Find all enemy units in the blast radius
     const unitsInRadius = this.spatialGrid.getNearby(impactX, impactY, radius);
@@ -2603,9 +2885,14 @@ export class FrenzyManager {
       // Don't damage friendly units
       if (unit.playerId === projectile.playerId) continue;
 
-      // Check if allied
-      const unitPlayer = this.game.player(unit.playerId);
-      if (projectilePlayer.isAlliedWith(unitPlayer)) continue;
+      // Check if allied (safely handle missing players)
+      const unitPlayer = this.safeGetPlayer(unit.playerId);
+      if (
+        projectilePlayer &&
+        unitPlayer &&
+        projectilePlayer.isAlliedWith(unitPlayer)
+      )
+        continue;
 
       const dist = Math.hypot(unit.x - impactX, unit.y - impactY);
       if (dist <= radius) {
@@ -2635,13 +2922,14 @@ export class FrenzyManager {
     damage: number,
     attackerPlayerId: PlayerID,
   ) {
-    const attackerPlayer = this.game.player(attackerPlayerId);
+    const attackerPlayer = this.safeGetPlayer(attackerPlayerId);
+    if (!attackerPlayer) return; // Skip if player no longer exists
 
     // Check mines
     for (const [tile, mine] of this.mines) {
       if (mine.playerId === attackerPlayerId) continue;
-      const minePlayer = this.game.player(mine.playerId);
-      if (attackerPlayer.isAlliedWith(minePlayer)) continue;
+      const minePlayer = this.safeGetPlayer(mine.playerId);
+      if (minePlayer && attackerPlayer.isAlliedWith(minePlayer)) continue;
 
       const dist = Math.hypot(mine.x - x, mine.y - y);
       if (dist <= radius) {
@@ -2657,8 +2945,8 @@ export class FrenzyManager {
     // Check factories
     for (const [tile, factory] of this.factories) {
       if (factory.playerId === attackerPlayerId) continue;
-      const factoryPlayer = this.game.player(factory.playerId);
-      if (attackerPlayer.isAlliedWith(factoryPlayer)) continue;
+      const factoryPlayer = this.safeGetPlayer(factory.playerId);
+      if (factoryPlayer && attackerPlayer.isAlliedWith(factoryPlayer)) continue;
 
       const dist = Math.hypot(factory.x - x, factory.y - y);
       if (dist <= radius) {
@@ -2673,8 +2961,8 @@ export class FrenzyManager {
     // Check ports
     for (const [tile, port] of this.ports) {
       if (port.playerId === attackerPlayerId) continue;
-      const portPlayer = this.game.player(port.playerId);
-      if (attackerPlayer.isAlliedWith(portPlayer)) continue;
+      const portPlayer = this.safeGetPlayer(port.playerId);
+      if (portPlayer && attackerPlayer.isAlliedWith(portPlayer)) continue;
 
       const dist = Math.hypot(port.x - x, port.y - y);
       if (dist <= radius) {
@@ -2716,7 +3004,8 @@ export class FrenzyManager {
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
-      const player = this.game.player(unit.playerId);
+      const player = this.safeGetPlayer(unit.playerId);
+      if (!player) continue; // Skip if player no longer exists
       const playerId = unit.playerId;
 
       // Check tiles in a radius around the unit

@@ -13,6 +13,7 @@ import {
 import { createPartialGameRecord, replacer } from "../core/Util";
 import { ServerConfig } from "../core/configuration/Config";
 import { getConfig } from "../core/configuration/ConfigLoader";
+import { isInSpawnExclusionZone } from "../core/execution/utils/PlayerSpawner";
 import { GameFork, PlayerActions, UnitType } from "../core/game/Game";
 import { TileRef } from "../core/game/GameMap";
 import { GameMapLoader } from "../core/game/GameMapLoader";
@@ -475,11 +476,23 @@ export class ClientGameRunner {
     }
     console.log(`clicked cell ${cell}`);
     const tile = this.gameView.ref(cell.x, cell.y);
+
+    // Check if tile is in spawn exclusion zone
+    const mapType = this.gameView.config().gameConfig().gameMap;
+    const inExclusionZone = isInSpawnExclusionZone(
+      cell.x,
+      cell.y,
+      this.gameView.width(),
+      this.gameView.height(),
+      mapType,
+    );
+
     if (
       this.gameView.isLand(tile) &&
       !this.gameView.hasOwner(tile) &&
       this.gameView.inSpawnPhase() &&
-      !this.gameView.config().isRandomSpawn()
+      !this.gameView.config().isRandomSpawn() &&
+      !inExclusionZone
     ) {
       this.eventBus.emit(new SendSpawnIntentEvent(tile));
       return;
