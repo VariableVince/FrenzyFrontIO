@@ -452,6 +452,140 @@ export const attackMenuElement: MenuElement = {
   },
 };
 
+export const sellStructureElement: MenuElement = {
+  id: "sell_structure",
+  name: "sell",
+  disabled: (params: MenuElementParams) => {
+    const frenzyState = params.game.frenzyManager();
+    if (!frenzyState) return true;
+
+    const tileX = params.game.x(params.tile);
+    const tileY = params.game.y(params.tile);
+
+    // Cannot sell HQ
+    const myHQ = frenzyState.coreBuildings.find(
+      (b) => b.playerId === params.myPlayer.id(),
+    );
+    if (myHQ && Math.hypot(tileX - myHQ.x, tileY - myHQ.y) <= 10) {
+      return true;
+    }
+
+    // Check for economic structures (mines, factories, ports) using findNearbyStructure
+    const economicStructureTypes = ["mine", "factory", "port"];
+    for (const structureType of economicStructureTypes) {
+      const nearbyStructure = frenzyState.findNearbyStructure(
+        tileX,
+        tileY,
+        STRUCTURE_CLICK_RANGE,
+        structureType,
+        params.myPlayer.id(),
+      );
+      if (nearbyStructure) {
+        return false; // Found an economic structure, so sell is enabled
+      }
+    }
+
+    // Check for tower units (defensePost, artillery, etc.) using findNearbyFrenzyUnit
+    const towerUnitTypes = [
+      "defensePost",
+      "artillery",
+      "shieldGenerator",
+      "samLauncher",
+      "missileSilo",
+    ];
+    for (const unitType of towerUnitTypes) {
+      const nearbyUnit = frenzyState.findNearbyFrenzyUnit(
+        tileX,
+        tileY,
+        STRUCTURE_CLICK_RANGE,
+        unitType,
+        params.myPlayer.id(),
+      );
+      if (nearbyUnit) {
+        return false; // Found a tower, so sell is enabled
+      }
+    }
+
+    return true; // No structure found, disable sell
+  },
+  text: "💰",
+  fontSize: "20px",
+  color: "#FFD700",
+  tooltipKeys: [
+    {
+      key: "radial_menu.sell_structure_title",
+      className: "title",
+    },
+    {
+      key: "radial_menu.sell_structure_description",
+      className: "description",
+    },
+  ],
+  action: (params: MenuElementParams) => {
+    const frenzyState = params.game.frenzyManager();
+    if (!frenzyState) return;
+
+    const tileX = params.game.x(params.tile);
+    const tileY = params.game.y(params.tile);
+
+    // Find nearby economic structure first (mines, factories, ports)
+    const economicStructureTypes = ["mine", "factory", "port"];
+    for (const structureType of economicStructureTypes) {
+      const nearbyStructure = frenzyState.findNearbyStructure(
+        tileX,
+        tileY,
+        STRUCTURE_CLICK_RANGE,
+        structureType,
+        params.myPlayer.id(),
+      );
+      if (nearbyStructure) {
+        // Use the structure type from the found structure
+        let unitType = "";
+        if (structureType === "mine") unitType = "mine";
+        else if (structureType === "factory") unitType = "factory";
+        else if (structureType === "port") unitType = "port";
+
+        params.playerActionHandler.handleSellFrenzyStructure(
+          nearbyStructure.x,
+          nearbyStructure.y,
+          unitType,
+        );
+        params.closeMenu();
+        return;
+      }
+    }
+
+    // Find nearby tower unit
+    const towerUnitTypes = [
+      "defensePost",
+      "artillery",
+      "shieldGenerator",
+      "samLauncher",
+      "missileSilo",
+    ];
+    for (const unitType of towerUnitTypes) {
+      const nearbyUnit = frenzyState.findNearbyFrenzyUnit(
+        tileX,
+        tileY,
+        STRUCTURE_CLICK_RANGE,
+        unitType,
+        params.myPlayer.id(),
+      );
+      if (nearbyUnit) {
+        params.playerActionHandler.handleSellFrenzyStructure(
+          nearbyUnit.x,
+          nearbyUnit.y,
+          nearbyUnit.unitType,
+        );
+        params.closeMenu();
+        return;
+      }
+    }
+
+    params.closeMenu();
+  },
+};
+
 export const deleteUnitElement: MenuElement = {
   id: Slot.Delete,
   name: "delete",
@@ -579,8 +713,11 @@ export const upgradeHQElement: MenuElement = {
 
 const FACTORY_UPGRADE_COST = BigInt(100_000);
 
-// Range in pixels for detecting clicks on structures
-const STRUCTURE_CLICK_RANGE = 15;
+// Range for detecting clicks on structures
+// Formula: structure_size + 3
+// Most structures (mine, factory, port, defense post) have size 8, so range is 11
+// Smaller structures (SAM, shield) have size 6-7, but we use a standard range for consistency
+const STRUCTURE_CLICK_RANGE = 11; // 8 (structure size) + 3
 
 // All structure upgrades require HQ tier 2
 const REQUIRED_HQ_TIER_FOR_UPGRADES = 2;
@@ -1417,25 +1554,50 @@ export const rootMenuElement: MenuElement = {
       }
     }
 
-    // In own territory: determine what to show in the first slot
+    // In own territory: determine what to show in the top slot (upgrade)
     // - On HQ: upgrade HQ
     // - On upgradeable structure: upgrade element
-    // - On maxed structure: delete unit
-    // - On empty land: towers menu
-    let ownTerritoryFirstItem: MenuElement = towersMenuElement;
+    // - Otherwise: generic disabled upgrade slot
+    let upgradeSlot: MenuElement;
     if (isClickingOnHQ) {
-      ownTerritoryFirstItem = upgradeHQElement;
+      upgradeSlot = upgradeHQElement;
     } else if (structureUpgradeElement) {
-      ownTerritoryFirstItem = structureUpgradeElement;
+      upgradeSlot = structureUpgradeElement;
+    } else {
+      // Generic disabled upgrade slot
+      upgradeSlot = {
+        id: "upgrade_disabled",
+        name: "upgrade",
+        disabled: () => true,
+        text: "⬆",
+        fontSize: "24px",
+        color: "#999",
+      };
+    }
+
+    // Sell/delete slot: in Frenzy mode use sell structure element, otherwise use the actual sell element or generic disabled slot
+    let sellSlot: MenuElement;
+    if (params.game.frenzyManager()) {
+      // In Frenzy mode, always show sell structure element
+      sellSlot = sellStructureElement;
     } else if (isClickingOnStructure) {
-      ownTerritoryFirstItem = deleteUnitElement;
+      sellSlot = deleteUnitElement;
+    } else {
+      // Generic disabled sell slot
+      sellSlot = {
+        id: "sell_disabled",
+        name: "sell",
+        disabled: () => true,
+        text: "💰",
+        fontSize: "20px",
+        color: "#999",
+      };
     }
 
     const menuItems: (MenuElement | null)[] = [
-      infoMenuElement,
       ...(isOwnTerritory
-        ? [ownTerritoryFirstItem, ally, buildMenuElement]
-        : [boatMenuElement, ally, attackMenuElement]),
+        ? [upgradeSlot, buildMenuElement, towersMenuElement, sellSlot]
+        : [infoMenuElement, boatMenuElement, ally, attackMenuElement]),
     ];
 
     return menuItems.filter((item): item is MenuElement => item !== null);

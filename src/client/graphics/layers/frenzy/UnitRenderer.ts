@@ -51,6 +51,14 @@ export class UnitRenderer {
     const isWarship = unit.unitType === "warship";
     const isArtillery = unit.unitType === "artillery";
     const isShieldGenerator = unit.unitType === "shieldGenerator";
+    const isSAMLauncher = unit.unitType === "samLauncher";
+    const isMissileSilo = unit.unitType === "missileSilo";
+    const isTower =
+      isDefensePost ||
+      isArtillery ||
+      isShieldGenerator ||
+      isSAMLauncher ||
+      isMissileSilo;
 
     if (isShieldGenerator) {
       this.renderShieldGenerator(ctx, x, y, player, unit);
@@ -64,6 +72,14 @@ export class UnitRenderer {
       this.renderWarship(ctx.context, x, y, player, tier);
     } else {
       this.renderSoldier(ctx.context, x, y, player);
+    }
+
+    // Render health bar for damaged towers
+    if (isTower && unit.maxHealth) {
+      const healthPercent = unit.health / unit.maxHealth;
+      if (healthPercent < 1 && healthPercent > 0) {
+        this.renderHealthBar(ctx.context, x, y, unit.health, unit.maxHealth);
+      }
     }
   }
 
@@ -366,5 +382,38 @@ export class UnitRenderer {
     context.strokeStyle = "#000";
     context.lineWidth = 1;
     context.stroke();
+  }
+
+  private renderHealthBar(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    health: number,
+    maxHealth: number,
+  ) {
+    const barWidth = 12;
+    const barHeight = 2;
+    const barY = y + 8;
+    const healthPercent = health / maxHealth;
+
+    // Background
+    context.fillStyle = "rgba(0, 0, 0, 0.7)";
+    context.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
+
+    // Health fill (red to green gradient)
+    const r = Math.floor(255 * (1 - healthPercent));
+    const g = Math.floor(255 * healthPercent);
+    context.fillStyle = `rgb(${r}, ${g}, 0)`;
+    context.fillRect(
+      x - barWidth / 2,
+      barY,
+      barWidth * healthPercent,
+      barHeight,
+    );
+
+    // Border
+    context.strokeStyle = "#000";
+    context.lineWidth = 0.5;
+    context.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
   }
 }

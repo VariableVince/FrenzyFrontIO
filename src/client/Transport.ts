@@ -170,6 +170,14 @@ export class SendUpgradeFrenzyUnitIntentEvent implements GameEvent {
   ) {}
 }
 
+export class SendSellFrenzyStructureIntentEvent implements GameEvent {
+  constructor(
+    public readonly x: number,
+    public readonly y: number,
+    public readonly structureType: string,
+  ) {}
+}
+
 export class CancelAttackIntentEvent implements GameEvent {
   constructor(public readonly attackID: string) {}
 }

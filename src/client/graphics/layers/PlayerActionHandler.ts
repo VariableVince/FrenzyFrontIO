@@ -12,6 +12,7 @@ import {
   SendDonateTroopsIntentEvent,
   SendEmbargoIntentEvent,
   SendEmojiIntentEvent,
+  SendSellFrenzyStructureIntentEvent,
   SendSpawnIntentEvent,
   SendTargetPlayerIntentEvent,
   SendUpgradeFactoryIntentEvent,
@@ -134,5 +135,11 @@ export class PlayerActionHandler {
 
   handleUpgradeFrenzyUnit(unitId: number, unitType: string) {
     this.eventBus.emit(new SendUpgradeFrenzyUnitIntentEvent(unitId, unitType));
+  }
+
+  handleSellFrenzyStructure(x: number, y: number, structureType: string) {
+    this.eventBus.emit(
+      new SendSellFrenzyStructureIntentEvent(x, y, structureType),
+    );
   }
 }
