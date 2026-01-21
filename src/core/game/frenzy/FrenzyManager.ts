@@ -21,9 +21,12 @@ import {
   FrenzyStructureType,
   FrenzyUnit,
   FrenzyUnitType,
+  getStructureSellValue,
   getUnitConfig,
   MineStructure,
   PortSpawner,
+  ProjectileType,
+  STRUCTURE_CONFIGS,
   STRUCTURE_UPGRADES,
   UnitTypeConfig,
 } from "./FrenzyTypes";
@@ -2087,7 +2090,36 @@ export class FrenzyManager {
     }
   }
 
-  private spawnProjectile(attacker: FrenzyUnit, target: FrenzyUnit) {
+  private spawnProjectile(
+    attacker: FrenzyUnit,
+    target: FrenzyUnit,
+    projectileType?: ProjectileType,
+  ) {
+    const unitConfig = getUnitConfig(this.config, attacker.unitType);
+    // Determine projectile type: explicit > config > default
+    const type =
+      projectileType ?? unitConfig.projectileType ?? ProjectileType.PlasmaOrb;
+
+    // Laser/beam projectiles are instant hit
+    if (type === ProjectileType.Laser) {
+      const beamLife = 0.3;
+      this.projectiles.push({
+        id: this.nextProjectileId++,
+        playerId: attacker.playerId,
+        x: target.x,
+        y: target.y,
+        vx: 0,
+        vy: 0,
+        age: 0,
+        life: beamLife,
+        projectileType: type,
+        startX: attacker.x,
+        startY: attacker.y,
+      });
+      return;
+    }
+
+    // Orb projectiles travel through the air
     const dx = target.x - attacker.x;
     const dy = target.y - attacker.y;
     const dist = Math.hypot(dx, dy) || 1;
@@ -2105,12 +2137,12 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
-      isElite: attacker.unitType === FrenzyUnitType.EliteSoldier,
+      projectileType: type,
     });
   }
 
   private spawnBeamProjectile(attacker: FrenzyUnit, target: FrenzyUnit) {
-    // Beam projectile for defense posts - instant hit, visual effect only
+    // Beam projectile - instant hit, visual effect only
     const beamLife = 0.3; // Beam visible for 0.3 seconds
 
     this.projectiles.push({
@@ -2122,8 +2154,8 @@ export class FrenzyManager {
       vy: 0,
       age: 0,
       life: beamLife,
-      isBeam: true,
-      startX: attacker.x, // Start point (defense post)
+      projectileType: ProjectileType.Laser,
+      startX: attacker.x, // Start point
       startY: attacker.y,
     });
   }
@@ -2156,7 +2188,7 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
-      isArtillery: true,
+      projectileType: ProjectileType.Artillery,
       areaRadius: baseRadius * tierMultiplier,
       damage: baseDamage * tierMultiplier,
       targetX,
@@ -2266,7 +2298,7 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
-      isMissile: true,
+      projectileType: ProjectileType.Missile,
       areaRadius: 8, // Small AOE
       damage: 25, // Moderate damage per missile (10 missiles = 250 total potential)
       targetX: actualTargetX,
@@ -2459,10 +2491,11 @@ export class FrenzyManager {
 
     // Calculate damage based on unit type
     if (unitConfig.projectileDamage !== undefined) {
-      // Burst damage on shot (defense posts)
+      // Burst damage on shot (defense posts, warships)
       if (unit.weaponCooldown <= 0) {
         targetStructure.modifyHealth(-unitConfig.projectileDamage, unitPlayer);
-        this.spawnBeamProjectileToStructure(unit, targetStructure);
+        // Use unit's configured projectile type
+        this.spawnProjectileToStructure(unit, targetStructure);
         unit.weaponCooldown = unit.fireInterval;
       }
     } else {
@@ -2518,10 +2551,11 @@ export class FrenzyManager {
 
     // Attack the HQ
     if (unitConfig.projectileDamage !== undefined) {
-      // Burst damage (defense posts)
+      // Burst damage (defense posts, warships)
       if (unit.weaponCooldown <= 0) {
         nearestHQ.health -= unitConfig.projectileDamage;
-        this.spawnBeamProjectileToHQ(unit, nearestHQ);
+        // Use unit's configured projectile type
+        this.spawnProjectileToHQ(unit, nearestHQ);
         unit.weaponCooldown = unit.fireInterval;
       }
     } else {
@@ -2615,10 +2649,11 @@ export class FrenzyManager {
   ) {
     // Calculate damage based on unit type
     if (unitConfig.projectileDamage !== undefined) {
-      // Burst damage (defense posts)
+      // Burst damage (defense posts, warships)
       if (unit.weaponCooldown <= 0) {
         structure.health -= unitConfig.projectileDamage;
-        this.spawnBeamProjectileToFrenzyStructure(unit, structure);
+        // Use unit's configured projectile type
+        this.spawnProjectileToFrenzyStructure(unit, structure);
         unit.weaponCooldown = unit.fireInterval;
       }
     } else {
@@ -2662,6 +2697,29 @@ export class FrenzyManager {
     attacker: FrenzyUnit,
     target: FrenzyStructure,
   ) {
+    const unitConfig = getUnitConfig(this.config, attacker.unitType);
+    const projectileType =
+      unitConfig.projectileType ?? ProjectileType.PlasmaOrb;
+
+    // Laser/beam projectiles are instant hit
+    if (projectileType === ProjectileType.Laser) {
+      const beamLife = 0.3;
+      this.projectiles.push({
+        id: this.nextProjectileId++,
+        playerId: attacker.playerId,
+        x: target.x,
+        y: target.y,
+        vx: 0,
+        vy: 0,
+        age: 0,
+        life: beamLife,
+        projectileType,
+        startX: attacker.x,
+        startY: attacker.y,
+      });
+      return;
+    }
+
     const dx = target.x - attacker.x;
     const dy = target.y - attacker.y;
     const dist = Math.hypot(dx, dy) || 1;
@@ -2679,31 +2737,7 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
-      isElite: attacker.unitType === FrenzyUnitType.EliteSoldier,
-    });
-  }
-
-  /**
-   * Spawn beam projectile toward a Frenzy structure
-   */
-  private spawnBeamProjectileToFrenzyStructure(
-    attacker: FrenzyUnit,
-    target: FrenzyStructure,
-  ) {
-    const beamLife = 0.3;
-
-    this.projectiles.push({
-      id: this.nextProjectileId++,
-      playerId: attacker.playerId,
-      x: target.x,
-      y: target.y,
-      vx: 0,
-      vy: 0,
-      age: 0,
-      life: beamLife,
-      isBeam: true,
-      startX: attacker.x,
-      startY: attacker.y,
+      projectileType,
     });
   }
 
@@ -2711,6 +2745,29 @@ export class FrenzyManager {
    * Spawn projectile toward an enemy HQ
    */
   private spawnProjectileToHQ(attacker: FrenzyUnit, target: CoreBuilding) {
+    const unitConfig = getUnitConfig(this.config, attacker.unitType);
+    const projectileType =
+      unitConfig.projectileType ?? ProjectileType.PlasmaOrb;
+
+    // Laser/beam projectiles are instant hit
+    if (projectileType === ProjectileType.Laser) {
+      const beamLife = 0.3;
+      this.projectiles.push({
+        id: this.nextProjectileId++,
+        playerId: attacker.playerId,
+        x: target.x,
+        y: target.y,
+        vx: 0,
+        vy: 0,
+        age: 0,
+        life: beamLife,
+        projectileType,
+        startX: attacker.x,
+        startY: attacker.y,
+      });
+      return;
+    }
+
     const dx = target.x - attacker.x;
     const dy = target.y - attacker.y;
     const dist = Math.hypot(dx, dy) || 1;
@@ -2728,28 +2785,7 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
-      isElite: attacker.unitType === FrenzyUnitType.EliteSoldier,
-    });
-  }
-
-  /**
-   * Spawn beam projectile toward an enemy HQ
-   */
-  private spawnBeamProjectileToHQ(attacker: FrenzyUnit, target: CoreBuilding) {
-    const beamLife = 0.3;
-
-    this.projectiles.push({
-      id: this.nextProjectileId++,
-      playerId: attacker.playerId,
-      x: target.x,
-      y: target.y,
-      vx: 0,
-      vy: 0,
-      age: 0,
-      life: beamLife,
-      isBeam: true,
-      startX: attacker.x,
-      startY: attacker.y,
+      projectileType,
     });
   }
 
@@ -2760,6 +2796,28 @@ export class FrenzyManager {
     const targetTile = target.tile();
     const targetX = this.game.x(targetTile);
     const targetY = this.game.y(targetTile);
+    const unitConfig = getUnitConfig(this.config, attacker.unitType);
+    const projectileType =
+      unitConfig.projectileType ?? ProjectileType.PlasmaOrb;
+
+    // Laser/beam projectiles are instant hit
+    if (projectileType === ProjectileType.Laser) {
+      const beamLife = 0.3;
+      this.projectiles.push({
+        id: this.nextProjectileId++,
+        playerId: attacker.playerId,
+        x: targetX,
+        y: targetY,
+        vx: 0,
+        vy: 0,
+        age: 0,
+        life: beamLife,
+        projectileType,
+        startX: attacker.x,
+        startY: attacker.y,
+      });
+      return;
+    }
 
     const dx = targetX - attacker.x;
     const dy = targetY - attacker.y;
@@ -2778,32 +2836,7 @@ export class FrenzyManager {
       vy,
       age: 0,
       life: travelTime,
-      isElite: attacker.unitType === FrenzyUnitType.EliteSoldier,
-    });
-  }
-
-  /**
-   * Spawn beam projectile toward a game structure (City/Factory)
-   */
-  private spawnBeamProjectileToStructure(attacker: FrenzyUnit, target: Unit) {
-    const targetTile = target.tile();
-    const targetX = this.game.x(targetTile);
-    const targetY = this.game.y(targetTile);
-
-    const beamLife = 0.3;
-
-    this.projectiles.push({
-      id: this.nextProjectileId++,
-      playerId: attacker.playerId,
-      x: targetX,
-      y: targetY,
-      vx: 0,
-      vy: 0,
-      age: 0,
-      life: beamLife,
-      isBeam: true,
-      startX: attacker.x,
-      startY: attacker.y,
+      projectileType,
     });
   }
 
@@ -2815,13 +2848,19 @@ export class FrenzyManager {
       projectile.y += projectile.vy * deltaTime;
 
       // Check if artillery projectile has reached target
-      if (projectile.isArtillery && projectile.age >= projectile.life) {
+      if (
+        projectile.projectileType === ProjectileType.Artillery &&
+        projectile.age >= projectile.life
+      ) {
         // Apply area damage at impact location
         this.applyArtilleryImpact(projectile);
       }
 
       // Check if missile has reached target (tier 2 warship)
-      if (projectile.isMissile && projectile.age >= projectile.life) {
+      if (
+        projectile.projectileType === ProjectileType.Missile &&
+        projectile.age >= projectile.life
+      ) {
         // Apply small area damage at impact location
         this.applyMissileImpact(projectile);
       }
@@ -3001,6 +3040,8 @@ export class FrenzyManager {
     for (let j = 0; j < unitsPerTick && j < unitCount; j++) {
       const i = (startIdx + j) % unitCount;
       const unit = this.units[i];
+      // Skip if unit was removed mid-loop (e.g., by defeatPlayer during checkForHQCapture)
+      if (!unit) continue;
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
@@ -3461,21 +3502,56 @@ export class FrenzyManager {
   }
 
   /**
-   * Minimum distance between static structures (defense posts, artillery, shield generators)
-   */
-  private readonly STATIC_STRUCTURE_MIN_DIST = 15;
-
-  /**
-   * Check if there's a static structure (defense post, artillery, shield generator) too close to the given position.
+   * Check if there's any structure too close to the given position.
+   * Uses minDistance from structure configs to determine spacing.
    * Returns true if the position is blocked by a nearby structure.
    */
-  private hasNearbyStaticStructure(x: number, y: number): boolean {
-    const minDistSquared = this.STATIC_STRUCTURE_MIN_DIST ** 2;
+  private hasNearbyStructure(
+    x: number,
+    y: number,
+    structureType: FrenzyUnitType | FrenzyStructureType,
+  ): boolean {
+    // Get the minDistance for the structure type being placed
+    let minDist: number;
+    switch (structureType) {
+      case FrenzyUnitType.DefensePost:
+        minDist = STRUCTURE_CONFIGS.defensePost.minDistance;
+        break;
+      case FrenzyUnitType.Artillery:
+        minDist = STRUCTURE_CONFIGS.artillery.minDistance;
+        break;
+      case FrenzyUnitType.ShieldGenerator:
+        minDist = STRUCTURE_CONFIGS.shieldGenerator.minDistance;
+        break;
+      case FrenzyUnitType.SAMLauncher:
+        minDist = STRUCTURE_CONFIGS.samLauncher.minDistance;
+        break;
+      case FrenzyUnitType.MissileSilo:
+        minDist = STRUCTURE_CONFIGS.missileSilo.minDistance;
+        break;
+      case FrenzyStructureType.Mine:
+        minDist = STRUCTURE_CONFIGS.mine.minDistance;
+        break;
+      case FrenzyStructureType.Factory:
+        minDist = STRUCTURE_CONFIGS.factory.minDistance;
+        break;
+      case FrenzyStructureType.Port:
+        minDist = STRUCTURE_CONFIGS.port.minDistance;
+        break;
+      default:
+        minDist = 15; // Fallback
+    }
+
+    const minDistSquared = minDist ** 2;
+
+    // Check against all tower units
     for (const unit of this.units) {
       if (
         unit.unitType === FrenzyUnitType.DefensePost ||
         unit.unitType === FrenzyUnitType.Artillery ||
-        unit.unitType === FrenzyUnitType.ShieldGenerator
+        unit.unitType === FrenzyUnitType.ShieldGenerator ||
+        unit.unitType === FrenzyUnitType.SAMLauncher ||
+        unit.unitType === FrenzyUnitType.MissileSilo
       ) {
         const dx = unit.x - x;
         const dy = unit.y - y;
@@ -3485,6 +3561,35 @@ export class FrenzyManager {
         }
       }
     }
+
+    // Check against all economic structures (mines, factories, ports)
+    for (const mine of this.mines.values()) {
+      const dx = mine.x - x;
+      const dy = mine.y - y;
+      const distSquared = dx * dx + dy * dy;
+      if (distSquared < minDistSquared) {
+        return true;
+      }
+    }
+
+    for (const factory of this.factories.values()) {
+      const dx = factory.x - x;
+      const dy = factory.y - y;
+      const distSquared = dx * dx + dy * dy;
+      if (distSquared < minDistSquared) {
+        return true;
+      }
+    }
+
+    for (const port of this.ports.values()) {
+      const dx = port.x - x;
+      const dy = port.y - y;
+      const distSquared = dx * dx + dy * dy;
+      if (distSquared < minDistSquared) {
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -3500,8 +3605,8 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby static structures
-    if (this.hasNearbyStaticStructure(x, y)) {
+    // Check for nearby structures
+    if (this.hasNearbyStructure(x, y, FrenzyUnitType.DefensePost)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.DefensePost);
@@ -3519,8 +3624,8 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby static structures
-    if (this.hasNearbyStaticStructure(x, y)) {
+    // Check for nearby structures
+    if (this.hasNearbyStructure(x, y, FrenzyUnitType.Artillery)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.Artillery);
@@ -3538,8 +3643,8 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby static structures
-    if (this.hasNearbyStaticStructure(x, y)) {
+    // Check for nearby structures
+    if (this.hasNearbyStructure(x, y, FrenzyUnitType.ShieldGenerator)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.ShieldGenerator);
@@ -3557,8 +3662,8 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby static structures
-    if (this.hasNearbyStaticStructure(x, y)) {
+    // Check for nearby structures
+    if (this.hasNearbyStructure(x, y, FrenzyUnitType.SAMLauncher)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.SAMLauncher);
@@ -3576,8 +3681,8 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby static structures
-    if (this.hasNearbyStaticStructure(x, y)) {
+    // Check for nearby structures
+    if (this.hasNearbyStructure(x, y, FrenzyUnitType.MissileSilo)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.MissileSilo);
@@ -3898,6 +4003,111 @@ export class FrenzyManager {
   }
 
   /**
+   * Get the HQ (CoreBuilding) for a player
+   */
+  getHQForPlayer(playerId: PlayerID): CoreBuilding | undefined {
+    return this.coreBuildings.get(playerId);
+  }
+
+  /**
+   * Get all structures of a specific type for a player
+   * Returns an array of structures with their position and tile info
+   */
+  getStructuresForPlayer(
+    playerId: PlayerID,
+    structureType: "mine" | "factory" | "port" | "missileSilo" | "hq",
+  ): Array<{ x: number; y: number; tile: TileRef; tier: number }> {
+    switch (structureType) {
+      case "hq": {
+        const hq = this.coreBuildings.get(playerId);
+        return hq ? [{ x: hq.x, y: hq.y, tile: hq.tile, tier: hq.tier }] : [];
+      }
+      case "mine":
+        return Array.from(this.mines.values())
+          .filter((m) => m.playerId === playerId)
+          .map((m) => ({ x: m.x, y: m.y, tile: m.tile, tier: m.tier }));
+      case "factory":
+        return Array.from(this.factories.values())
+          .filter((f) => f.playerId === playerId)
+          .map((f) => ({ x: f.x, y: f.y, tile: f.tile, tier: f.tier }));
+      case "port":
+        return Array.from(this.ports.values())
+          .filter((p) => p.playerId === playerId)
+          .map((p) => ({ x: p.x, y: p.y, tile: p.tile, tier: p.tier }));
+      case "missileSilo":
+        return this.units
+          .filter(
+            (u) =>
+              u.playerId === playerId &&
+              u.unitType === FrenzyUnitType.MissileSilo,
+          )
+          .map((u) => ({
+            x: u.x,
+            y: u.y,
+            tile: this.game.ref(Math.floor(u.x), Math.floor(u.y)),
+            tier: u.tier ?? 1,
+          }));
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * Get all units of a specific type for a player
+   * Returns an array of units with their id, position, and tier
+   */
+  getUnitsForPlayer(
+    playerId: PlayerID,
+    unitType: "defensePost" | "samLauncher" | "shieldGenerator" | "artillery",
+  ): Array<{ id: number; x: number; y: number; tier: number }> {
+    const frenzyUnitType = this.mapStringToFrenzyUnitType(unitType);
+    if (!frenzyUnitType) return [];
+
+    return this.units
+      .filter((u) => u.playerId === playerId && u.unitType === frenzyUnitType)
+      .map((u) => ({ id: u.id, x: u.x, y: u.y, tier: u.tier ?? 1 }));
+  }
+
+  /**
+   * Map string unit type to FrenzyUnitType enum
+   */
+  private mapStringToFrenzyUnitType(
+    unitType: string,
+  ): FrenzyUnitType | undefined {
+    switch (unitType) {
+      case "defensePost":
+        return FrenzyUnitType.DefensePost;
+      case "samLauncher":
+        return FrenzyUnitType.SAMLauncher;
+      case "shieldGenerator":
+        return FrenzyUnitType.ShieldGenerator;
+      case "artillery":
+        return FrenzyUnitType.Artillery;
+      case "missileSilo":
+        return FrenzyUnitType.MissileSilo;
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * Check if a player can upgrade their HQ
+   */
+  canUpgradeHQ(playerId: PlayerID): boolean {
+    const building = this.coreBuildings.get(playerId);
+    if (!building) return false;
+
+    // Max HQ tier is 2
+    if (building.tier >= 2) return false;
+
+    const player = this.game.player(playerId);
+    if (!player) return false;
+
+    const upgradeCost = BigInt(100_000);
+    return player.gold() >= upgradeCost;
+  }
+
+  /**
    * Get the HQ tier for a player
    */
   getHQTier(playerId: PlayerID): number {
@@ -4211,6 +4421,133 @@ export class FrenzyManager {
   }
 
   /**
+   * Sell a structure for gold refund
+   * @param playerId The player attempting to sell
+   * @param x The x coordinate near the structure
+   * @param y The y coordinate near the structure
+   * @param structureType The type of structure to sell
+   * @returns true if sale was successful, false otherwise
+   */
+  sellStructure(
+    playerId: PlayerID,
+    x: number,
+    y: number,
+    structureType: string,
+  ): boolean {
+    const rangeSquared = 11 * 11; // STRUCTURE_CLICK_RANGE
+
+    // Handle economic structures (mine, factory, port)
+    if (structureType === "mine") {
+      for (const [tile, mine] of this.mines.entries()) {
+        if (mine.playerId !== playerId) continue;
+        const dx = mine.x - x;
+        const dy = mine.y - y;
+        if (dx * dx + dy * dy <= rangeSquared) {
+          const refund = getStructureSellValue("mine", mine.tier);
+          this.mines.delete(tile);
+          this.mineCellCacheDirty = true;
+          const player = this.game.players().find((p) => p.id() === playerId);
+          if (player) player.addGold(BigInt(refund));
+          return true;
+        }
+      }
+    } else if (structureType === "factory") {
+      for (const [tile, factory] of this.factories.entries()) {
+        if (factory.playerId !== playerId) continue;
+        const dx = factory.x - x;
+        const dy = factory.y - y;
+        if (dx * dx + dy * dy <= rangeSquared) {
+          const refund = getStructureSellValue("factory", factory.tier);
+          this.factories.delete(tile);
+          const player = this.game.players().find((p) => p.id() === playerId);
+          if (player) player.addGold(BigInt(refund));
+          return true;
+        }
+      }
+    } else if (structureType === "port") {
+      for (const [tile, port] of this.ports.entries()) {
+        if (port.playerId !== playerId) continue;
+        const dx = port.x - x;
+        const dy = port.y - y;
+        if (dx * dx + dy * dy <= rangeSquared) {
+          const refund = getStructureSellValue("port", port.tier);
+          this.ports.delete(tile);
+          const player = this.game.players().find((p) => p.id() === playerId);
+          if (player) player.addGold(BigInt(refund));
+          return true;
+        }
+      }
+    } else {
+      // Handle tower units (defense_post, sam_launcher, etc.)
+      const structureTypeKey = this.mapUnitTypeToStructureKey(structureType);
+      if (!structureTypeKey) return false;
+
+      const unit = this.units.find((u) => {
+        if (u.playerId !== playerId) return false;
+        if (this.mapFrenzyUnitTypeToString(u.unitType) !== structureType)
+          return false;
+        const dx = u.x - x;
+        const dy = u.y - y;
+        return dx * dx + dy * dy <= rangeSquared;
+      });
+
+      if (unit) {
+        const tier = unit.tier ?? 1;
+        const refund = getStructureSellValue(structureTypeKey, tier);
+        // Remove unit from units array
+        this.units = this.units.filter((u) => u.id !== unit.id);
+        const player = this.game.players().find((p) => p.id() === playerId);
+        if (player) player.addGold(BigInt(refund));
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Map structure type string to StructureTypeKey
+   */
+  private mapUnitTypeToStructureKey(
+    unitType: string,
+  ): import("./FrenzyTypes").StructureTypeKey | null {
+    switch (unitType) {
+      case "defense_post":
+        return "defensePost";
+      case "sam_launcher":
+        return "samLauncher";
+      case "missile_silo":
+        return "missileSilo";
+      case "shield_generator":
+        return "shieldGenerator";
+      case "artillery":
+        return "artillery";
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Map FrenzyUnitType enum to string
+   */
+  private mapFrenzyUnitTypeToString(type: FrenzyUnitType): string {
+    switch (type) {
+      case FrenzyUnitType.DefensePost:
+        return "defense_post";
+      case FrenzyUnitType.SAMLauncher:
+        return "sam_launcher";
+      case FrenzyUnitType.MissileSilo:
+        return "missile_silo";
+      case FrenzyUnitType.ShieldGenerator:
+        return "shield_generator";
+      case FrenzyUnitType.Artillery:
+        return "artillery";
+      default:
+        return "";
+    }
+  }
+
+  /**
    * Upgrade a defense post to tier 2 (beam attack, longer range)
    * @returns true if upgrade was successful, false otherwise
    */
@@ -4342,10 +4679,13 @@ export class FrenzyManager {
         x: u.x,
         y: u.y,
         health: u.health,
+        maxHealth: u.maxHealth,
         unitType: u.unitType,
         tier: u.tier,
         shieldHealth: u.shieldHealth,
         maxShieldHealth: u.maxShieldHealth,
+        weaponCooldown: u.weaponCooldown,
+        fireInterval: u.fireInterval,
         // Attack order data for rendering
         hasAttackOrder: u.hasAttackOrder,
         attackOrderX: u.attackOrderX,
@@ -4382,12 +4722,9 @@ export class FrenzyManager {
         playerId: p.playerId,
         x: p.x,
         y: p.y,
-        isBeam: p.isBeam,
-        isElite: p.isElite,
+        projectileType: p.projectileType,
         startX: p.startX,
         startY: p.startY,
-        isArtillery: p.isArtillery,
-        isMissile: p.isMissile,
         targetX: p.targetX,
         targetY: p.targetY,
         areaRadius: p.areaRadius,

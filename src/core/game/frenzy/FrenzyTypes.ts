@@ -10,6 +10,84 @@ import { TileRef } from "../GameMap";
  */
 
 /**
+ * Projectile visual types for Frenzy units
+ * - PlasmaOrb: Default cyan/blue plasma (soldiers)
+ * - GreenOrb: Green plasma orb (defense posts)
+ * - Laser: Red beam/laser (warships)
+ * - GoldenOrb: Elite soldier projectile
+ * - Artillery: Ballistic shell with arc
+ * - Missile: Tier 2 warship missiles
+ */
+export enum ProjectileType {
+  PlasmaOrb = "plasmaOrb", // Default cyan/blue (soldiers)
+  GreenOrb = "greenOrb", // Green orb (defense posts)
+  Laser = "laser", // Red beam (warships, tier 2 defense posts)
+  GoldenOrb = "goldenOrb", // Elite soldiers
+  Artillery = "artillery", // Ballistic arc
+  Missile = "missile", // Tier 2 warship missiles
+}
+
+/**
+ * Projectile configuration for visual rendering
+ */
+export interface ProjectileConfig {
+  type: ProjectileType;
+  // Core colors (for gradients)
+  coreColor: string; // Inner bright color
+  glowColor1: string; // First gradient stop
+  glowColor2: string; // Second gradient stop
+  glowColor3: string; // Outer gradient color (fades to transparent)
+}
+
+/**
+ * Default projectile configurations for each type
+ */
+export const PROJECTILE_CONFIGS: Record<ProjectileType, ProjectileConfig> = {
+  [ProjectileType.PlasmaOrb]: {
+    type: ProjectileType.PlasmaOrb,
+    coreColor: "#ffffff",
+    glowColor1: "rgba(0, 255, 255, 0.9)", // Cyan
+    glowColor2: "rgba(100, 200, 255, 0.7)", // Light blue
+    glowColor3: "rgba(150, 100, 255, 0.4)", // Purple
+  },
+  [ProjectileType.GreenOrb]: {
+    type: ProjectileType.GreenOrb,
+    coreColor: "#ffffff",
+    glowColor1: "rgba(0, 255, 100, 0.9)", // Bright green
+    glowColor2: "rgba(100, 255, 150, 0.7)", // Light green
+    glowColor3: "rgba(50, 200, 100, 0.4)", // Forest green
+  },
+  [ProjectileType.Laser]: {
+    type: ProjectileType.Laser,
+    coreColor: "rgba(255, 200, 200, 0.9)",
+    glowColor1: "rgba(255, 0, 0, 0.3)", // Red outer
+    glowColor2: "rgba(255, 50, 50, 0.6)", // Red middle
+    glowColor3: "rgba(255, 100, 50, 0.6)", // Orange glow
+  },
+  [ProjectileType.GoldenOrb]: {
+    type: ProjectileType.GoldenOrb,
+    coreColor: "#ffffff",
+    glowColor1: "rgba(255, 255, 150, 0.95)", // Bright gold
+    glowColor2: "rgba(255, 220, 100, 0.8)", // Gold
+    glowColor3: "rgba(255, 180, 50, 0.5)", // Dark gold
+  },
+  [ProjectileType.Artillery]: {
+    type: ProjectileType.Artillery,
+    coreColor: "#ffffcc",
+    glowColor1: "rgba(255, 150, 50, 0.6)", // Orange
+    glowColor2: "rgba(255, 80, 0, 0.3)", // Red-orange
+    glowColor3: "rgba(255, 0, 0, 0)", // Fade out
+  },
+  [ProjectileType.Missile]: {
+    type: ProjectileType.Missile,
+    coreColor: "#f0f0f0",
+    glowColor1: "rgba(255, 220, 120, 0.9)", // Engine glow
+    glowColor2: "rgba(255, 150, 50, 0.6)", // Orange
+    glowColor3: "rgba(255, 80, 20, 0.3)", // Red
+  },
+};
+
+/**
  * Frenzy structure types (stationary buildings)
  * - HQ: Main building, spawns soldiers
  * - Mine: Generates gold from nearby crystals
@@ -42,6 +120,16 @@ export enum FrenzyUnitType {
 }
 
 /**
+ * Bar display configuration for structures
+ * Defines when and how health/energy bars are shown
+ */
+export interface BarConfig {
+  showHealthBar: boolean; // Whether to show health bar when damaged
+  showEnergyBar: boolean; // Whether to show energy bar (shield/reload)
+  energyBarType?: "shield" | "reload"; // Type of energy bar
+}
+
+/**
  * Unified structure configuration for all buildable structures
  * Centralizes all structure parameters: costs, health, construction, upgrades, selling
  */
@@ -50,6 +138,10 @@ export interface StructureConfig {
   buildCost: number; // Gold cost to build
   constructionTime: number; // Ticks to construct (10 ticks = 1 second)
   health: number; // Base HP at tier 1
+
+  // Visual & Placement
+  size: number; // Visual size in pixels (half-width/radius for rendering)
+  minDistance: number; // Minimum distance from other structures (calculated as size * 2 + buffer)
 
   // Upgrades
   maxTier: number; // Maximum tier (1 = not upgradable)
@@ -60,10 +152,17 @@ export interface StructureConfig {
   // Selling
   sellRefundPercent: number; // Percentage of build cost refunded when selling (0-100)
 
+  // Bar display
+  bars: BarConfig; // Health and energy bar configuration
+
   // Special properties (optional)
   spawnInterval?: number; // For spawners (Factory, Port): seconds between spawns
   goldPerMinute?: number; // For Mine: gold generation per minute
   tier2GoldMultiplier?: number; // For Mine: multiplier for tier 2 gold generation
+
+  // Missile Silo specific
+  nukeCost?: number; // Cost of atom bomb (for missile silo)
+  hydroCost?: number; // Cost of hydrogen bomb (for missile silo)
 }
 
 /**
@@ -90,17 +189,22 @@ export const STRUCTURE_CONFIGS: Record<StructureTypeKey, StructureConfig> = {
     buildCost: 0, // Not buildable
     constructionTime: 0,
     health: 1000,
+    size: 10,
+    minDistance: 25, // HQ has larger exclusion zone
     maxTier: 2,
     upgradeCost: 500000,
     upgradeHealthBonus: 500,
     requiredHQTier: 1,
     sellRefundPercent: 0, // Cannot sell HQ
     spawnInterval: 4.0,
+    bars: { showHealthBar: true, showEnergyBar: false },
   },
   mine: {
     buildCost: 50000,
-    constructionTime: 20, // 2 seconds
+    constructionTime: 50, // 5 seconds
     health: 400,
+    size: 8,
+    minDistance: 20, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 200,
@@ -108,80 +212,104 @@ export const STRUCTURE_CONFIGS: Record<StructureTypeKey, StructureConfig> = {
     sellRefundPercent: 50,
     goldPerMinute: 10000,
     tier2GoldMultiplier: 2,
+    bars: { showHealthBar: true, showEnergyBar: false },
   },
   factory: {
     buildCost: 100000,
     constructionTime: 20, // 2 seconds
     health: 400,
+    size: 8,
+    minDistance: 20, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 200,
     requiredHQTier: 2,
     sellRefundPercent: 50,
     spawnInterval: 4.0,
+    bars: { showHealthBar: true, showEnergyBar: false },
   },
   port: {
     buildCost: 100000,
     constructionTime: 20, // 2 seconds
     health: 400,
+    size: 8,
+    minDistance: 20, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 200,
     requiredHQTier: 2,
     sellRefundPercent: 50,
     spawnInterval: 4.0,
+    bars: { showHealthBar: true, showEnergyBar: false },
   },
 
   // === Towers (military/defensive) ===
   defensePost: {
-    buildCost: 25000,
+    buildCost: 35000,
     constructionTime: 50, // 5 seconds
     health: 200,
+    size: 8,
+    minDistance: 20, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 100,
     requiredHQTier: 2,
     sellRefundPercent: 50,
+    bars: { showHealthBar: true, showEnergyBar: false }, // No energy bar for defense posts
   },
   samLauncher: {
-    buildCost: 1500000,
-    constructionTime: 300, // 30 seconds
+    buildCost: 150000,
+    constructionTime: 100, // 10 seconds
     health: 150,
+    size: 6.4,
+    minDistance: 17, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 75,
     requiredHQTier: 2,
     sellRefundPercent: 50,
+    bars: { showHealthBar: true, showEnergyBar: false },
   },
   missileSilo: {
-    buildCost: 1000000,
+    buildCost: 200000,
     constructionTime: 100, // 10 seconds
     health: 300,
+    size: 6,
+    minDistance: 16, // size * 2 + 4
     maxTier: 2,
-    upgradeCost: 100000,
+    upgradeCost: 400000,
     upgradeHealthBonus: 150,
     requiredHQTier: 2,
     sellRefundPercent: 50,
+    nukeCost: 200000, // Atom bomb cost
+    hydroCost: 1000000, // Hydrogen bomb cost
+    bars: { showHealthBar: true, showEnergyBar: false },
   },
   shieldGenerator: {
     buildCost: 150000,
     constructionTime: 150, // 15 seconds
     health: 100,
+    size: 6.4,
+    minDistance: 17, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 50,
     requiredHQTier: 2,
     sellRefundPercent: 50,
+    bars: { showHealthBar: true, showEnergyBar: true, energyBarType: "shield" }, // Shield HP bar
   },
   artillery: {
     buildCost: 200000,
-    constructionTime: 200, // 20 seconds
+    constructionTime: 100, // 10 seconds
     health: 150,
+    size: 7,
+    minDistance: 18, // size * 2 + 4
     maxTier: 2,
     upgradeCost: 100000,
     upgradeHealthBonus: 75,
     requiredHQTier: 2,
     sellRefundPercent: 50,
+    bars: { showHealthBar: true, showEnergyBar: true, energyBarType: "reload" }, // Reload bar
   },
 };
 
@@ -281,6 +409,7 @@ export interface UnitTypeConfig {
   range: number; // Combat range in pixels
   fireInterval: number; // Seconds between shots
   projectileDamage?: number; // If set, deals instant damage instead of DPS
+  projectileType?: ProjectileType; // Visual type of projectile (default: PlasmaOrb)
   areaRadius?: number; // Area of effect radius for splash damage
   shieldRadius?: number; // Shield protection radius
   shieldHealth?: number; // Shield HP (regenerates when not taking damage)
@@ -324,14 +453,11 @@ export interface FrenzyProjectile {
   vy: number;
   age: number;
   life: number;
-  isBeam?: boolean; // True for defense post red beam
-  isElite?: boolean; // True for elite soldier projectiles
-  isArtillery?: boolean; // True for artillery shells (area damage)
-  isMissile?: boolean; // True for tier 2 warship missiles (non-guided, small AOE)
+  projectileType?: ProjectileType; // Visual type (replaces isBeam, isElite, etc.)
   areaRadius?: number; // Splash damage radius
   damage?: number; // Damage to deal on impact
-  startX?: number; // Beam origin X
-  startY?: number; // Beam origin Y
+  startX?: number; // Beam/laser origin X
+  startY?: number; // Beam/laser origin Y
   targetX?: number; // Target position X (for artillery/missiles)
   targetY?: number; // Target position Y (for artillery/missiles)
 }
@@ -499,6 +625,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       dps: 15,
       range: 25,
       fireInterval: 1,
+      projectileType: ProjectileType.PlasmaOrb,
     },
     eliteSoldier: {
       health: 150, // 1.5x soldier health
@@ -506,6 +633,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       dps: 15,
       range: 37.5, // 1.5x soldier range
       fireInterval: 1,
+      projectileType: ProjectileType.GoldenOrb,
     },
     warship: {
       health: 250, // Tough naval unit
@@ -514,6 +642,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       range: 45, // Long range - can hit land from water
       fireInterval: 1.5, // Moderate fire rate
       projectileDamage: 50, // Good projectile damage
+      projectileType: ProjectileType.Laser, // Always use lasers
     },
     eliteWarship: {
       health: 375, // 1.5x warship health (250 * 1.5)
@@ -523,41 +652,47 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       fireInterval: 8.0, // Slow reload (fires barrages)
       projectileDamage: 30, // Per-missile damage (fires 2x5 = 10 missiles)
       areaRadius: 5, // Small AOE per missile
+      projectileType: ProjectileType.Missile, // Missile barrages
     },
-    // Towers
+    // Towers - health values come from STRUCTURE_CONFIGS
     defensePost: {
-      health: 200, // 2x soldier health
+      health: STRUCTURE_CONFIGS.defensePost.health,
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
-      range: 25, // Same as soldier (tier 2: 37.5)
+      range: 30, // Same as soldier (tier 2: 37.5)
       fireInterval: 0.5, // Double soldier fire rate (tier 2: 4.0)
-      projectileDamage: 15, // Same as soldier damage (tier 2: 100, one-shots units)
+      projectileDamage: 20, // Same as soldier damage (tier 2: 100, one-shots units)
+      projectileType: ProjectileType.GreenOrb, // Always use green orbs
     },
     eliteDefensePost: {
-      health: 300, // 1.5x defense post health
+      health:
+        STRUCTURE_CONFIGS.defensePost.health +
+        STRUCTURE_CONFIGS.defensePost.upgradeHealthBonus, // tier 2 health
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
       range: 37.5, // 1.5x defense post range
       fireInterval: 4.0, // Slower but one-shots
       projectileDamage: 100, // One-shots most units
+      projectileType: ProjectileType.Laser, // Tier 2: red beam
     },
     samLauncher: {
-      health: 150, // Moderate HP
+      health: STRUCTURE_CONFIGS.samLauncher.health,
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
       range: 60, // Good anti-air range
       fireInterval: 2.0, // Moderate fire rate
       projectileDamage: 100, // High damage to aircraft
+      projectileType: ProjectileType.Missile,
     },
     missileSilo: {
-      health: 300, // High HP
+      health: STRUCTURE_CONFIGS.missileSilo.health,
       speed: 0, // Stationary
       dps: 0, // Uses missiles
       range: 0, // Global range via missiles
       fireInterval: 0, // Manual launching
     },
     shieldGenerator: {
-      health: 100, // Low HP
+      health: STRUCTURE_CONFIGS.shieldGenerator.health,
       speed: 0, // Stationary
       dps: 0, // No attack
       range: 0, // No attack range
@@ -567,7 +702,9 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       shieldRegenTime: 10, // 10 seconds to fully regenerate
     },
     eliteShieldGenerator: {
-      health: 150, // 1.5x shield generator health
+      health:
+        STRUCTURE_CONFIGS.shieldGenerator.health +
+        STRUCTURE_CONFIGS.shieldGenerator.upgradeHealthBonus, // tier 2 health
       speed: 0, // Stationary
       dps: 0, // No attack
       range: 0, // No attack range
@@ -577,22 +714,26 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       shieldRegenTime: 12, // Faster regen (12 seconds)
     },
     artillery: {
-      health: 150, // Fragile
+      health: STRUCTURE_CONFIGS.artillery.health,
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
       range: 80, // Very long range
       fireInterval: 8.0, // Very slow firing, long cooldown
       projectileDamage: 100, // High damage
       areaRadius: 15, // Splash damage radius
+      projectileType: ProjectileType.Artillery,
     },
     eliteArtillery: {
-      health: 225, // 1.5x artillery health
+      health:
+        STRUCTURE_CONFIGS.artillery.health +
+        STRUCTURE_CONFIGS.artillery.upgradeHealthBonus, // tier 2 health
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
       range: 120, // 1.5x range
       fireInterval: 8.0, // Faster firing
       projectileDamage: 150, // 1.5x damage
       areaRadius: 30, // Larger splash radius (~1.5x)
+      projectileType: ProjectileType.Artillery,
     },
   },
 

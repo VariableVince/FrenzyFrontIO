@@ -115,6 +115,10 @@ export class PortExecution implements Execution {
   }
 
   createStation(): void {
+    // Skip train stations in Frenzy mode
+    if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+      return;
+    }
     if (this.port !== null) {
       const nearbyFactory = this.mg.hasUnitNearby(
         this.port.tile()!,

@@ -1,9 +1,36 @@
-import { Game, PlayerType } from "../../game/Game";
+import { Game, GameMapType, PlayerType } from "../../game/Game";
 import { TileRef } from "../../game/GameMap";
 import { PseudoRandom } from "../../PseudoRandom";
 import { GameID } from "../../Schemas";
 import { simpleHash } from "../../Util";
 import { SpawnExecution } from "../SpawnExecution";
+
+/**
+ * Check if a tile is in the spawn exclusion zone for a given map.
+ * For SquareMap, the center 50% of the map is excluded from spawning.
+ * This zone contains the most crystals and is indicated by red stripes during spawn phase.
+ */
+export function isInSpawnExclusionZone(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  mapType: GameMapType,
+): boolean {
+  if (mapType !== GameMapType.SquareMap) {
+    return false;
+  }
+
+  // For SquareMap: exclude center square (50% of map size - 0.25 on each side from center)
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const exclusionHalfSize = Math.min(width, height) * 0.25;
+
+  const dx = Math.abs(x - centerX);
+  const dy = Math.abs(y - centerY);
+
+  return dx <= exclusionHalfSize && dy <= exclusionHalfSize;
+}
 
 export class PlayerSpawner {
   private random: PseudoRandom;
@@ -27,6 +54,7 @@ export class PlayerSpawner {
 
   private randomSpawnLand(): TileRef | null {
     let tries = 0;
+    const mapType = this.gm.config().gameConfig().gameMap;
 
     while (tries < PlayerSpawner.MAX_SPAWN_TRIES) {
       tries++;
@@ -37,6 +65,19 @@ export class PlayerSpawner {
         !this.gm.isLand(tile) ||
         this.gm.hasOwner(tile) ||
         this.gm.isBorder(tile)
+      ) {
+        continue;
+      }
+
+      // Check spawn exclusion zone for SquareMap
+      if (
+        isInSpawnExclusionZone(
+          this.gm.x(tile),
+          this.gm.y(tile),
+          this.gm.width(),
+          this.gm.height(),
+          mapType,
+        )
       ) {
         continue;
       }

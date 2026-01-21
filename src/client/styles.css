@@ -349,9 +349,18 @@ label.option-card:hover {
 }
 
 #helpModal .icon {
-  background-color: white;
   width: 32px;
   height: 32px;
+}
+
+/* For img-based icons, just size them */
+#helpModal img.icon {
+  background-color: transparent;
+}
+
+/* For CSS mask-based icons, use white background */
+#helpModal .icon:not(img) {
+  background-color: white;
 }
 
 #helpModal .mine-icon {

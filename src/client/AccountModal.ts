@@ -241,6 +241,10 @@ export class AccountModal extends LitElement {
 
     try {
       const apiBase = getApiBase();
+      if (apiBase === null) {
+        alert("Account features are not available on this domain.");
+        return;
+      }
       const response = await fetch(`${apiBase}/magic-link`, {
         method: "POST",
         headers: {

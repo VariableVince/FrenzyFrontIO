@@ -77,7 +77,7 @@ export const buildTable: BuildItemDisplay[][] = [
     {
       unitType: UnitType.Port,
       icon: harborIcon,
-      description: "build_port_desc",
+      description: "build_menu.desc.port",
       key: "unit_type.port",
       countable: true,
     },
@@ -120,14 +120,14 @@ export const buildTable: BuildItemDisplay[][] = [
     {
       unitType: UnitType.City,
       icon: mineIcon,
-      description: "build_city_desc",
+      description: "build_menu.desc.city",
       key: "unit_type.city",
       countable: true,
     },
     {
       unitType: UnitType.Factory,
       icon: unitFactoryIcon,
-      description: "build_factory_desc",
+      description: "build_menu.desc.factory",
       key: "unit_type.factory",
       countable: true,
     },

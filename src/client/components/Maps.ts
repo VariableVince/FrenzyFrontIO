@@ -39,6 +39,7 @@ export const MapDescription: Record<keyof typeof GameMapType, string> = {
   BaikalNukeWars: "Baikal (Nuke Wars)",
   FourIslands: "Four Islands",
   CircleMap: "Circle Map",
+  SquareMap: "Square Map",
 };
 
 @customElement("map-display")

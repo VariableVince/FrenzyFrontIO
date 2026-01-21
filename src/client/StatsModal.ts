@@ -41,7 +41,11 @@ export class StatsModal extends LitElement {
     this.error = null;
 
     try {
-      const res = await fetch(`${getApiBase()}/public/clans/leaderboard`, {
+      const apiBase = getApiBase();
+      if (apiBase === null) {
+        throw new Error("API not available");
+      }
+      const res = await fetch(`${apiBase}/public/clans/leaderboard`, {
         headers: {
           Accept: "application/json",
         },

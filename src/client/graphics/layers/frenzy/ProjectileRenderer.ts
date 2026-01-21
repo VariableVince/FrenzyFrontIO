@@ -1,3 +1,7 @@
+import {
+  PROJECTILE_CONFIGS,
+  ProjectileType,
+} from "../../../../core/game/frenzy/FrenzyTypes";
 import { FrenzyRenderContext } from "./FrenzyRenderContext";
 
 /**
@@ -8,10 +12,7 @@ export interface FrenzyProjectileData {
   playerId: string;
   x: number;
   y: number;
-  isBeam?: boolean;
-  isElite?: boolean;
-  isArtillery?: boolean;
-  isMissile?: boolean;
+  projectileType?: string;
   areaRadius?: number;
   startX?: number;
   startY?: number;
@@ -22,15 +23,16 @@ export interface FrenzyProjectileData {
 
 /**
  * Renders all projectile types in Frenzy mode:
- * - Plasma projectiles (default)
- * - Elite projectiles (golden glow)
- * - Artillery shells (ballistic arc)
- * - Defense post beams (red laser)
- * - Missiles (tier 2 warship, fast straight trajectory)
+ * - PlasmaOrb: Default cyan/blue plasma (soldiers)
+ * - GreenOrb: Green plasma orb (defense posts tier 1)
+ * - Laser: Red beam (warships tier 1, defense posts tier 2)
+ * - GoldenOrb: Elite soldier projectile
+ * - Artillery: Ballistic arc shells
+ * - Missile: Tier 2 warship missiles
  */
 export class ProjectileRenderer {
   /**
-   * Render a projectile
+   * Render a projectile based on its type
    */
   render(
     ctx: FrenzyRenderContext,
@@ -39,10 +41,11 @@ export class ProjectileRenderer {
   ) {
     const x = projectile.x - ctx.halfWidth;
     const y = projectile.y - ctx.halfHeight;
+    const type = projectile.projectileType as ProjectileType | undefined;
 
-    // Beam rendering
+    // Laser/beam rendering
     if (
-      projectile.isBeam &&
+      type === ProjectileType.Laser &&
       projectile.startX !== undefined &&
       projectile.startY !== undefined
     ) {
@@ -52,84 +55,63 @@ export class ProjectileRenderer {
 
     const radius = Math.max(1, diameter / 2);
 
-    // Elite projectile
-    if (projectile.isElite) {
-      this.renderEliteProjectile(ctx.context, x, y, radius);
-      return;
-    }
-
     // Artillery shell
-    if (projectile.isArtillery) {
+    if (type === ProjectileType.Artillery) {
       this.renderArtilleryProjectile(ctx, projectile);
       return;
     }
 
     // Missile (tier 2 warship)
-    if (projectile.isMissile) {
+    if (type === ProjectileType.Missile) {
       this.renderMissile(ctx, projectile);
       return;
     }
 
-    // Default plasma projectile
-    this.renderPlasmaProjectile(ctx.context, x, y, radius);
+    // Orb-style projectiles (PlasmaOrb, GreenOrb, GoldenOrb)
+    this.renderOrbProjectile(ctx.context, x, y, radius, type);
   }
 
-  private renderPlasmaProjectile(
+  /**
+   * Render an orb-style projectile with configurable colors
+   */
+  private renderOrbProjectile(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,
     radius: number,
+    type?: ProjectileType,
   ) {
+    const config =
+      PROJECTILE_CONFIGS[type ?? ProjectileType.PlasmaOrb] ??
+      PROJECTILE_CONFIGS[ProjectileType.PlasmaOrb];
+
+    // Adjust radius for elite/golden orbs
+    const effectiveRadius =
+      type === ProjectileType.GoldenOrb ? radius * 1.5 : radius;
+
     // Outer glow
-    const gradient = context.createRadialGradient(x, y, 0, x, y, radius * 2.5);
-    gradient.addColorStop(0, "rgba(0, 255, 255, 0.9)");
-    gradient.addColorStop(0.3, "rgba(100, 200, 255, 0.7)");
-    gradient.addColorStop(0.6, "rgba(150, 100, 255, 0.4)");
-    gradient.addColorStop(1, "rgba(100, 50, 200, 0)");
-
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.arc(x, y, radius * 2.5, 0, Math.PI * 2);
-    context.fill();
-
-    // Bright core
-    context.fillStyle = "#ffffff";
-    context.beginPath();
-    context.arc(x, y, radius * 0.5, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  private renderEliteProjectile(
-    context: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    radius: number,
-  ) {
-    const eliteRadius = radius * 1.5;
-
-    // Golden glow
     const gradient = context.createRadialGradient(
       x,
       y,
       0,
       x,
       y,
-      eliteRadius * 2.5,
+      effectiveRadius * 2.5,
     );
-    gradient.addColorStop(0, "rgba(255, 255, 150, 0.95)");
-    gradient.addColorStop(0.3, "rgba(255, 220, 100, 0.8)");
-    gradient.addColorStop(0.6, "rgba(255, 180, 50, 0.5)");
-    gradient.addColorStop(1, "rgba(255, 150, 0, 0)");
+    gradient.addColorStop(0, config.glowColor1);
+    gradient.addColorStop(0.3, config.glowColor2);
+    gradient.addColorStop(0.6, config.glowColor3);
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
 
     context.fillStyle = gradient;
     context.beginPath();
-    context.arc(x, y, eliteRadius * 2.5, 0, Math.PI * 2);
+    context.arc(x, y, effectiveRadius * 2.5, 0, Math.PI * 2);
     context.fill();
 
     // Bright core
-    context.fillStyle = "#ffffff";
+    context.fillStyle = config.coreColor;
     context.beginPath();
-    context.arc(x, y, eliteRadius * 0.5, 0, Math.PI * 2);
+    context.arc(x, y, effectiveRadius * 0.5, 0, Math.PI * 2);
     context.fill();
   }
 

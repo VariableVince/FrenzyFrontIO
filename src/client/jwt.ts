@@ -17,7 +17,7 @@ function getAudience() {
   return domainname;
 }
 
-export function getApiBase() {
+export function getApiBase(): string | null {
   const domainname = getAudience();
 
   if (domainname === "localhost") {
@@ -26,6 +26,11 @@ export function getApiBase() {
       return `https://${apiDomain}`;
     }
     return localStorage.getItem("apiHost") ?? "http://localhost:8787";
+  }
+
+  // FrenzyFront doesn't have an API subdomain
+  if (domainname === "frenzyfront.io") {
+    return null;
   }
 
   return `https://api.${domainname}`;
@@ -57,16 +62,22 @@ async function clearToken() {
 }
 
 export function discordLogin() {
-  window.location.href = `${getApiBase()}/login/discord?redirect_uri=${window.location.href}`;
+  const apiBase = getApiBase();
+  if (apiBase === null) {
+    alert("Login is not available on this domain.");
+    return;
+  }
+  window.location.href = `${apiBase}/login/discord?redirect_uri=${window.location.href}`;
 }
 
 export async function tokenLogin(token: string): Promise<string | null> {
-  const response = await fetch(
-    `${getApiBase()}/login/token?login-token=${token}`,
-    {
-      credentials: "include",
-    },
-  );
+  const apiBase = getApiBase();
+  if (apiBase === null) {
+    return null;
+  }
+  const response = await fetch(`${apiBase}/login/token?login-token=${token}`, {
+    credentials: "include",
+  });
   if (response.status !== 200) {
     console.error("Token login failed", response);
     return null;
@@ -87,8 +98,12 @@ export async function logOut(allSessions: boolean = false) {
   if (token === null) return;
   clearToken();
 
+  const apiBase = getApiBase();
+  if (apiBase === null) {
+    return;
+  }
   const response = await fetch(
-    getApiBase() + (allSessions ? "/revoke" : "/logout"),
+    apiBase + (allSessions ? "/revoke" : "/logout"),
     {
       method: "POST",
       headers: {
@@ -134,7 +149,8 @@ function _isLoggedIn(): IsLoggedInResponse {
     const payload = decodeJwt(token);
     const { iss, aud, exp, iat } = payload;
 
-    if (iss !== getApiBase()) {
+    const apiBase = getApiBase();
+    if (apiBase !== null && iss !== apiBase) {
       // JWT was not issued by the correct server
       console.error(
         'unexpected "iss" claim value',
@@ -197,8 +213,11 @@ export async function postRefresh(): Promise<boolean> {
     const token = getToken();
     if (!token) return false;
 
+    const apiBase = getApiBase();
+    if (apiBase === null) return false;
+
     // Refresh the JWT
-    const response = await fetch(getApiBase() + "/refresh", {
+    const response = await fetch(apiBase + "/refresh", {
       method: "POST",
       credentials: "include",
       headers: {
@@ -233,8 +252,11 @@ export async function getUserMe(): Promise<UserMeResponse | false> {
     const token = getToken();
     if (!token) return false;
 
+    const apiBase = getApiBase();
+    if (apiBase === null) return false;
+
     // Get the user object
-    const response = await fetch(getApiBase() + "/users/@me", {
+    const response = await fetch(apiBase + "/users/@me", {
       headers: {
         authorization: `Bearer ${token}`,
       },
@@ -263,6 +285,7 @@ export async function fetchPlayerById(
 ): Promise<PlayerProfile | false> {
   try {
     const base = getApiBase();
+    if (base === null) return false;
     const token = getToken();
     if (!token) return false;
     const url = `${base}/player/${encodeURIComponent(playerId)}`;

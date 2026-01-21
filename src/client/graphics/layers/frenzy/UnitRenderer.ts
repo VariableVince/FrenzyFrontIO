@@ -1,4 +1,5 @@
 import { GameView, PlayerView } from "../../../../core/game/GameView";
+import { STRUCTURE_CONFIGS } from "../../../../core/game/frenzy/FrenzyTypes";
 import { getMobileConfig } from "../../MobileOptimizations";
 import { FrenzyRenderContext } from "./FrenzyRenderContext";
 
@@ -16,6 +17,8 @@ export interface FrenzyUnitData {
   tier?: number;
   shieldHealth?: number;
   maxShieldHealth?: number;
+  weaponCooldown?: number;
+  fireInterval?: number;
 }
 
 /**
@@ -51,14 +54,6 @@ export class UnitRenderer {
     const isWarship = unit.unitType === "warship";
     const isArtillery = unit.unitType === "artillery";
     const isShieldGenerator = unit.unitType === "shieldGenerator";
-    const isSAMLauncher = unit.unitType === "samLauncher";
-    const isMissileSilo = unit.unitType === "missileSilo";
-    const isTower =
-      isDefensePost ||
-      isArtillery ||
-      isShieldGenerator ||
-      isSAMLauncher ||
-      isMissileSilo;
 
     if (isShieldGenerator) {
       this.renderShieldGenerator(ctx, x, y, player, unit);
@@ -74,13 +69,65 @@ export class UnitRenderer {
       this.renderSoldier(ctx.context, x, y, player);
     }
 
-    // Render health bar for damaged towers
-    if (isTower && unit.maxHealth) {
+    // Get bar config for this structure type
+    const structureKey = this.getStructureKey(unit.unitType);
+    const barConfig = structureKey
+      ? STRUCTURE_CONFIGS[structureKey]?.bars
+      : null;
+
+    // Render health bar for damaged structures (based on config)
+    if (barConfig?.showHealthBar && unit.maxHealth) {
       const healthPercent = unit.health / unit.maxHealth;
       if (healthPercent < 1 && healthPercent > 0) {
         this.renderHealthBar(ctx.context, x, y, unit.health, unit.maxHealth);
       }
     }
+
+    // Render energy bar if configured
+    if (barConfig?.showEnergyBar) {
+      if (barConfig.energyBarType === "shield" && unit.maxShieldHealth) {
+        // Shield bar: shows current shield health
+        this.renderEnergyBar(
+          ctx.context,
+          x,
+          y,
+          unit.shieldHealth ?? 0,
+          unit.maxShieldHealth,
+          "#3498db",
+        );
+      } else if (
+        barConfig.energyBarType === "reload" &&
+        unit.fireInterval &&
+        unit.weaponCooldown !== undefined
+      ) {
+        // Reload bar: shows loading progress (inverse of cooldown)
+        const loadProgress = 1 - unit.weaponCooldown / unit.fireInterval;
+        this.renderEnergyBar(
+          ctx.context,
+          x,
+          y,
+          loadProgress * 100,
+          100,
+          "#f39c12",
+        );
+      }
+    }
+  }
+
+  /**
+   * Maps unit type string to structure config key
+   */
+  private getStructureKey(
+    unitType: string,
+  ): keyof typeof STRUCTURE_CONFIGS | null {
+    const mapping: Record<string, keyof typeof STRUCTURE_CONFIGS> = {
+      defensePost: "defensePost",
+      artillery: "artillery",
+      shieldGenerator: "shieldGenerator",
+      samLauncher: "samLauncher",
+      missileSilo: "missileSilo",
+    };
+    return mapping[unitType] ?? null;
   }
 
   /**
@@ -410,6 +457,33 @@ export class UnitRenderer {
       barWidth * healthPercent,
       barHeight,
     );
+
+    // Border
+    context.strokeStyle = "#000";
+    context.lineWidth = 0.5;
+    context.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
+  }
+
+  private renderEnergyBar(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    current: number,
+    max: number,
+    color: string,
+  ) {
+    const barWidth = 12;
+    const barHeight = 2;
+    const barY = y + 11; // Below health bar
+    const percent = Math.min(1, Math.max(0, current / max));
+
+    // Background
+    context.fillStyle = "rgba(0, 0, 0, 0.7)";
+    context.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
+
+    // Energy fill
+    context.fillStyle = color;
+    context.fillRect(x - barWidth / 2, barY, barWidth * percent, barHeight);
 
     // Border
     context.strokeStyle = "#000";

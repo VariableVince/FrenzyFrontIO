@@ -103,6 +103,7 @@ export enum GameMapType {
   BaikalNukeWars = "Baikal (Nuke Wars)",
   FourIslands = "Four Islands",
   CircleMap = "Circle Map",
+  SquareMap = "Square Map",
 }
 
 export type GameMapName = keyof typeof GameMapType;

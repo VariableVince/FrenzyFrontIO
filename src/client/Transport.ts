@@ -315,6 +315,10 @@ export class Transport {
       this.onSendUpgradeFrenzyUnitIntent(e),
     );
 
+    this.eventBus.on(SendSellFrenzyStructureIntentEvent, (e) =>
+      this.onSendSellFrenzyStructureIntent(e),
+    );
+
     this.eventBus.on(SendKickPlayerIntentEvent, (e) =>
       this.onSendKickPlayerIntent(e),
     );
@@ -741,6 +745,18 @@ export class Transport {
       clientID: this.lobbyConfig.clientID,
       unitId: event.unitId,
       unitType: event.unitType,
+    });
+  }
+
+  private onSendSellFrenzyStructureIntent(
+    event: SendSellFrenzyStructureIntentEvent,
+  ) {
+    this.sendIntent({
+      type: "sell_frenzy_structure",
+      clientID: this.lobbyConfig.clientID,
+      x: event.x,
+      y: event.y,
+      structureType: event.structureType,
     });
   }
 

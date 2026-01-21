@@ -208,6 +208,21 @@ export class Executor {
         }
         return new NoOpExecution();
       }
+      case "sell_frenzy_structure": {
+        // Sell a structure in Frenzy mode for 50% refund
+        if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+          const frenzyManager = this.mg.frenzyManager();
+          if (frenzyManager) {
+            frenzyManager.sellStructure(
+              player.id(),
+              intent.x,
+              intent.y,
+              intent.structureType,
+            );
+          }
+        }
+        return new NoOpExecution();
+      }
       default:
         throw new Error(`intent type ${intent} not found`);
     }

@@ -4,6 +4,18 @@ import { getAltKey, getModifierKey, translateText } from "../client/Utils";
 import "./components/Difficulties";
 import "./components/Maps";
 
+// Import icons for webpack to resolve paths correctly
+import chatIcon from "../../resources/images/ChatIconWhite.svg";
+import harborIcon from "../../resources/images/HarborIconWhite.svg";
+import mineIcon from "../../resources/images/MineIconWhite.svg";
+import missileSiloIcon from "../../resources/images/MissileSiloIconWhite.svg";
+import hydrogenBombIcon from "../../resources/images/MushroomCloudIconWhite.svg";
+import atomBombIcon from "../../resources/images/NukeIconWhite.svg";
+import samLauncherIcon from "../../resources/images/SamLauncherIconWhite.svg";
+import shieldIcon from "../../resources/images/ShieldIconWhite.svg";
+import shipIcon from "../../resources/images/ShipIconWhite.svg";
+import unitFactoryIcon from "../../resources/images/UnitFactoryIconWhite.svg";
+
 @customElement("help-modal")
 export class HelpModal extends LitElement {
   @query("o-modal") private modalEl!: HTMLElement & {
@@ -325,7 +337,7 @@ export class HelpModal extends LitElement {
             <p class="mb-4">${translateText("help_modal.radial_desc")}</p>
             <ul>
               <li class="mb-4">
-                <div class="inline-block icon build-icon"></div>
+                <img src="${buildIcon}" alt="Build" class="inline-block icon" />
                 <span>${translateText("help_modal.radial_build")}</span>
               </li>
               <li class="mb-4">
@@ -338,15 +350,23 @@ export class HelpModal extends LitElement {
                 <span>${translateText("help_modal.radial_info")}</span>
               </li>
               <li class="mb-4">
-                <div class="inline-block icon boat-icon"></div>
+                <img src="${boatIcon}" alt="Boat" class="inline-block icon" />
                 <span>${translateText("help_modal.radial_boat")}</span>
               </li>
               <li class="mb-4">
-                <div class="inline-block icon alliance-icon"></div>
+                <img
+                  src="${allianceIcon}"
+                  alt="Alliance"
+                  class="inline-block icon"
+                />
                 <span>${translateText("help_modal.info_alliance")}</span>
               </li>
               <li class="mb-4">
-                <div class="inline-block icon betray-icon"></div>
+                <img
+                  src="${betrayIcon}"
+                  alt="Betray"
+                  class="inline-block icon"
+                />
                 <span>${translateText("help_modal.ally_betray")}</span>
               </li>
             </ul>
@@ -377,19 +397,31 @@ export class HelpModal extends LitElement {
               <p class="mb-4">${translateText("help_modal.info_enemy_desc")}</p>
               <ul>
                 <li class="mb-4">
-                  <div class="inline-block icon chat-icon"></div>
+                  <img src="${chatIcon}" alt="Chat" class="inline-block icon" />
                   <span>${translateText("help_modal.info_chat")}</span>
                 </li>
                 <li class="mb-4">
-                  <div class="inline-block icon target-icon"></div>
+                  <img
+                    src="${targetIcon}"
+                    alt="Target"
+                    class="inline-block icon"
+                  />
                   <span>${translateText("help_modal.info_target")}</span>
                 </li>
                 <li class="mb-4">
-                  <div class="inline-block icon alliance-icon"></div>
+                  <img
+                    src="${allianceIcon}"
+                    alt="Alliance"
+                    class="inline-block icon"
+                  />
                   <span>${translateText("help_modal.info_alliance")}</span>
                 </li>
                 <li class="mb-4">
-                  <div class="inline-block icon emoji-icon"></div>
+                  <img
+                    src="${emojiIcon}"
+                    alt="Emoji"
+                    class="inline-block icon"
+                  />
                   <span>${translateText("help_modal.info_emoji")}</span>
                 </li>
                 <li class="mb-4">
@@ -421,15 +453,27 @@ export class HelpModal extends LitElement {
               <p class="mb-4">${translateText("help_modal.info_ally_desc")}</p>
               <ul>
                 <li class="mb-4">
-                  <div class="inline-block icon betray-icon"></div>
+                  <img
+                    src="${betrayIcon}"
+                    alt="Betray"
+                    class="inline-block icon"
+                  />
                   <span>${translateText("help_modal.ally_betray")}</span>
                 </li>
                 <li class="mb-4">
-                  <div class="inline-block icon donate-icon"></div>
+                  <img
+                    src="${donateTroopIcon}"
+                    alt="Donate Troops"
+                    class="inline-block icon"
+                  />
                   <span>${translateText("help_modal.ally_donate")}</span>
                 </li>
                 <li class="mb-4">
-                  <div class="inline-block icon donate-gold-icon"></div>
+                  <img
+                    src="${donateGoldIcon}"
+                    alt="Donate Gold"
+                    class="inline-block icon"
+                  />
                   <span>${translateText("help_modal.ally_donate_gold")}</span>
                 </li>
               </ul>
@@ -455,47 +499,71 @@ export class HelpModal extends LitElement {
             <tbody class="text-left">
               <tr>
                 <td>${translateText("help_modal.build_city")}</td>
-                <td><div class="icon mine-icon"></div></td>
+                <td><img src="${mineIcon}" alt="Mine" class="icon" /></td>
                 <td>${translateText("help_modal.build_city_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_defense")}</td>
-                <td><div class="icon defense-post-icon"></div></td>
+                <td>
+                  <img src="${shieldIcon}" alt="Defense Post" class="icon" />
+                </td>
                 <td>${translateText("help_modal.build_defense_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_port")}</td>
-                <td><div class="icon port-icon"></div></td>
+                <td><img src="${harborIcon}" alt="Port" class="icon" /></td>
                 <td>${translateText("help_modal.build_port_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_factory")}</td>
-                <td><div class="icon unit-factory-icon"></div></td>
+                <td>
+                  <img src="${unitFactoryIcon}" alt="Factory" class="icon" />
+                </td>
                 <td>${translateText("help_modal.build_factory_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_warship")}</td>
-                <td><div class="icon warship-icon"></div></td>
+                <td><img src="${shipIcon}" alt="Warship" class="icon" /></td>
                 <td>${translateText("help_modal.build_warship_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_silo")}</td>
-                <td><div class="icon missile-silo-icon"></div></td>
+                <td>
+                  <img
+                    src="${missileSiloIcon}"
+                    alt="Missile Silo"
+                    class="icon"
+                  />
+                </td>
                 <td>${translateText("help_modal.build_silo_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_sam")}</td>
-                <td><div class="icon sam-launcher-icon"></div></td>
+                <td>
+                  <img
+                    src="${samLauncherIcon}"
+                    alt="SAM Launcher"
+                    class="icon"
+                  />
+                </td>
                 <td>${translateText("help_modal.build_sam_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_atom")}</td>
-                <td><div class="icon atom-bomb-icon"></div></td>
+                <td>
+                  <img src="${atomBombIcon}" alt="Atom Bomb" class="icon" />
+                </td>
                 <td>${translateText("help_modal.build_atom_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_hydrogen")}</td>
-                <td><div class="icon hydrogen-bomb-icon"></div></td>
+                <td>
+                  <img
+                    src="${hydrogenBombIcon}"
+                    alt="Hydrogen Bomb"
+                    class="icon"
+                  />
+                </td>
                 <td>${translateText("help_modal.build_hydrogen_desc")}</td>
               </tr>
             </tbody>

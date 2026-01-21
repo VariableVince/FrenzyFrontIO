@@ -12,27 +12,30 @@ export async function handlePurchase(
   pattern: Pattern,
   colorPalette: ColorPalette | null,
 ) {
+  const apiBase = getApiBase();
+  if (apiBase === null) {
+    alert("Purchases are not available on this domain.");
+    return;
+  }
+
   if (pattern.product === null) {
     alert("This pattern is not available for purchase.");
     return;
   }
 
-  const response = await fetch(
-    `${getApiBase()}/stripe/create-checkout-session`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        authorization: getAuthHeader(),
-        "X-Persistent-Id": getPersistentID(),
-      },
-      body: JSON.stringify({
-        priceId: pattern.product.priceId,
-        hostname: window.location.origin,
-        colorPaletteName: colorPalette?.name,
-      }),
+  const response = await fetch(`${apiBase}/stripe/create-checkout-session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      authorization: getAuthHeader(),
+      "X-Persistent-Id": getPersistentID(),
     },
-  );
+    body: JSON.stringify({
+      priceId: pattern.product.priceId,
+      hostname: window.location.origin,
+      colorPaletteName: colorPalette?.name,
+    }),
+  });
 
   if (!response.ok) {
     console.error(
@@ -54,7 +57,12 @@ export async function handlePurchase(
 
 export async function fetchCosmetics(): Promise<Cosmetics | null> {
   try {
-    const response = await fetch(`${getApiBase()}/cosmetics.json`);
+    const apiBase = getApiBase();
+    if (apiBase === null) {
+      // No API available (e.g., frenzyfront.io)
+      return null;
+    }
+    const response = await fetch(`${apiBase}/cosmetics.json`);
     if (!response.ok) {
       console.error(`HTTP error! status: ${response.status}`);
       return null;

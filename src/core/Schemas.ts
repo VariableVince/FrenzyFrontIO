@@ -54,7 +54,8 @@ export type Intent =
   | UpgradeFactoryIntent
   | UpgradeMineIntent
   | UpgradePortIntent
-  | UpgradeFrenzyUnitIntent;
+  | UpgradeFrenzyUnitIntent
+  | SellFrenzyStructureIntent;
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
@@ -93,6 +94,9 @@ export type UpgradeMineIntent = z.infer<typeof UpgradeMineIntentSchema>;
 export type UpgradePortIntent = z.infer<typeof UpgradePortIntentSchema>;
 export type UpgradeFrenzyUnitIntent = z.infer<
   typeof UpgradeFrenzyUnitIntentSchema
+>;
+export type SellFrenzyStructureIntent = z.infer<
+  typeof SellFrenzyStructureIntentSchema
 >;
 
 export type Turn = z.infer<typeof TurnSchema>;
@@ -397,6 +401,13 @@ export const UpgradeFrenzyUnitIntentSchema = BaseIntentSchema.extend({
   unitType: z.string(),
 });
 
+export const SellFrenzyStructureIntentSchema = BaseIntentSchema.extend({
+  type: z.literal("sell_frenzy_structure"),
+  x: z.number(),
+  y: z.number(),
+  structureType: z.string(),
+});
+
 const IntentSchema = z.discriminatedUnion("type", [
   AttackIntentSchema,
   CancelAttackIntentSchema,
@@ -426,6 +437,7 @@ const IntentSchema = z.discriminatedUnion("type", [
   UpgradeMineIntentSchema,
   UpgradePortIntentSchema,
   UpgradeFrenzyUnitIntentSchema,
+  SellFrenzyStructureIntentSchema,
 ]);
 
 //

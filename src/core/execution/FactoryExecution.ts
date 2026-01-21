@@ -1,4 +1,11 @@
-import { Execution, Game, GameFork, Player, Unit, UnitType } from "../game/Game";
+import {
+  Execution,
+  Game,
+  GameFork,
+  Player,
+  Unit,
+  UnitType,
+} from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { TrainStationExecution } from "./TrainStationExecution";
 
@@ -61,6 +68,10 @@ export class FactoryExecution implements Execution {
   }
 
   createStation(): void {
+    // Skip train stations in Frenzy mode
+    if (this.game.config().gameConfig().gameFork === GameFork.Frenzy) {
+      return;
+    }
     if (this.factory !== null) {
       const structures = this.game.nearbyUnits(
         this.factory.tile()!,

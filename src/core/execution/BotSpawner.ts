@@ -5,6 +5,7 @@ import { GameID } from "../Schemas";
 import { simpleHash } from "../Util";
 import { SpawnExecution } from "./SpawnExecution";
 import { BOT_NAME_PREFIXES, BOT_NAME_SUFFIXES } from "./utils/BotNames";
+import { isInSpawnExclusionZone } from "./utils/PlayerSpawner";
 
 export class BotSpawner {
   private random: PseudoRandom;
@@ -40,6 +41,21 @@ export class BotSpawner {
     if (!this.gs.isLand(tile)) {
       return null;
     }
+
+    // Check spawn exclusion zone for SquareMap
+    const mapType = this.gs.config().gameConfig().gameMap;
+    if (
+      isInSpawnExclusionZone(
+        this.gs.x(tile),
+        this.gs.y(tile),
+        this.gs.width(),
+        this.gs.height(),
+        mapType,
+      )
+    ) {
+      return null;
+    }
+
     for (const spawn of this.bots) {
       if (this.gs.manhattanDist(spawn.tile, tile) < 30) {
         return null;

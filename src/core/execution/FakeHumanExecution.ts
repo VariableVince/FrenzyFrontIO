@@ -214,8 +214,11 @@ export class FakeHumanExecution implements Execution {
     this.handleUnits();
     this.handleEmbargoesToHostileNations();
 
-    // In Frenzy mode, NPCs don't send attacks - units handle expansion
+    // In Frenzy mode, NPCs don't send ground attacks - units handle expansion
+    // But they still can use nukes and upgrades
     if (isFrenzyMode) {
+      this.maybeSendFrenzyNuke();
+      this.maybeUpgradeFrenzyStructures();
       return;
     }
 
@@ -514,6 +517,156 @@ export class FakeHumanExecution implements Execution {
         this.maybeSpawnStructure(UnitType.Artillery, (num) => num + 3) ||
         this.maybeSpawnStructure(UnitType.MissileSilo, (num) => num + 2)
       );
+    }
+  }
+
+  /**
+   * Nations can send nukes in Frenzy mode.
+   * They target enemy HQs, structures, and high-value areas.
+   */
+  private maybeSendFrenzyNuke() {
+    if (this.player === null) return;
+
+    const frenzyManager = this.mg.frenzyManager();
+    if (!frenzyManager) return;
+
+    // Check if we have missile silos
+    const silos = frenzyManager.getStructuresForPlayer(
+      this.player.id(),
+      "missileSilo",
+    );
+    if (silos.length === 0) return;
+
+    // Check if we can afford a nuke
+    const nukeCost = this.cost(UnitType.AtomBomb);
+    const hydroCost = this.cost(UnitType.HydrogenBomb);
+
+    if (this.player.gold() < nukeCost) return;
+
+    // Random chance to not send nuke (don't spam)
+    if (!this.random.chance(30)) return;
+
+    // Choose nuke type based on gold
+    const nukeType =
+      this.player.gold() >= hydroCost
+        ? UnitType.HydrogenBomb
+        : UnitType.AtomBomb;
+
+    // Find an enemy to nuke - prefer enemies with more territory
+    const enemies = this.mg
+      .players()
+      .filter(
+        (p) =>
+          p.id() !== this.player!.id() &&
+          p.isAlive() &&
+          !this.player!.isAlliedWith(p) &&
+          !this.player!.isOnSameTeam(p) &&
+          p.type() !== PlayerType.Bot, // Don't nuke bots
+      )
+      .sort((a, b) => b.numTilesOwned() - a.numTilesOwned());
+
+    if (enemies.length === 0) return;
+
+    // Pick a random enemy from top 3
+    const topEnemies = enemies.slice(0, Math.min(3, enemies.length));
+    const enemy = this.random.randElement(topEnemies);
+
+    // Find a good target tile - enemy HQ or structures
+    const enemyHQ = frenzyManager.getHQForPlayer(enemy.id());
+
+    let bestTile: TileRef | null = null;
+
+    // Try to target enemy HQ first
+    if (enemyHQ) {
+      const hqTile = this.mg.ref(Math.floor(enemyHQ.x), Math.floor(enemyHQ.y));
+      if (this.player.canBuild(nukeType, hqTile)) {
+        bestTile = hqTile;
+      }
+    }
+
+    // If no HQ target, try random enemy territory
+    if (bestTile === null) {
+      const enemyTiles = Array.from(enemy.tiles());
+      if (enemyTiles.length > 0) {
+        // Try a few random tiles
+        for (let i = 0; i < 5; i++) {
+          const tile = this.random.randElement(enemyTiles);
+          if (this.player.canBuild(nukeType, tile)) {
+            bestTile = tile;
+            break;
+          }
+        }
+      }
+    }
+
+    if (bestTile !== null) {
+      this.sendNuke(bestTile, nukeType);
+    }
+  }
+
+  /**
+   * Nations can upgrade structures in Frenzy mode.
+   * Prioritizes HQ upgrades first, then economy, then defense.
+   */
+  private maybeUpgradeFrenzyStructures() {
+    if (this.player === null) return;
+
+    const frenzyManager = this.mg.frenzyManager();
+    if (!frenzyManager) return;
+
+    // Random chance to attempt upgrade (don't spam)
+    if (!this.random.chance(50)) return;
+
+    const playerId = this.player.id();
+
+    // Try to upgrade HQ first (most important)
+    if (frenzyManager.canUpgradeHQ(playerId)) {
+      frenzyManager.upgradeHQ(playerId);
+      return;
+    }
+
+    // Try to upgrade mines (economy)
+    const mines = frenzyManager.getStructuresForPlayer(playerId, "mine");
+    for (const mine of mines) {
+      if (frenzyManager.canUpgradeMine(playerId, mine.tile)) {
+        frenzyManager.upgradeMine(playerId, mine.tile);
+        return;
+      }
+    }
+
+    // Try to upgrade factories (check HQ tier requirement first)
+    if (frenzyManager.canUpgradeFactory(playerId)) {
+      const factories = frenzyManager.getStructuresForPlayer(
+        playerId,
+        "factory",
+      );
+      for (const factory of factories) {
+        if (frenzyManager.upgradeFactory(playerId, factory.tile)) {
+          return;
+        }
+      }
+    }
+
+    // Try to upgrade ports (check HQ tier requirement first)
+    if (frenzyManager.canUpgradePort(playerId)) {
+      const ports = frenzyManager.getStructuresForPlayer(playerId, "port");
+      for (const port of ports) {
+        if (frenzyManager.upgradePort(playerId, port.tile)) {
+          return;
+        }
+      }
+    }
+
+    // Try to upgrade defense posts
+    const defensePosts = frenzyManager.getUnitsForPlayer(
+      playerId,
+      "defensePost",
+    );
+    for (const post of defensePosts) {
+      if (frenzyManager.canUpgradeDefensePost(playerId, post.id)) {
+        frenzyManager.upgradeDefensePost(playerId, post.id);
+        return;
+      }
     }
   }
 

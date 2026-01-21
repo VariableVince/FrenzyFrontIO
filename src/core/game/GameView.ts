@@ -481,10 +481,13 @@ export class GameView implements GameMap {
       x: number;
       y: number;
       health: number;
+      maxHealth?: number;
       unitType: string;
       tier?: number;
       shieldHealth?: number;
       maxShieldHealth?: number;
+      weaponCooldown?: number;
+      fireInterval?: number;
     }>;
     coreBuildings: Array<{
       playerId: string;
@@ -511,11 +514,9 @@ export class GameView implements GameMap {
       playerId: string;
       x: number;
       y: number;
-      isBeam?: boolean;
-      isElite?: boolean;
+      projectileType?: string;
       startX?: number;
       startY?: number;
-      isArtillery?: boolean;
       targetX?: number;
       targetY?: number;
       areaRadius?: number;

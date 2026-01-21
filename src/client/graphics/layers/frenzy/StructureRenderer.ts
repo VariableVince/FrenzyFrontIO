@@ -1,5 +1,6 @@
 import { UnitType } from "../../../../core/game/Game";
 import { GameView, PlayerView, UnitView } from "../../../../core/game/GameView";
+import { STRUCTURE_CONFIGS } from "../../../../core/game/frenzy/FrenzyTypes";
 import { FrenzyRenderContext, getTierRoman } from "./FrenzyRenderContext";
 
 /**
@@ -232,17 +233,52 @@ export class StructureRenderer {
         break;
     }
 
-    // Render healthbar if damaged
-    if (structure.health < structure.maxHealth && structure.health > 0) {
+    // Get bar config for this structure type
+    const structureKey = this.getStructureConfigKey(structure.type);
+    const barConfig = structureKey
+      ? STRUCTURE_CONFIGS[structureKey]?.bars
+      : null;
+    const structureSize = this.getStructureSize(structure.type);
+
+    // Render healthbar if damaged and config allows
+    if (
+      barConfig?.showHealthBar &&
+      structure.health < structure.maxHealth &&
+      structure.health > 0
+    ) {
       this.renderHealthBar(
         ctx.context,
         x,
         y,
         structure.health,
         structure.maxHealth,
-        this.getStructureSize(structure.type),
+        structureSize,
       );
     }
+  }
+
+  /**
+   * Maps FrenzyStructureType to STRUCTURE_CONFIGS key
+   */
+  private getStructureConfigKey(
+    type: FrenzyStructureType,
+  ): keyof typeof STRUCTURE_CONFIGS | null {
+    const mapping: Record<
+      FrenzyStructureType,
+      keyof typeof STRUCTURE_CONFIGS | null
+    > = {
+      [FrenzyStructureType.HQ]: "hq",
+      [FrenzyStructureType.Mine]: "mine",
+      [FrenzyStructureType.Factory]: "factory",
+      [FrenzyStructureType.Port]: "port",
+      [FrenzyStructureType.DefensePost]: "defensePost",
+      [FrenzyStructureType.MissileSilo]: "missileSilo",
+      [FrenzyStructureType.SAMLauncher]: "samLauncher",
+      [FrenzyStructureType.Artillery]: "artillery",
+      [FrenzyStructureType.ShieldGenerator]: "shieldGenerator",
+      [FrenzyStructureType.Construction]: null,
+    };
+    return mapping[type] ?? null;
   }
 
   private getStructureSize(type: FrenzyStructureType): number {
@@ -381,7 +417,7 @@ export class StructureRenderer {
     player: PlayerView,
     level: number,
   ) {
-    const size = 8;
+    const size = STRUCTURE_CONFIGS.mine.size;
     const sides = 6;
     const angleOffset = Math.PI / 6;
 
@@ -432,7 +468,7 @@ export class StructureRenderer {
     player: PlayerView,
     tier: number,
   ) {
-    const size = 8;
+    const size = STRUCTURE_CONFIGS.factory.size;
     const halfSize = size / 2;
     const notch = size * 0.15;
 
@@ -484,7 +520,7 @@ export class StructureRenderer {
     player: PlayerView,
     tier: number,
   ) {
-    const size = 8; // Increased from 6.4 to match larger defense post
+    const size = STRUCTURE_CONFIGS.defensePost.size;
     const halfSize = size / 2;
 
     // Outer glow
@@ -541,7 +577,7 @@ export class StructureRenderer {
     player: PlayerView,
     tier: number,
   ) {
-    const size = 8;
+    const size = STRUCTURE_CONFIGS.port.size;
     const halfSize = size / 2;
 
     // Outer glow
@@ -592,7 +628,7 @@ export class StructureRenderer {
     player: PlayerView,
     tier: number,
   ) {
-    const size = 6.4;
+    const size = STRUCTURE_CONFIGS.missileSilo.size;
     const halfSize = size / 2;
 
     // Outer glow
@@ -649,7 +685,7 @@ export class StructureRenderer {
     player: PlayerView,
     tier: number,
   ) {
-    const size = 6.4;
+    const size = STRUCTURE_CONFIGS.samLauncher.size;
     const halfSize = size / 2;
 
     // Outer glow
@@ -701,7 +737,7 @@ export class StructureRenderer {
     y: number,
     player: PlayerView,
   ) {
-    const size = 7; // Same as UnitRenderer.renderArtillery
+    const size = STRUCTURE_CONFIGS.artillery.size; // Same as UnitRenderer.renderArtillery
 
     // Base platform
     context.fillStyle = "#555";
@@ -741,7 +777,7 @@ export class StructureRenderer {
     y: number,
     player: PlayerView,
   ) {
-    const size = 6;
+    const size = STRUCTURE_CONFIGS.shieldGenerator.size;
 
     context.fillStyle = player.territoryColor().toRgbString();
     context.beginPath();

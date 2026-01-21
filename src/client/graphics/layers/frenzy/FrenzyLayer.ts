@@ -1,4 +1,4 @@
-import { GameFork } from "../../../../core/game/Game";
+import { GameFork, GameMapType } from "../../../../core/game/Game";
 import { GameView } from "../../../../core/game/GameView";
 import { FrameProfiler } from "../../FrameProfiler";
 import { TransformHandler } from "../../TransformHandler";
@@ -174,6 +174,11 @@ export class FrenzyLayer implements Layer {
     }
     FrameProfiler.end("FrenzyLayer:crystalAssignment", mineStart);
 
+    // Render spawn exclusion zone if in spawn phase and on SquareMap
+    if (this.game.inSpawnPhase()) {
+      this.renderSpawnExclusionZone(ctx);
+    }
+
     // Render mining cells effect
     const protoStart = FrameProfiler.start();
     this.miningCellsRenderer.render(ctx, allMines, crystals);
@@ -222,6 +227,75 @@ export class FrenzyLayer implements Layer {
     // Render effects
     this.effectsRenderer.renderExplosions(ctx, deltaTime);
     this.effectsRenderer.renderGoldEffects(ctx, deltaTime);
+  }
+
+  /**
+   * Render red stripes overlay for spawn exclusion zone during spawn phase.
+   * Only renders for SquareMap where the center area is excluded from spawning.
+   */
+  private renderSpawnExclusionZone(ctx: FrenzyRenderContext) {
+    const mapType = this.game.config().gameConfig().gameMap;
+    if (mapType !== GameMapType.SquareMap) {
+      return;
+    }
+
+    const width = this.game.width();
+    const height = this.game.height();
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Exclusion zone is 50% of map size (0.25 on each side from center)
+    const exclusionHalfSize = Math.min(width, height) * 0.25;
+
+    // Convert to rendering coordinates (centered at 0,0)
+    const left = centerX - exclusionHalfSize - ctx.halfWidth;
+    const right = centerX + exclusionHalfSize - ctx.halfWidth;
+    const top = centerY - exclusionHalfSize - ctx.halfHeight;
+    const bottom = centerY + exclusionHalfSize - ctx.halfHeight;
+    const zoneWidth = right - left;
+    const zoneHeight = bottom - top;
+
+    ctx.context.save();
+
+    // Create clipping region for the exclusion zone
+    ctx.context.beginPath();
+    ctx.context.rect(left, top, zoneWidth, zoneHeight);
+    ctx.context.clip();
+
+    // Draw red diagonal stripes pattern
+    const stripeWidth = 8;
+    const stripeGap = 16;
+    const stripeColor = "rgba(255, 60, 60, 0.3)";
+
+    ctx.context.strokeStyle = stripeColor;
+    ctx.context.lineWidth = stripeWidth;
+
+    // Animate stripes by offsetting based on time
+    const animationOffset = (ctx.time * 20) % (stripeWidth + stripeGap);
+
+    // Draw diagonal stripes across the zone
+    const diagonal = Math.sqrt(zoneWidth * zoneWidth + zoneHeight * zoneHeight);
+    const numStripes = Math.ceil(diagonal / (stripeWidth + stripeGap)) + 2;
+
+    for (let i = -numStripes; i < numStripes; i++) {
+      const offset =
+        i * (stripeWidth + stripeGap) + animationOffset - diagonal / 2;
+      ctx.context.beginPath();
+      ctx.context.moveTo(left + offset, top);
+      ctx.context.lineTo(left + offset + diagonal, top + diagonal);
+      ctx.context.stroke();
+    }
+
+    // Draw border around the exclusion zone
+    ctx.context.restore();
+    ctx.context.save();
+
+    ctx.context.strokeStyle = "rgba(255, 60, 60, 0.6)";
+    ctx.context.lineWidth = 2;
+    ctx.context.setLineDash([10, 5]);
+    ctx.context.strokeRect(left, top, zoneWidth, zoneHeight);
+
+    ctx.context.restore();
   }
 
   /**

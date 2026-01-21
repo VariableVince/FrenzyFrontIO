@@ -1279,6 +1279,16 @@ export const buildMenuElement: MenuElement = {
   disabled: (params: MenuElementParams) => params.game.inSpawnPhase(),
   icon: buildIcon,
   color: COLORS.build,
+  tooltipKeys: [
+    {
+      key: "radial_menu.buildings_title",
+      className: "title",
+    },
+    {
+      key: "radial_menu.buildings_description",
+      className: "description",
+    },
+  ],
 
   subMenu: (params: MenuElementParams) => {
     if (params === undefined) return [];
@@ -1572,6 +1582,16 @@ export const rootMenuElement: MenuElement = {
         text: "⬆",
         fontSize: "24px",
         color: "#999",
+        tooltipKeys: [
+          {
+            key: "radial_menu.upgrade_title",
+            className: "title",
+          },
+          {
+            key: "radial_menu.upgrade_description",
+            className: "description",
+          },
+        ],
       };
     }
 

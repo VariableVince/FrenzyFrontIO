@@ -1,4 +1,11 @@
-import { Execution, Game, Player, Unit, UnitType } from "../game/Game";
+import {
+  Execution,
+  Game,
+  GameFork,
+  Player,
+  Unit,
+  UnitType,
+} from "../game/Game";
 import { TileRef } from "../game/GameMap";
 import { TrainStationExecution } from "./TrainStationExecution";
 
@@ -46,6 +53,10 @@ export class CityExecution implements Execution {
   }
 
   createStation(): void {
+    // Skip train stations in Frenzy mode
+    if (this.mg.config().gameConfig().gameFork === GameFork.Frenzy) {
+      return;
+    }
     if (this.city !== null) {
       const nearbyFactory = this.mg.hasUnitNearby(
         this.city.tile()!,

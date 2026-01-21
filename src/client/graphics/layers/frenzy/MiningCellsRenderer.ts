@@ -71,6 +71,15 @@ export class MiningCellsRenderer {
   private isOwnedByPlayer(x: number, y: number, playerId: string): boolean {
     const tileX = Math.floor(x);
     const tileY = Math.floor(y);
+    // Bounds check before calling ref to avoid invalid coordinate errors
+    if (
+      tileX < 0 ||
+      tileY < 0 ||
+      tileX >= this.game.width() ||
+      tileY >= this.game.height()
+    ) {
+      return false;
+    }
     const tile = this.game.ref(tileX, tileY);
     if (!tile) return false;
     const owner = this.game.owner(tile);

@@ -235,7 +235,11 @@ export class JoinPrivateLobbyModal extends LitElement {
   private async checkArchivedGame(
     lobbyId: string,
   ): Promise<"success" | "not_found" | "version_mismatch" | "error"> {
-    const archivePromise = fetch(`${getApiBase()}/game/${lobbyId}`, {
+    const apiBase = getApiBase();
+    if (apiBase === null) {
+      return "error";
+    }
+    const archivePromise = fetch(`${apiBase}/game/${lobbyId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

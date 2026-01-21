@@ -29,7 +29,7 @@ import { renderUnitTypeOptions } from "./utilities/RenderUnitTypeOptions";
 
 // Singleplayer-specific map categories: Only Frenzy maps for now
 const singlePlayerMapCategories: Record<string, GameMapType[]> = {
-  frenzy: [GameMapType.CircleMap],
+  frenzy: [GameMapType.CircleMap, GameMapType.SquareMap],
 };
 
 @customElement("single-player-modal")

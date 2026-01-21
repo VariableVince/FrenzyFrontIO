@@ -118,7 +118,9 @@ export class GameStartingModal extends LitElement {
   render() {
     return html`
       <div class="modal ${this.isVisible ? "visible" : ""}">
-        <div class="copyright">© FrenzyFront and Contributors</div>
+        <div class="copyright">
+          © FrenzyFront™, © OpenFront and Contributors
+        </div>
         <div class="copyright" style="font-size: 10px; margin-top: 4px;">
           Based on
           <a

@@ -1,6 +1,9 @@
 import { JWK } from "jose";
 import { z } from "zod";
-import { DEFAULT_FRENZY_CONFIG } from "../game/frenzy/FrenzyTypes";
+import {
+  DEFAULT_FRENZY_CONFIG,
+  STRUCTURE_CONFIGS,
+} from "../game/frenzy/FrenzyTypes";
 import {
   Difficulty,
   Duos,
@@ -80,6 +83,7 @@ const numPlayersConfig = {
   [GameMapType.Pangaea]: [20, 15, 10],
   [GameMapType.Pluto]: [100, 70, 50],
   [GameMapType.SouthAmerica]: [70, 50, 40],
+  [GameMapType.SquareMap]: [20, 15, 10],
   [GameMapType.StraitOfGibraltar]: [100, 70, 50],
   [GameMapType.World]: [50, 30, 20],
 } as const satisfies Record<GameMapType, [number, number, number]>;
@@ -475,7 +479,7 @@ export class DefaultConfig implements Config {
         return {
           cost:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? () => BigInt(DEFAULT_FRENZY_CONFIG.factoryCost)
+              ? () => BigInt(STRUCTURE_CONFIGS.port.buildCost)
               : this.costWrapper(
                   (numUnits: number) =>
                     Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
@@ -483,18 +487,28 @@ export class DefaultConfig implements Config {
                   UnitType.Factory,
                 ),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.port.constructionTime
+              : 2 * 10,
           upgradable: true,
           canBuildTrainStation: true,
         };
       case UnitType.AtomBomb:
         return {
-          cost: this.costWrapper(() => 750_000, UnitType.AtomBomb),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.missileSilo.nukeCost!)
+              : this.costWrapper(() => 750_000, UnitType.AtomBomb),
           territoryBound: false,
         };
       case UnitType.HydrogenBomb:
         return {
-          cost: this.costWrapper(() => 5_000_000, UnitType.HydrogenBomb),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.missileSilo.hydroCost!)
+              : this.costWrapper(() => 5_000_000, UnitType.HydrogenBomb),
           territoryBound: false,
         };
       case UnitType.MIRV:
@@ -514,53 +528,78 @@ export class DefaultConfig implements Config {
         };
       case UnitType.MissileSilo:
         return {
-          cost: this.costWrapper(() => 1_000_000, UnitType.MissileSilo),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.missileSilo.buildCost)
+              : this.costWrapper(() => 1_000_000, UnitType.MissileSilo),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 10 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.missileSilo.constructionTime
+              : 10 * 10,
           upgradable: true,
         };
       case UnitType.DefensePost:
         return {
-          cost: this.costWrapper(() => 25_000, UnitType.DefensePost),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.defensePost.buildCost)
+              : this.costWrapper(() => 25_000, UnitType.DefensePost),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 5 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.defensePost.constructionTime
+              : 5 * 10,
           upgradable: true,
         };
       case UnitType.SAMLauncher:
         return {
-          cost: this.costWrapper(
-            (numUnits: number) =>
-              Math.min(3_000_000, (numUnits + 1) * 1_500_000),
-            UnitType.SAMLauncher,
-          ),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.samLauncher.buildCost)
+              : this.costWrapper(
+                  (numUnits: number) =>
+                    Math.min(3_000_000, (numUnits + 1) * 1_500_000),
+                  UnitType.SAMLauncher,
+                ),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 30 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.samLauncher.constructionTime
+              : 30 * 10,
           upgradable: true,
         };
       case UnitType.City:
         return {
           cost:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? () => BigInt(DEFAULT_FRENZY_CONFIG.mineCost)
+              ? () => BigInt(STRUCTURE_CONFIGS.mine.buildCost)
               : this.costWrapper(
                   (numUnits: number) =>
                     Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
                   UnitType.City,
                 ),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.mine.constructionTime
+              : 2 * 10,
           upgradable: true,
           canBuildTrainStation: true,
           maxHealth:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? DEFAULT_FRENZY_CONFIG.mineHealth
+              ? STRUCTURE_CONFIGS.mine.health
               : undefined,
         };
       case UnitType.Factory:
         return {
           cost:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? () => BigInt(DEFAULT_FRENZY_CONFIG.factoryCost)
+              ? () => BigInt(STRUCTURE_CONFIGS.factory.buildCost)
               : this.costWrapper(
                   (numUnits: number) =>
                     Math.min(1_000_000, Math.pow(2, numUnits) * 125_000),
@@ -568,13 +607,17 @@ export class DefaultConfig implements Config {
                   UnitType.Port,
                 ),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 2 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.factory.constructionTime
+              : 2 * 10,
           canBuildTrainStation: true,
           experimental: true,
           upgradable: true,
           maxHealth:
             this._gameConfig.gameFork === GameFork.Frenzy
-              ? DEFAULT_FRENZY_CONFIG.mineHealth
+              ? STRUCTURE_CONFIGS.factory.health
               : undefined,
         };
       case UnitType.Construction:
@@ -590,16 +633,30 @@ export class DefaultConfig implements Config {
         };
       case UnitType.ShieldGenerator:
         return {
-          cost: this.costWrapper(() => 150_000, UnitType.ShieldGenerator),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.shieldGenerator.buildCost)
+              : this.costWrapper(() => 150_000, UnitType.ShieldGenerator),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 15 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.shieldGenerator.constructionTime
+              : 15 * 10,
           upgradable: true,
         };
       case UnitType.Artillery:
         return {
-          cost: this.costWrapper(() => 200_000, UnitType.Artillery),
+          cost:
+            this._gameConfig.gameFork === GameFork.Frenzy
+              ? () => BigInt(STRUCTURE_CONFIGS.artillery.buildCost)
+              : this.costWrapper(() => 200_000, UnitType.Artillery),
           territoryBound: true,
-          constructionDuration: this.instantBuild() ? 0 : 20 * 10,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : this._gameConfig.gameFork === GameFork.Frenzy
+              ? STRUCTURE_CONFIGS.artillery.constructionTime
+              : 20 * 10,
           upgradable: true,
         };
       default:
