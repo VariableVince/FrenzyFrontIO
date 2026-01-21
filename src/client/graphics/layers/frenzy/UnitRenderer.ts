@@ -54,8 +54,14 @@ export class UnitRenderer {
     const isWarship = unit.unitType === "warship";
     const isArtillery = unit.unitType === "artillery";
     const isShieldGenerator = unit.unitType === "shieldGenerator";
+    const isMissileSilo = unit.unitType === "missileSilo";
+    const isSAMLauncher = unit.unitType === "samLauncher";
 
-    if (isShieldGenerator) {
+    if (isMissileSilo) {
+      this.renderMissileSilo(ctx.context, x, y, player, tier);
+    } else if (isSAMLauncher) {
+      this.renderSAMLauncher(ctx.context, x, y, player, tier);
+    } else if (isShieldGenerator) {
       this.renderShieldGenerator(ctx, x, y, player, unit);
     } else if (isArtillery) {
       this.renderArtillery(ctx.context, x, y, player, tier);
@@ -489,5 +495,120 @@ export class UnitRenderer {
     context.strokeStyle = "#000";
     context.lineWidth = 0.5;
     context.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
+  }
+
+  private renderMissileSilo(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+    tier: number = 1,
+  ) {
+    const size = STRUCTURE_CONFIGS.missileSilo.size;
+    const halfSize = size / 2;
+
+    // Outer glow
+    context.fillStyle = player.territoryColor().alpha(0.4).toRgbString();
+    context.beginPath();
+    context.moveTo(x, y - halfSize - 2);
+    context.lineTo(x + halfSize + 2, y);
+    context.lineTo(x, y + halfSize + 2);
+    context.lineTo(x - halfSize - 2, y);
+    context.closePath();
+    context.fill();
+
+    // Main diamond
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.beginPath();
+    context.moveTo(x, y - halfSize);
+    context.lineTo(x + halfSize, y);
+    context.lineTo(x, y + halfSize);
+    context.lineTo(x - halfSize, y);
+    context.closePath();
+    context.fill();
+
+    // Missile line
+    context.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.moveTo(x, y - halfSize * 0.5);
+    context.lineTo(x, y + halfSize * 0.5);
+    context.stroke();
+
+    context.strokeStyle = "#000";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(x, y - halfSize);
+    context.lineTo(x + halfSize, y);
+    context.lineTo(x, y + halfSize);
+    context.lineTo(x - halfSize, y);
+    context.closePath();
+    context.stroke();
+
+    if (tier >= 1) {
+      context.fillStyle = "#fff";
+      context.font = "bold 4px sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(this.getTierRoman(tier), x, y);
+    }
+  }
+
+  private renderSAMLauncher(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+    tier: number = 1,
+  ) {
+    const size = STRUCTURE_CONFIGS.samLauncher.size;
+    const halfSize = size / 2;
+
+    // Outer glow
+    context.fillStyle = player.territoryColor().alpha(0.4).toRgbString();
+    context.beginPath();
+    context.moveTo(x, y - halfSize - 2);
+    context.lineTo(x + halfSize + 2, y + halfSize + 2);
+    context.lineTo(x - halfSize - 2, y + halfSize + 2);
+    context.closePath();
+    context.fill();
+
+    // Main triangle
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.beginPath();
+    context.moveTo(x, y - halfSize);
+    context.lineTo(x + halfSize, y + halfSize);
+    context.lineTo(x - halfSize, y + halfSize);
+    context.closePath();
+    context.fill();
+
+    // Radar circle
+    context.strokeStyle = "rgba(255, 255, 255, 0.7)";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.arc(x, y - halfSize * 0.3, halfSize * 0.35, 0, Math.PI * 2);
+    context.stroke();
+
+    context.strokeStyle = "#000";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(x, y - halfSize);
+    context.lineTo(x + halfSize, y + halfSize);
+    context.lineTo(x - halfSize, y + halfSize);
+    context.closePath();
+    context.stroke();
+
+    if (tier >= 1) {
+      context.fillStyle = "#fff";
+      context.font = "bold 4px sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(this.getTierRoman(tier), x, y + 1);
+    }
+  }
+
+  private getTierRoman(tier: number): string {
+    const romans = ["I", "II", "III", "IV", "V"];
+    return romans[tier - 1] || tier.toString();
   }
 }

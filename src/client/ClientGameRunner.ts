@@ -32,6 +32,7 @@ import {
   AutoUpgradeEvent,
   DoBoatAttackEvent,
   DoGroundAttackEvent,
+  GhostStructureChangedEvent,
   InputHandler,
   MouseMoveEvent,
   MouseUpEvent,
@@ -41,6 +42,7 @@ import { endGame, startGame, startTime } from "./LocalPersistantStats";
 import { getPersistentID } from "./Main";
 import { terrainMapFileLoader } from "./TerrainMapFileLoader";
 import {
+  BuildUnitIntentEvent,
   SendAttackIntentEvent,
   SendBoatAttackIntentEvent,
   SendHashEvent,
@@ -256,6 +258,15 @@ export class ClientGameRunner {
   }
 
   public start() {
+    // Stop menu music when game actually starts
+    SoundManager.stopMenuMusic();
+
+    // Hide video background when game starts
+    const videoContainer = document.getElementById("bg-video-container");
+    if (videoContainer) {
+      videoContainer.style.display = "none";
+    }
+
     SoundManager.playBackgroundMusic();
     console.log("starting client game");
 
@@ -464,7 +475,7 @@ export class ClientGameRunner {
   }
 
   private inputEvent(event: MouseUpEvent) {
-    if (!this.isActive || this.renderer.uiState.ghostStructure !== null) {
+    if (!this.isActive) {
       return;
     }
     const cell = this.renderer.transformHandler.screenToWorldCoordinates(
@@ -474,6 +485,21 @@ export class ClientGameRunner {
     if (!this.gameView.isValidCoord(cell.x, cell.y)) {
       return;
     }
+
+    // Handle ghost structure placement (building/nuke placement after pressing hotkey)
+    if (this.renderer.uiState.ghostStructure !== null) {
+      const tile = this.gameView.ref(cell.x, cell.y);
+      const ghostType = this.renderer.uiState.ghostStructure;
+
+      // Emit build intent for the ghost structure
+      this.eventBus.emit(new BuildUnitIntentEvent(ghostType, tile));
+
+      // Clear the ghost structure after placement
+      this.renderer.uiState.ghostStructure = null;
+      this.eventBus.emit(new GhostStructureChangedEvent(null));
+      return;
+    }
+
     console.log(`clicked cell ${cell}`);
     const tile = this.gameView.ref(cell.x, cell.y);
 

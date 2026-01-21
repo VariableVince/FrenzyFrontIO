@@ -893,18 +893,24 @@ export class FrenzyManager {
     const building = this.coreBuildings.get(playerId);
     if (!building) return;
 
-    // Add small random offset so units don't stack (but not for defense posts or warships)
-    const isDefensePost = unitType === FrenzyUnitType.DefensePost;
-    const isWarship = unitType === FrenzyUnitType.Warship;
-    const offsetX =
-      isDefensePost || isWarship ? 0 : (this.random.next() - 0.5) * 20;
-    const offsetY =
-      isDefensePost || isWarship ? 0 : (this.random.next() - 0.5) * 20;
+    // Structures should spawn at exact positions without offset
+    const isStructure =
+      unitType === FrenzyUnitType.DefensePost ||
+      unitType === FrenzyUnitType.Artillery ||
+      unitType === FrenzyUnitType.ShieldGenerator ||
+      unitType === FrenzyUnitType.SAMLauncher ||
+      unitType === FrenzyUnitType.MissileSilo ||
+      unitType === FrenzyUnitType.Warship;
+
+    // Add small random offset so units don't stack (but not for structures)
+    const offsetX = isStructure ? 0 : (this.random.next() - 0.5) * 20;
+    const offsetY = isStructure ? 0 : (this.random.next() - 0.5) * 20;
 
     const spawnX = x + offsetX;
     const spawnY = y + offsetY;
 
     // For warships, verify spawn position is on water
+    const isWarship = unitType === FrenzyUnitType.Warship;
     if (isWarship) {
       const floorX = Math.floor(spawnX);
       const floorY = Math.floor(spawnY);

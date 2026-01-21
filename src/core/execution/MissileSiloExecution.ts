@@ -1,4 +1,11 @@
-import { Execution, Game, Player, Unit, UnitType } from "../game/Game";
+import {
+  Execution,
+  Game,
+  GameFork,
+  Player,
+  Unit,
+  UnitType,
+} from "../game/Game";
 import { TileRef } from "../game/GameMap";
 
 export class MissileSiloExecution implements Execution {
@@ -17,15 +24,27 @@ export class MissileSiloExecution implements Execution {
 
   tick(ticks: number): void {
     if (this.silo === null) {
-      const spawn = this.player.canBuild(UnitType.MissileSilo, this.tile);
-      if (spawn === false) {
+      // In Frenzy mode, the FrenzyUnit is already at the tile, so skip canBuild check
+      // and directly build the unit at the tile (needed for nuke launching)
+      const isFrenzy =
+        this.mg.config().gameConfig().gameFork === GameFork.Frenzy;
+      let spawnTile: TileRef | false;
+
+      if (isFrenzy) {
+        // In Frenzy mode, use the tile directly since FrenzyUnit already occupies it
+        spawnTile = this.tile;
+      } else {
+        spawnTile = this.player.canBuild(UnitType.MissileSilo, this.tile);
+      }
+
+      if (spawnTile === false) {
         console.warn(
           `player ${this.player} cannot build missile silo at ${this.tile}`,
         );
         this.active = false;
         return;
       }
-      this.silo = this.player.buildUnit(UnitType.MissileSilo, spawn, {});
+      this.silo = this.player.buildUnit(UnitType.MissileSilo, spawnTile, {});
 
       if (this.player !== this.silo.owner()) {
         this.player = this.silo.owner();

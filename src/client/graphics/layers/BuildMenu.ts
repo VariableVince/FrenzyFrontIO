@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import artilleryIcon from "../../../../resources/images/ArtilleryIconWhite.svg";
 import goldCoinIcon from "../../../../resources/images/GoldCoinIcon.svg";
 import harborIcon from "../../../../resources/images/HarborIconWhite.svg";
 import mineIcon from "../../../../resources/images/MineIconWhite.svg";
@@ -112,7 +113,7 @@ export const buildTable: BuildItemDisplay[][] = [
     },
     {
       unitType: UnitType.Artillery,
-      icon: missileSiloIcon,
+      icon: artilleryIcon,
       description: "build_menu.desc.artillery",
       key: "unit_type.artillery",
       countable: true,

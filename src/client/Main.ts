@@ -37,11 +37,7 @@ import { SendKickPlayerIntentEvent } from "./Transport";
 import { UserSettingModal } from "./UserSettingModal";
 import "./UsernameInput";
 import { UsernameInput } from "./UsernameInput";
-import {
-  generateCryptoRandomUUID,
-  incrementGamesPlayed,
-  isInIframe,
-} from "./Utils";
+import { generateCryptoRandomUUID, incrementGamesPlayed } from "./Utils";
 import "./components/baseComponents/Button";
 import "./components/baseComponents/Modal";
 import {
@@ -229,26 +225,6 @@ class Client {
     ) {
       console.warn("Territory patterns modal element not found");
     }
-    const patternButton = document.getElementById(
-      "territory-patterns-input-preview-button",
-    );
-    if (isInIframe() && patternButton) {
-      patternButton.style.display = "none";
-    }
-
-    if (
-      !this.patternsModal ||
-      !(this.patternsModal instanceof TerritoryPatternsModal)
-    ) {
-      console.warn("Territory patterns modal element not found");
-    }
-    if (patternButton === null)
-      throw new Error("territory-patterns-input-preview-button");
-    this.patternsModal.previewButton = patternButton;
-    this.patternsModal.refresh();
-    patternButton.addEventListener("click", () => {
-      this.patternsModal.open();
-    });
 
     this.tokenLoginModal = document.querySelector(
       "token-login",
@@ -523,15 +499,6 @@ class Client {
   private async handleJoinLobby(event: CustomEvent<JoinLobbyEvent>) {
     const lobby = event.detail;
     console.log(`joining lobby ${lobby.gameID}`);
-
-    // Stop menu music when joining a game
-    SoundManager.stopMenuMusic();
-
-    // Hide video background when entering game
-    const videoContainer = document.getElementById("bg-video-container");
-    if (videoContainer) {
-      videoContainer.style.display = "none";
-    }
 
     if (lobby.gameStartInfo) {
       this.lastJoinEvent = this.snapshotJoinEvent(lobby);

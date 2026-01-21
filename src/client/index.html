@@ -419,13 +419,7 @@
 
         <div class="container__row">
           <flag-input class="w-[20%] md:w-[20%]"></flag-input>
-          <territory-patterns-modal class="w-[20%] md:w-[15%]">
-            <button
-              id="territory-patterns-input-preview-button"
-              class="w-full border p-[4px] rounded-lg flex cursor-pointer border-black/30 dark:border-gray-300/60 bg-white/70 dark:bg-[rgba(55,65,81,0.7)] justify-center"
-              title="Pick a pattern!"
-            ></button>
-          </territory-patterns-modal>
+          <account-button class="w-[20%] md:w-[15%]"></account-button>
           <username-input class="relative w-full"></username-input>
           <news-button class="w-[20%] component-hideable"></news-button>
         </div>
@@ -606,7 +600,7 @@
         </div>
       </div>
     </footer>
-    <account-button></account-button>
+    <territory-patterns-modal></territory-patterns-modal>
     <frenzy-dev-panel></frenzy-dev-panel>
     <!-- Game modals and overlays -->
     <single-player-modal></single-player-modal>
@@ -627,7 +621,6 @@
     <spawn-timer></spawn-timer>
     <help-modal></help-modal>
     <dark-mode-button></dark-mode-button>
-    <stats-button></stats-button>
     <alert-frame></alert-frame>
     <chat-modal></chat-modal>
     <user-setting></user-setting>

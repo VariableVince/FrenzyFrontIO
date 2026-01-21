@@ -1,6 +1,7 @@
 import {
   Execution,
   Game,
+  GameFork,
   isUnit,
   MessageType,
   Player,
@@ -211,7 +212,20 @@ export class SAMLauncherExecution implements Execution {
       if (this.tile === null) {
         throw new Error("tile is null");
       }
-      const spawnTile = this.player.canBuild(UnitType.SAMLauncher, this.tile);
+
+      // In Frenzy mode, the FrenzyUnit is already at the tile, so skip canBuild check
+      // and directly build the unit at the tile
+      const isFrenzy =
+        this.mg.config().gameConfig().gameFork === GameFork.Frenzy;
+      let spawnTile: TileRef | false;
+
+      if (isFrenzy) {
+        // In Frenzy mode, use the tile directly since FrenzyUnit already occupies it
+        spawnTile = this.tile;
+      } else {
+        spawnTile = this.player.canBuild(UnitType.SAMLauncher, this.tile);
+      }
+
       if (spawnTile === false) {
         console.warn("cannot build SAM Launcher");
         this.active = false;

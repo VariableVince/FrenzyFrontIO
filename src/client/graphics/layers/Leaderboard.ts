@@ -192,7 +192,7 @@ export class Leaderboard extends LitElement implements Layer {
     }
     return html`
       <div
-        class="max-h-[35vh] overflow-y-auto text-white text-xs md:text-xs lg:text-sm md:max-h-[50vh]  ${this
+        class="max-h-[25vh] overflow-y-auto text-white text-xs md:text-xs lg:text-sm md:max-h-[30vh]  ${this
           .visible
           ? ""
           : "hidden"}"
@@ -254,7 +254,9 @@ export class Leaderboard extends LitElement implements Layer {
                   : ""} cursor-pointer"
                 @click=${() => this.handleRowClickPlayer(player.player)}
               >
-                <div class="py-1 md:py-2 text-center border-b border-red-700/30">
+                <div
+                  class="py-1 md:py-2 text-center border-b border-red-700/30"
+                >
                   ${player.position}
                 </div>
                 <div
@@ -262,13 +264,19 @@ export class Leaderboard extends LitElement implements Layer {
                 >
                   ${player.name}
                 </div>
-                <div class="py-1 md:py-2 text-center border-b border-red-700/30">
+                <div
+                  class="py-1 md:py-2 text-center border-b border-red-700/30"
+                >
                   ${player.score}
                 </div>
-                <div class="py-1 md:py-2 text-center border-b border-red-700/30">
+                <div
+                  class="py-1 md:py-2 text-center border-b border-red-700/30"
+                >
                   ${player.gold}
                 </div>
-                <div class="py-1 md:py-2 text-center border-b border-red-700/30">
+                <div
+                  class="py-1 md:py-2 text-center border-b border-red-700/30"
+                >
                   ${player.troops}
                 </div>
               </div>

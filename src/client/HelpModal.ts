@@ -5,7 +5,13 @@ import "./components/Difficulties";
 import "./components/Maps";
 
 // Import icons for webpack to resolve paths correctly
+import allianceIcon from "../../resources/images/AllianceIconWhite.svg";
+import boatIcon from "../../resources/images/BoatIconWhite.svg";
+import buildIcon from "../../resources/images/BuildIconWhite.svg";
 import chatIcon from "../../resources/images/ChatIconWhite.svg";
+import donateGoldIcon from "../../resources/images/DonateGoldIconWhite.svg";
+import donateTroopIcon from "../../resources/images/DonateTroopIconWhite.svg";
+import emojiIcon from "../../resources/images/EmojiIconWhite.svg";
 import harborIcon from "../../resources/images/HarborIconWhite.svg";
 import mineIcon from "../../resources/images/MineIconWhite.svg";
 import missileSiloIcon from "../../resources/images/MissileSiloIconWhite.svg";
@@ -14,6 +20,8 @@ import atomBombIcon from "../../resources/images/NukeIconWhite.svg";
 import samLauncherIcon from "../../resources/images/SamLauncherIconWhite.svg";
 import shieldIcon from "../../resources/images/ShieldIconWhite.svg";
 import shipIcon from "../../resources/images/ShipIconWhite.svg";
+import targetIcon from "../../resources/images/TargetIconWhite.svg";
+import betrayIcon from "../../resources/images/TraitorIconWhite.svg";
 import unitFactoryIcon from "../../resources/images/UnitFactoryIconWhite.svg";
 
 @customElement("help-modal")

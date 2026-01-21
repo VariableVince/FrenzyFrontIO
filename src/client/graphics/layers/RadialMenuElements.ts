@@ -337,7 +337,6 @@ function getAllEnabledUnits(myPlayer: boolean, config: Config): Set<UnitType> {
     addStructureIfEnabled(UnitType.ShieldGenerator);
     addStructureIfEnabled(UnitType.Artillery);
   } else {
-    addStructureIfEnabled(UnitType.Warship);
     addStructureIfEnabled(UnitType.HydrogenBomb);
     addStructureIfEnabled(UnitType.MIRV);
     addStructureIfEnabled(UnitType.AtomBomb);
@@ -366,7 +365,6 @@ const ATTACK_UNIT_TYPES: UnitType[] = [
   UnitType.AtomBomb,
   UnitType.MIRV,
   UnitType.HydrogenBomb,
-  UnitType.Warship,
 ];
 
 function createMenuElements(

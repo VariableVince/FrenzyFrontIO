@@ -1,15 +1,15 @@
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
-import warshipIcon from "../../../../resources/images/BattleshipIconWhite.svg";
-import cityIcon from "../../../../resources/images/CityIconWhite.svg";
-import factoryIcon from "../../../../resources/images/FactoryIconWhite.svg";
-import mirvIcon from "../../../../resources/images/MIRVIcon.svg";
+import artilleryIcon from "../../../../resources/images/ArtilleryIconWhite.svg";
+import harborIcon from "../../../../resources/images/HarborIconWhite.svg";
+import mineIcon from "../../../../resources/images/MineIconWhite.svg";
 import missileSiloIcon from "../../../../resources/images/MissileSiloIconWhite.svg";
 import hydrogenBombIcon from "../../../../resources/images/MushroomCloudIconWhite.svg";
 import atomBombIcon from "../../../../resources/images/NukeIconWhite.svg";
-import portIcon from "../../../../resources/images/PortIcon.svg";
 import samLauncherIcon from "../../../../resources/images/SamLauncherIconWhite.svg";
+import shieldGeneratorIcon from "../../../../resources/images/ShieldGeneratorIconWhite.svg";
 import defensePostIcon from "../../../../resources/images/ShieldIconWhite.svg";
+import unitFactoryIcon from "../../../../resources/images/UnitFactoryIconWhite.svg";
 import { EventBus } from "../../../core/EventBus";
 import { Gold, PlayerActions, UnitType } from "../../../core/game/Game";
 import { GameView } from "../../../core/game/GameView";
@@ -29,12 +29,13 @@ export class UnitDisplay extends LitElement implements Layer {
   private playerActions: PlayerActions | null = null;
   private keybinds: Record<string, { value: string; key: string }> = {};
   private _cities = 0;
-  private _warships = 0;
   private _factories = 0;
   private _missileSilo = 0;
   private _port = 0;
   private _defensePost = 0;
   private _samLauncher = 0;
+  private _shieldGenerator = 0;
+  private _artillery = 0;
   private allDisabled = false;
   private _hoveredUnit: UnitType | null = null;
 
@@ -61,10 +62,10 @@ export class UnitDisplay extends LitElement implements Layer {
       config.isUnitDisabled(UnitType.DefensePost) &&
       config.isUnitDisabled(UnitType.MissileSilo) &&
       config.isUnitDisabled(UnitType.SAMLauncher) &&
-      config.isUnitDisabled(UnitType.Warship) &&
+      config.isUnitDisabled(UnitType.ShieldGenerator) &&
+      config.isUnitDisabled(UnitType.Artillery) &&
       config.isUnitDisabled(UnitType.AtomBomb) &&
-      config.isUnitDisabled(UnitType.HydrogenBomb) &&
-      config.isUnitDisabled(UnitType.MIRV);
+      config.isUnitDisabled(UnitType.HydrogenBomb);
     this.requestUpdate();
   }
 
@@ -83,15 +84,9 @@ export class UnitDisplay extends LitElement implements Layer {
     switch (item) {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
-      case UnitType.MIRV:
         return (
           this.cost(item) <= (player?.gold() ?? 0n) &&
           (player?.units(UnitType.MissileSilo).length ?? 0) > 0
-        );
-      case UnitType.Warship:
-        return (
-          this.cost(item) <= (player?.gold() ?? 0n) &&
-          (player?.units(UnitType.Port).length ?? 0) > 0
         );
       default:
         return this.cost(item) <= (player?.gold() ?? 0n);
@@ -110,7 +105,8 @@ export class UnitDisplay extends LitElement implements Layer {
     this._defensePost = player.totalUnitLevels(UnitType.DefensePost);
     this._samLauncher = player.totalUnitLevels(UnitType.SAMLauncher);
     this._factories = player.totalUnitLevels(UnitType.Factory);
-    this._warships = player.totalUnitLevels(UnitType.Warship);
+    this._shieldGenerator = player.totalUnitLevels(UnitType.ShieldGenerator);
+    this._artillery = player.totalUnitLevels(UnitType.Artillery);
     this.requestUpdate();
   }
 
@@ -135,21 +131,21 @@ export class UnitDisplay extends LitElement implements Layer {
         <div class="bg-gray-800/70 backdrop-blur-sm rounded-lg p-0.5">
           <div class="grid grid-rows-1 auto-cols-max grid-flow-col gap-1 w-fit">
             ${this.renderUnitItem(
-              cityIcon,
+              mineIcon,
               this._cities,
               UnitType.City,
               "city",
               this.keybinds["buildCity"]?.key ?? "1",
             )}
             ${this.renderUnitItem(
-              factoryIcon,
+              unitFactoryIcon,
               this._factories,
               UnitType.Factory,
               "factory",
               this.keybinds["buildFactory"]?.key ?? "2",
             )}
             ${this.renderUnitItem(
-              portIcon,
+              harborIcon,
               this._port,
               UnitType.Port,
               "port",
@@ -176,37 +172,37 @@ export class UnitDisplay extends LitElement implements Layer {
               "sam_launcher",
               this.keybinds["buildSamLauncher"]?.key ?? "6",
             )}
+            ${this.renderUnitItem(
+              shieldGeneratorIcon,
+              this._shieldGenerator,
+              UnitType.ShieldGenerator,
+              "shield_generator",
+              this.keybinds["buildShieldGenerator"]?.key ?? "7",
+            )}
+            ${this.renderUnitItem(
+              artilleryIcon,
+              this._artillery,
+              UnitType.Artillery,
+              "artillery",
+              this.keybinds["buildArtillery"]?.key ?? "8",
+            )}
           </div>
         </div>
         <div class="bg-gray-800/70 backdrop-blur-sm rounded-lg p-0.5 w-fit">
           <div class="grid grid-rows-1 auto-cols-max grid-flow-col gap-1">
             ${this.renderUnitItem(
-              warshipIcon,
-              this._warships,
-              UnitType.Warship,
-              "warship",
-              this.keybinds["buildWarship"]?.key ?? "7",
-            )}
-            ${this.renderUnitItem(
               atomBombIcon,
               null,
               UnitType.AtomBomb,
               "atom_bomb",
-              this.keybinds["buildAtomBomb"]?.key ?? "8",
+              this.keybinds["buildAtomBomb"]?.key ?? "9",
             )}
             ${this.renderUnitItem(
               hydrogenBombIcon,
               null,
               UnitType.HydrogenBomb,
               "hydrogen_bomb",
-              this.keybinds["buildHydrogenBomb"]?.key ?? "9",
-            )}
-            ${this.renderUnitItem(
-              mirvIcon,
-              null,
-              UnitType.MIRV,
-              "mirv",
-              this.keybinds["buildMIRV"]?.key ?? "0",
+              this.keybinds["buildHydrogenBomb"]?.key ?? "0",
             )}
           </div>
         </div>
