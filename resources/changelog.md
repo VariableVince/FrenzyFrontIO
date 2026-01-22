@@ -1,3 +1,30 @@
+📦 **FrenzyFront Patch Notes - v0.05**
+
+🎮 **UI Improvements**
+
+- Redesigned "Join Next Game" button with player names and participant breakdown
+  → Shows player tags when ≤8 players are waiting
+  → Displays players (blue), bots (orange), nations (purple) counts
+- Reordered help modal: Frenzy basics and build menu now appear first
+- Increased account and flag button sizes for better visibility
+- Changed default flag from "None" to UN flag
+
+🔧 **Bug Fixes**
+
+- Fixed attack ratio showing "troops" instead of "units" in Frenzy mode
+- Fixed SAM launchers incorrectly attacking ground units (now only targets nukes)
+- Fixed missile silos attacking ground units (now only manual nuke launches)
+- Fixed hydrogen bombs not recognizing tier 2 silos in Frenzy mode
+- Removed duplicate structure placement checks (validation now only in canBuild)
+
+🔒 **Hidden Features** (temporary while player base is small)
+
+- Create Lobby button hidden
+- Join Private Lobby button hidden
+- Single Player button hidden
+
+---
+
 📦 **FrenzyFront Patch Notes - v0.04**
 
 🚀 **Performance**
