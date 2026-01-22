@@ -1984,6 +1984,17 @@ export class FrenzyManager {
         continue;
       }
 
+      // SAM launchers don't attack ground units - they only target nukes/aircraft
+      // (handled by SAMLauncherExecution)
+      if (unit.unitType === FrenzyUnitType.SAMLauncher) {
+        continue;
+      }
+
+      // Missile silos don't attack directly - they launch nukes manually
+      if (unit.unitType === FrenzyUnitType.MissileSilo) {
+        continue;
+      }
+
       unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
 
       const unitPlayer = this.safeGetPlayer(unit.playerId);
@@ -3602,6 +3613,7 @@ export class FrenzyManager {
   /**
    * Spawn a defense post at the given location.
    * Note: No unit count check - structures always complete once building starts.
+   * Placement validation happens in canBuild() before construction begins.
    */
   spawnDefensePost(playerId: PlayerID, x: number, y: number) {
     if (this.defeatedPlayers.has(playerId)) {
@@ -3611,16 +3623,13 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby structures
-    if (this.hasNearbyStructure(x, y, FrenzyUnitType.DefensePost)) {
-      return;
-    }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.DefensePost);
   }
 
   /**
    * Spawn an artillery at the given location.
    * Note: No unit count check - structures always complete once building starts.
+   * Placement validation happens in canBuild() before construction begins.
    */
   spawnArtillery(playerId: PlayerID, x: number, y: number) {
     if (this.defeatedPlayers.has(playerId)) {
@@ -3630,16 +3639,13 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby structures
-    if (this.hasNearbyStructure(x, y, FrenzyUnitType.Artillery)) {
-      return;
-    }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.Artillery);
   }
 
   /**
    * Spawn a shield generator at the given location.
    * Note: No unit count check - structures always complete once building starts.
+   * Placement validation happens in canBuild() before construction begins.
    */
   spawnShieldGenerator(playerId: PlayerID, x: number, y: number) {
     if (this.defeatedPlayers.has(playerId)) {
@@ -3649,16 +3655,13 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby structures
-    if (this.hasNearbyStructure(x, y, FrenzyUnitType.ShieldGenerator)) {
-      return;
-    }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.ShieldGenerator);
   }
 
   /**
    * Spawn a SAM launcher at the given location.
    * Note: No unit count check - structures always complete once building starts.
+   * Placement validation happens in canBuild() before construction begins.
    */
   spawnSAMLauncher(playerId: PlayerID, x: number, y: number) {
     if (this.defeatedPlayers.has(playerId)) {
@@ -3668,16 +3671,13 @@ export class FrenzyManager {
     if (!building) {
       return;
     }
-    // Check for nearby structures
-    if (this.hasNearbyStructure(x, y, FrenzyUnitType.SAMLauncher)) {
-      return;
-    }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.SAMLauncher);
   }
 
   /**
    * Spawn a missile silo at the given location.
    * Note: No unit count check - structures always complete once building starts.
+   * Placement validation happens in canBuild() before construction begins.
    */
   spawnMissileSilo(playerId: PlayerID, x: number, y: number) {
     if (this.defeatedPlayers.has(playerId)) {
@@ -3685,10 +3685,6 @@ export class FrenzyManager {
     }
     const building = this.coreBuildings.get(playerId);
     if (!building) {
-      return;
-    }
-    // Check for nearby structures
-    if (this.hasNearbyStructure(x, y, FrenzyUnitType.MissileSilo)) {
       return;
     }
     this.spawnUnit(playerId, x, y, FrenzyUnitType.MissileSilo);

@@ -410,19 +410,19 @@ export class AccountButton extends LitElement {
       return html`<img
         src="/images/DiscordLogo.svg"
         alt="Discord"
-        class="w-6 h-6"
+        class="w-[48px] h-[48px]"
       />`;
     } else if (this.loggedInEmail) {
       return html`<img
         src="/images/EmailIcon.svg"
         alt="Email"
-        class="w-6 h-6"
+        class="w-[48px] h-[48px]"
       />`;
     }
     return html`<img
       src="/images/LoggedOutIcon.svg"
       alt="Logged Out"
-      class="w-6 h-6"
+      class="w-[48px] h-[48px]"
     />`;
   }
 

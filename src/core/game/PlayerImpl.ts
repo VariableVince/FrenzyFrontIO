@@ -1000,6 +1000,30 @@ export class PlayerImpl implements Player {
         return false;
       }
     }
+
+    // In Frenzy mode, check FrenzyManager for missile silo tier
+    const frenzyManager = this.mg.frenzyManager();
+    if (frenzyManager) {
+      const silos = frenzyManager.getStructuresForPlayer(
+        this.id(),
+        "missileSilo",
+      );
+      if (silos.length === 0) {
+        return false;
+      }
+      // Filter for tier 2+ if required (for hydrogen bombs)
+      const validSilos = requireTier2
+        ? silos.filter((s) => s.tier >= 2)
+        : silos;
+      if (validSilos.length === 0) {
+        return false;
+      }
+      // Return the tile of the nearest silo
+      // Since we don't have cooldown info in FrenzyManager, just return first valid silo
+      return validSilos[0].tile;
+    }
+
+    // Non-Frenzy mode: use regular unit-based silos
     // only get missilesilos that are not on cooldown
     // if requireTier2 is true, also filter for tier 2+ silos (level >= 2)
     const spawns = this.units(UnitType.MissileSilo)

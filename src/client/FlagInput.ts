@@ -80,7 +80,8 @@ export class FlagInput extends LitElement {
         >
           <span
             id="flag-preview"
-            style="display:inline-block;
+            class="w-[48px] h-[48px]"
+            style="display:inline-flex; align-items:center; justify-content:center;
             vertical-align:middle; background:#333; border-radius:6px;
             overflow:hidden;"
           ></span>
@@ -101,13 +102,14 @@ export class FlagInput extends LitElement {
       renderPlayerFlag(this.flag, preview);
     } else {
       const img = document.createElement("img");
-      img.src = this.flag ? `/flags/${this.flag}.svg` : `/flags/xx.svg`;
+      // Use UN flag as default instead of xx (None) which looks like email icon
+      img.src = this.flag ? `/flags/${this.flag}.svg` : `/flags/un.svg`;
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.objectFit = "contain";
       img.onerror = () => {
-        if (!img.src.endsWith("/flags/xx.svg")) {
-          img.src = "/flags/xx.svg";
+        if (!img.src.endsWith("/flags/un.svg")) {
+          img.src = "/flags/un.svg";
         }
       };
       preview.appendChild(img);

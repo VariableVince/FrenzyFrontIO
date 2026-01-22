@@ -374,9 +374,11 @@ export class ControlPanel extends LitElement implements Layer {
             >
               <span>${(this.attackRatio * 100).toFixed(0)}%</span>
               <span>
-                (${renderTroops(
-                  (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
-                )})
+                (${this._isFrenzy
+                  ? Math.floor(this._troops * this.attackRatio)
+                  : renderTroops(
+                      (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
+                    )})
               </span>
             </span>
           </label>

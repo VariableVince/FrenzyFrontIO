@@ -186,12 +186,14 @@ class Client {
     }
 
     const singlePlayer = document.getElementById("single-player");
-    if (singlePlayer === null) throw new Error("Missing single-player");
-    singlePlayer.addEventListener("click", () => {
-      if (this.usernameInput?.isValid()) {
-        spModal.open();
-      }
-    });
+    // Button may be hidden while player base is small
+    if (singlePlayer !== null) {
+      singlePlayer.addEventListener("click", () => {
+        if (this.usernameInput?.isValid()) {
+          spModal.open();
+        }
+      });
+    }
 
     const hlpModal = document.querySelector("help-modal") as HelpModal;
     if (!hlpModal || !(hlpModal instanceof HelpModal)) {
@@ -292,13 +294,15 @@ class Client {
       console.warn("Host private lobby modal element not found");
     }
     const hostLobbyButton = document.getElementById("host-lobby-button");
-    if (hostLobbyButton === null) throw new Error("Missing host-lobby-button");
-    hostLobbyButton.addEventListener("click", () => {
-      if (this.usernameInput?.isValid()) {
-        hostModal.open();
-        this.publicLobby.leaveLobby();
-      }
-    });
+    // Button may be hidden while player base is small
+    if (hostLobbyButton !== null) {
+      hostLobbyButton.addEventListener("click", () => {
+        if (this.usernameInput?.isValid()) {
+          hostModal.open();
+          this.publicLobby.leaveLobby();
+        }
+      });
+    }
 
     this.joinModal = document.querySelector(
       "join-private-lobby-modal",
@@ -309,13 +313,14 @@ class Client {
     const joinPrivateLobbyButton = document.getElementById(
       "join-private-lobby-button",
     );
-    if (joinPrivateLobbyButton === null)
-      throw new Error("Missing join-private-lobby-button");
-    joinPrivateLobbyButton.addEventListener("click", () => {
-      if (this.usernameInput?.isValid()) {
-        this.joinModal.open();
-      }
-    });
+    // Button may be hidden while player base is small
+    if (joinPrivateLobbyButton !== null) {
+      joinPrivateLobbyButton.addEventListener("click", () => {
+        if (this.usernameInput?.isValid()) {
+          this.joinModal.open();
+        }
+      });
+    }
 
     if (this.userSettings.darkMode()) {
       document.documentElement.classList.add("dark");

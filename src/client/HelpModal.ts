@@ -59,6 +59,126 @@ export class HelpModal extends LitElement {
         title="Instructions"
         translationKey="main.instructions"
       >
+        <div class="text-2xl font-bold text-center mb-4">
+          ${translateText("help_modal.frenzy_title")}
+        </div>
+        <div class="flex flex-col gap-4">
+          <p>${translateText("help_modal.frenzy_intro")}</p>
+          <ul>
+            <li class="mb-4">
+              <strong>${translateText("help_modal.frenzy_hq_title")}</strong>
+              <p>${translateText("help_modal.frenzy_hq_desc")}</p>
+            </li>
+            <li class="mb-4">
+              <strong>${translateText("help_modal.frenzy_gold_title")}</strong>
+              <p>${translateText("help_modal.frenzy_gold_desc")}</p>
+            </li>
+            <li class="mb-4">
+              <strong
+                >${translateText("help_modal.frenzy_towers_title")}</strong
+              >
+              <p>${translateText("help_modal.frenzy_towers_desc")}</p>
+            </li>
+            <li class="mb-4">
+              <strong
+                >${translateText("help_modal.frenzy_upgrades_title")}</strong
+              >
+              <p>${translateText("help_modal.frenzy_upgrades_desc")}</p>
+            </li>
+          </ul>
+        </div>
+
+        <hr class="mt-6 mb-4" />
+
+        <div>
+          <div class="text-2xl font-bold mb-4 text-center">
+            ${translateText("help_modal.build_menu_title")}
+          </div>
+          <p class="mb-4">${translateText("help_modal.build_menu_desc")}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>${translateText("help_modal.build_name")}</th>
+                <th>${translateText("help_modal.build_icon")}</th>
+                <th>${translateText("help_modal.build_desc")}</th>
+              </tr>
+            </thead>
+            <tbody class="text-left">
+              <tr>
+                <td>${translateText("help_modal.build_city")}</td>
+                <td><img src="${mineIcon}" alt="Mine" class="icon" /></td>
+                <td>${translateText("help_modal.build_city_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_defense")}</td>
+                <td>
+                  <img src="${shieldIcon}" alt="Defense Post" class="icon" />
+                </td>
+                <td>${translateText("help_modal.build_defense_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_port")}</td>
+                <td><img src="${harborIcon}" alt="Port" class="icon" /></td>
+                <td>${translateText("help_modal.build_port_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_factory")}</td>
+                <td>
+                  <img src="${unitFactoryIcon}" alt="Factory" class="icon" />
+                </td>
+                <td>${translateText("help_modal.build_factory_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_warship")}</td>
+                <td><img src="${shipIcon}" alt="Warship" class="icon" /></td>
+                <td>${translateText("help_modal.build_warship_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_silo")}</td>
+                <td>
+                  <img
+                    src="${missileSiloIcon}"
+                    alt="Missile Silo"
+                    class="icon"
+                  />
+                </td>
+                <td>${translateText("help_modal.build_silo_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_sam")}</td>
+                <td>
+                  <img
+                    src="${samLauncherIcon}"
+                    alt="SAM Launcher"
+                    class="icon"
+                  />
+                </td>
+                <td>${translateText("help_modal.build_sam_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_atom")}</td>
+                <td>
+                  <img src="${atomBombIcon}" alt="Atom Bomb" class="icon" />
+                </td>
+                <td>${translateText("help_modal.build_atom_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_hydrogen")}</td>
+                <td>
+                  <img
+                    src="${hydrogenBombIcon}"
+                    alt="Hydrogen Bomb"
+                    class="icon"
+                  />
+                </td>
+                <td>${translateText("help_modal.build_hydrogen_desc")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr class="mt-6 mb-4" />
+
         <div class="flex flex-col items-center">
           <div class="text-center text-2xl font-bold mb-4">
             ${translateText("help_modal.hotkeys")}
@@ -168,37 +288,6 @@ export class HelpModal extends LitElement {
               </tr>
             </tbody>
           </table>
-        </div>
-
-        <hr class="mt-6 mb-4" />
-
-        <div class="text-2xl font-bold text-center mb-4">
-          ${translateText("help_modal.frenzy_title")}
-        </div>
-        <div class="flex flex-col gap-4">
-          <p>${translateText("help_modal.frenzy_intro")}</p>
-          <ul>
-            <li class="mb-4">
-              <strong>${translateText("help_modal.frenzy_hq_title")}</strong>
-              <p>${translateText("help_modal.frenzy_hq_desc")}</p>
-            </li>
-            <li class="mb-4">
-              <strong>${translateText("help_modal.frenzy_gold_title")}</strong>
-              <p>${translateText("help_modal.frenzy_gold_desc")}</p>
-            </li>
-            <li class="mb-4">
-              <strong
-                >${translateText("help_modal.frenzy_towers_title")}</strong
-              >
-              <p>${translateText("help_modal.frenzy_towers_desc")}</p>
-            </li>
-            <li class="mb-4">
-              <strong
-                >${translateText("help_modal.frenzy_upgrades_title")}</strong
-              >
-              <p>${translateText("help_modal.frenzy_upgrades_desc")}</p>
-            </li>
-          </ul>
         </div>
 
         <hr class="mt-6 mb-4" />
@@ -487,95 +576,6 @@ export class HelpModal extends LitElement {
               </ul>
             </div>
           </div>
-        </div>
-
-        <hr class="mt-6 mb-4" />
-
-        <div>
-          <div class="text-2xl font-bold mb-4 text-center">
-            ${translateText("help_modal.build_menu_title")}
-          </div>
-          <p class="mb-4">${translateText("help_modal.build_menu_desc")}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>${translateText("help_modal.build_name")}</th>
-                <th>${translateText("help_modal.build_icon")}</th>
-                <th>${translateText("help_modal.build_desc")}</th>
-              </tr>
-            </thead>
-            <tbody class="text-left">
-              <tr>
-                <td>${translateText("help_modal.build_city")}</td>
-                <td><img src="${mineIcon}" alt="Mine" class="icon" /></td>
-                <td>${translateText("help_modal.build_city_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_defense")}</td>
-                <td>
-                  <img src="${shieldIcon}" alt="Defense Post" class="icon" />
-                </td>
-                <td>${translateText("help_modal.build_defense_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_port")}</td>
-                <td><img src="${harborIcon}" alt="Port" class="icon" /></td>
-                <td>${translateText("help_modal.build_port_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_factory")}</td>
-                <td>
-                  <img src="${unitFactoryIcon}" alt="Factory" class="icon" />
-                </td>
-                <td>${translateText("help_modal.build_factory_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_warship")}</td>
-                <td><img src="${shipIcon}" alt="Warship" class="icon" /></td>
-                <td>${translateText("help_modal.build_warship_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_silo")}</td>
-                <td>
-                  <img
-                    src="${missileSiloIcon}"
-                    alt="Missile Silo"
-                    class="icon"
-                  />
-                </td>
-                <td>${translateText("help_modal.build_silo_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_sam")}</td>
-                <td>
-                  <img
-                    src="${samLauncherIcon}"
-                    alt="SAM Launcher"
-                    class="icon"
-                  />
-                </td>
-                <td>${translateText("help_modal.build_sam_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_atom")}</td>
-                <td>
-                  <img src="${atomBombIcon}" alt="Atom Bomb" class="icon" />
-                </td>
-                <td>${translateText("help_modal.build_atom_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_hydrogen")}</td>
-                <td>
-                  <img
-                    src="${hydrogenBombIcon}"
-                    alt="Hydrogen Bomb"
-                    class="icon"
-                  />
-                </td>
-                <td>${translateText("help_modal.build_hydrogen_desc")}</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
 
         <hr class="mt-6 mb-4" />
