@@ -93,21 +93,43 @@ export async function startMaster() {
       if (readyWorkers.size === config.numWorkers()) {
         log.info("All workers ready, starting game scheduling");
 
-        const scheduleLobbies = () => {
-          schedulePublicGame(playlist).catch((error) => {
-            log.error("Error scheduling public game:", error);
-          });
+        let isScheduling = false;
+
+        const scheduleLobbies = async () => {
+          if (isScheduling) return; // Prevent concurrent scheduling
+          isScheduling = true;
+          try {
+            await schedulePublicGame(playlist);
+            // Refresh lobbies after scheduling so clients can see the new game
+            await fetchLobbies();
+          } finally {
+            isScheduling = false;
+          }
         };
 
-        setInterval(
-          () =>
-            fetchLobbies().then((lobbies) => {
-              if (lobbies === 0) {
-                scheduleLobbies();
-              }
-            }),
-          100,
-        );
+        const checkAndSchedule = async () => {
+          const lobbies = await fetchLobbies();
+          log.info(`Checked lobbies: ${lobbies} active lobbies`);
+          if (lobbies === 0) {
+            await scheduleLobbies();
+          }
+        };
+
+        // Schedule immediately on startup
+        checkAndSchedule();
+
+        // Check periodically if we need to schedule new games
+        // In dev mode, check more frequently to see map rotation faster
+        const scheduleInterval = config.gameCreationRate() * 2;
+        setInterval(checkAndSchedule, scheduleInterval);
+
+        // Refresh lobby info frequently and schedule new game if needed
+        setInterval(async () => {
+          const lobbies = await fetchLobbies();
+          if (lobbies === 0) {
+            await scheduleLobbies();
+          }
+        }, 2000);
       }
     }
   });
@@ -152,6 +174,92 @@ app.get("/api/env", async (req, res) => {
 // Add lobbies endpoint to list public games for this worker
 app.get("/api/public_lobbies", async (req, res) => {
   res.send(publicLobbiesJsonStr);
+});
+
+// API endpoint to change the map for the current public lobby
+const MAP_CHANGE_LOCKOUT_MS = 10 * 1000; // 10 seconds before game starts
+
+app.post("/api/change_map/:direction", async (req, res) => {
+  // Check if any lobby is about to start (within lockout period)
+  const lobbies = JSON.parse(publicLobbiesJsonStr).lobbies as GameInfo[];
+  for (const lobby of lobbies) {
+    if (
+      lobby.msUntilStart !== undefined &&
+      lobby.msUntilStart <= MAP_CHANGE_LOCKOUT_MS
+    ) {
+      return res.status(409).json({
+        error: "Cannot change map - game starting soon",
+        msUntilStart: lobby.msUntilStart,
+      });
+    }
+  }
+
+  const direction = req.params.direction;
+
+  if (direction === "next") {
+    playlist.nextMap();
+  } else if (direction === "previous") {
+    playlist.previousMap();
+  } else {
+    return res
+      .status(400)
+      .json({ error: "Invalid direction. Use 'next' or 'previous'" });
+  }
+
+  // Delete all current public lobbies and create a new one with the new map
+  for (const gameID of publicLobbyIDs) {
+    try {
+      const port = config.workerPort(gameID);
+      await fetch(`http://localhost:${port}/api/cancel_game/${gameID}`, {
+        method: "POST",
+        headers: { [config.adminHeader()]: config.adminToken() },
+      });
+    } catch (error) {
+      log.error(`Error cancelling game ${gameID}:`, error);
+    }
+    publicLobbyIDs.delete(gameID);
+  }
+
+  // Schedule a new game with the new map
+  try {
+    await schedulePublicGame(playlist);
+    await fetchLobbies();
+    res
+      .status(200)
+      .json({ success: true, mapIndex: playlist.getCurrentMapIndex() });
+  } catch (error) {
+    log.error("Error scheduling new game after map change:", error);
+    res.status(500).json({ error: "Failed to schedule new game" });
+  }
+});
+
+// API endpoint to start the current public game immediately
+app.post("/api/start_now", async (req, res) => {
+  // Find the first public lobby and start it immediately
+  for (const gameID of publicLobbyIDs) {
+    try {
+      const port = config.workerPort(gameID);
+      const response = await fetch(
+        `http://localhost:${port}/api/start_public_game/${gameID}`,
+        {
+          method: "POST",
+          headers: { [config.adminHeader()]: config.adminToken() },
+        },
+      );
+
+      if (response.ok) {
+        publicLobbyIDs.delete(gameID);
+        // Schedule a new game for the next players
+        await schedulePublicGame(playlist);
+        await fetchLobbies();
+        return res.status(200).json({ success: true, gameID });
+      }
+    } catch (error) {
+      log.error(`Error starting game ${gameID}:`, error);
+    }
+  }
+
+  res.status(404).json({ error: "No public lobby found to start" });
 });
 
 app.post("/api/kick_player/:gameID/:clientID", async (req, res) => {
@@ -200,8 +308,16 @@ async function fetchLobbies(): Promise<number> {
       headers: { [config.adminHeader()]: config.adminToken() },
       signal: controller.signal,
     })
-      .then((resp) => resp.json())
+      .then((resp) => {
+        if (!resp.ok) {
+          // Game not found (404) or other error - remove from tracking
+          publicLobbyIDs.delete(gameID);
+          return null;
+        }
+        return resp.json();
+      })
       .then((json) => {
+        if (json === null) return null;
         return json as GameInfo;
       })
       .catch((error) => {
@@ -236,6 +352,9 @@ async function fetchLobbies(): Promise<number> {
       l.msUntilStart !== undefined &&
       l.msUntilStart <= 250
     ) {
+      log.info(
+        `Removing game ${l.gameID} from publicLobbyIDs: msUntilStart=${l.msUntilStart}`,
+      );
       publicLobbyIDs.delete(l.gameID);
       return;
     }
@@ -249,12 +368,14 @@ async function fetchLobbies(): Promise<number> {
       l.numClients !== undefined &&
       l.gameConfig.maxPlayers <= l.numClients
     ) {
+      log.info(`Removing game ${l.gameID} from publicLobbyIDs: full`);
       publicLobbyIDs.delete(l.gameID);
       return;
     }
   });
 
   // Update the JSON string
+  log.info(`Updating publicLobbiesJsonStr with ${lobbyInfos.length} lobbies`);
   publicLobbiesJsonStr = JSON.stringify({
     lobbies: lobbyInfos,
   });
@@ -266,6 +387,9 @@ async function fetchLobbies(): Promise<number> {
 async function schedulePublicGame(playlist: MapPlaylist) {
   const gameID = generateID();
   publicLobbyIDs.add(gameID);
+  log.info(
+    `Added game ${gameID} to publicLobbyIDs, total: ${publicLobbyIDs.size}`,
+  );
 
   const workerPath = config.workerPath(gameID);
 

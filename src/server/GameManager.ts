@@ -82,6 +82,20 @@ export class GameManager {
     return totalClients;
   }
 
+  endGame(id: GameID): boolean {
+    const game = this.games.get(id);
+    if (game) {
+      try {
+        game.end();
+      } catch (error) {
+        this.log.error(`error ending game ${id}: ${error}`);
+      }
+      this.games.delete(id);
+      return true;
+    }
+    return false;
+  }
+
   tick() {
     const active = new Map<GameID, GameServer>();
     for (const [id, game] of this.games) {

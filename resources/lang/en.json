@@ -257,7 +257,11 @@
     "teams_Trios": "Trios (teams of 3)",
     "teams_Quads": "Quads (teams of 4)",
     "teams_hvn": "Humans Vs Nations",
-    "teams": "{num} teams"
+    "teams": "{num} teams",
+    "previous_map": "Previous Map",
+    "next_map": "Next Map",
+    "start_now": "Start Now",
+    "map_change_locked": "Map change locked - game starting soon"
   },
   "matchmaking_modal": {
     "title": "Matchmaking",
@@ -668,7 +672,9 @@
     "defensive_stance": "Unit Stance",
     "stance_defensive": "Safe",
     "stance_balanced": "Expand",
-    "stance_offensive": "Aggressive"
+    "stance_offensive": "Aggressive",
+    "free_unit": "free unit",
+    "closest_units": "closest units"
   },
   "player_panel": {
     "gold": "Gold",

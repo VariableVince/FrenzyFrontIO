@@ -17,12 +17,35 @@ const FRENZY_BOT_TARGET = 10;
 const FRENZY_MAPS = [GameMapType.CircleMap, GameMapType.SquareMap];
 
 export class MapPlaylist {
+  private currentMapIndex = 0;
+
   constructor(private disableTeams: boolean = false) {}
 
+  public getCurrentMapIndex(): number {
+    return this.currentMapIndex;
+  }
+
+  public setMapIndex(index: number): void {
+    this.currentMapIndex =
+      ((index % FRENZY_MAPS.length) + FRENZY_MAPS.length) % FRENZY_MAPS.length;
+  }
+
+  public nextMap(): void {
+    this.currentMapIndex = (this.currentMapIndex + 1) % FRENZY_MAPS.length;
+  }
+
+  public previousMap(): void {
+    this.currentMapIndex =
+      (this.currentMapIndex - 1 + FRENZY_MAPS.length) % FRENZY_MAPS.length;
+  }
+
+  public getMapList(): typeof FRENZY_MAPS {
+    return FRENZY_MAPS;
+  }
+
   public gameConfig(): GameConfig {
-    // Randomly select between CircleMap and SquareMap in FFA mode with 20 max players
-    const selectedMap =
-      FRENZY_MAPS[Math.floor(Math.random() * FRENZY_MAPS.length)];
+    // Use the current map from the playlist
+    const selectedMap = FRENZY_MAPS[this.currentMapIndex];
     return {
       donateGold: false,
       donateTroops: false,

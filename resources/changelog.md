@@ -1,13 +1,57 @@
+📦 **FrenzyFront Patch Notes - v0.06**
+
+🎮 **Lobby Controls**
+
+- **Map Rotation**: Players can now change the map from the lobby using left/right arrows
+- **Start Now**: New button to start the game immediately (no more waiting!)
+- Map changes are locked in the last 10 seconds before game start to protect waiting players
+
+🖼️ **Loading Screen**
+
+- Map-specific loading screen images for Circle Map and Square Map
+- Added map copyright text display during loading
+
+🎵 **Music**
+
+- Added 4 new background music tracks for in-game
+- Music plays in shuffled random order during gameplay
+- Menu music remains the same familiar track
+
+🔧 **Technical**
+
+- Various stability improvements
+
+---
+
 📦 **FrenzyFront Patch Notes - v0.05**
+
+🗺️ **New Map: Square Map**
+
+- Added Square Map to the rotation (alternates with Circle Map)
+- New mechanic: No spawn protection zones - combat starts immediately!
+- Faster-paced gameplay with more aggressive early-game strategies
+
+🏗️ **Building Improvements**
+
+- **HP & Energy Bars**: Buildings now display health and energy bars for better visibility
+- **Sell Buildings**: New ability to sell structures for 50% refund of total build cost
+  → Access via radial menu or hotkey
+  → Great for repositioning defenses or recovering resources
 
 🎮 **UI Improvements**
 
 - Redesigned "Join Next Game" button with player names and participant breakdown
   → Shows player tags when ≤8 players are waiting
   → Displays players (blue), bots (orange), nations (purple) counts
+- Radial menu restructured for easier navigation
+- Hotkey fixes for more reliable keyboard controls
 - Reordered help modal: Frenzy basics and build menu now appear first
 - Increased account and flag button sizes for better visibility
 - Changed default flag from "None" to UN flag
+
+⚖️ **Balance Changes**
+
+- Missile Silo cost increased for better game balance
 
 🔧 **Bug Fixes**
 

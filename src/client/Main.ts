@@ -538,7 +538,7 @@ class Client {
         gameStartInfo: lobby.gameStartInfo ?? lobby.gameRecord?.info,
         gameRecord: lobby.gameRecord,
       },
-      () => {
+      (mapType) => {
         console.log("Closing modals");
         document.getElementById("settings-button")?.classList.add("hidden");
         document
@@ -581,7 +581,7 @@ class Client {
           "game-starting-modal",
         ) as GameStartingModal;
         if (startingModal && startingModal instanceof GameStartingModal) {
-          startingModal.show();
+          startingModal.show(mapType);
         }
         // DISABLED: Ads disabled
         // this.gutterAds.hide();

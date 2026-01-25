@@ -639,7 +639,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       health: 250, // Tough naval unit
       speed: 2.0, // Slower than land units
       dps: 20, // Strong damage
-      range: 45, // Long range - can hit land from water
+      range: 50, // Long range - can hit land from water
       fireInterval: 1.5, // Moderate fire rate
       projectileDamage: 50, // Good projectile damage
       projectileType: ProjectileType.Laser, // Always use lasers
@@ -670,7 +670,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
         STRUCTURE_CONFIGS.defensePost.upgradeHealthBonus, // tier 2 health
       speed: 0, // Stationary
       dps: 0, // Uses projectileDamage instead
-      range: 37.5, // 1.5x defense post range
+      range: 50, // 1.5x defense post range
       fireInterval: 4.0, // Slower but one-shots
       projectileDamage: 100, // One-shots most units
       projectileType: ProjectileType.Laser, // Tier 2: red beam
@@ -698,7 +698,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       range: 0, // No attack range
       fireInterval: 0, // No firing
       shieldRadius: 30, // Protection radius
-      shieldHealth: 900, // Shield absorbs 500 damage before breaking
+      shieldHealth: 1500, // Shield absorbs 500 damage before breaking
       shieldRegenTime: 10, // 10 seconds to fully regenerate
     },
     eliteShieldGenerator: {
@@ -710,7 +710,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       range: 0, // No attack range
       fireInterval: 0, // No firing
       shieldRadius: 45, // 1.5x protection radius
-      shieldHealth: 2000, // 2x shield HP
+      shieldHealth: 3000, // 2x shield HP
       shieldRegenTime: 12, // Faster regen (12 seconds)
     },
     artillery: {
@@ -739,7 +739,7 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
 
   // Spawning
   spawnInterval: 4.0,
-  maxUnitsPerPlayer: 100,
+  maxUnitsPerPlayer: 150,
   maxWarshipsPerPlayer: 20,
   startingUnits: 5,
 

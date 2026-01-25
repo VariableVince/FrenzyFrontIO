@@ -18,7 +18,7 @@ export class DevServerConfig extends DefaultServerConfig {
   }
 
   gameCreationRate(): number {
-    return 5 * 1000;
+    return 30 * 1000; // 30 seconds in dev mode to allow time to see map rotation
   }
 
   samWarheadHittingChance(): number {

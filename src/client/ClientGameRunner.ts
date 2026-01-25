@@ -14,7 +14,12 @@ import { createPartialGameRecord, replacer } from "../core/Util";
 import { ServerConfig } from "../core/configuration/Config";
 import { getConfig } from "../core/configuration/ConfigLoader";
 import { isInSpawnExclusionZone } from "../core/execution/utils/PlayerSpawner";
-import { GameFork, PlayerActions, UnitType } from "../core/game/Game";
+import {
+  GameFork,
+  GameMapType,
+  PlayerActions,
+  UnitType,
+} from "../core/game/Game";
 import { TileRef } from "../core/game/GameMap";
 import { GameMapLoader } from "../core/game/GameMapLoader";
 import {
@@ -72,7 +77,7 @@ export interface LobbyConfig {
 export function joinLobby(
   eventBus: EventBus,
   lobbyConfig: LobbyConfig,
-  onPrestart: () => void,
+  onPrestart: (mapType: GameMapType) => void,
   onJoin: () => void,
 ): () => void {
   console.log(
@@ -100,11 +105,12 @@ export function joinLobby(
         message.gameMapSize,
         terrainMapFileLoader,
       );
-      onPrestart();
+      onPrestart(message.gameMap);
     }
     if (message.type === "start") {
       // Trigger prestart for singleplayer games
-      onPrestart();
+      const mapType = message.gameStartInfo.config.gameMap;
+      onPrestart(mapType);
       console.log(
         `lobby: game started: ${JSON.stringify(message, replacer, 2)}`,
       );

@@ -23,6 +23,14 @@ scp static/index.html root@167.235.146.119:/opt/frenzyfront/static/
 scp static/changelog.md root@167.235.146.119:/opt/frenzyfront/static/
 scp static/version.txt root@167.235.146.119:/opt/frenzyfront/static/
 
+# 2a. Upload images (needed when icons/images change)
+# Images are bundled with content hashes - upload all to ensure new ones are available
+scp -r static/images root@167.235.146.119:/opt/frenzyfront/static/
+
+# IMPORTANT: If release notes don't load after deploy, you MUST rebuild:
+# The changelog.md is embedded in the JS bundle at build time.
+# Simply uploading a new changelog.md won't work - you need to rebuild first!
+
 # 2b. Upload music files (only needed once, or when music changes)
 # Music is NOT bundled by webpack - it's loaded directly from /sounds/music/
 scp -r static/sounds/music root@167.235.146.119:/opt/frenzyfront/static/sounds/
@@ -83,6 +91,20 @@ Check that timestamps match your build time.
 
 ## Troubleshooting
 
+### Release Notes Not Loading?
+
+**Root Cause**: The changelog.md is bundled into the JavaScript at build time via webpack.
+
+**Solution**:
+
+1. **ALWAYS update `resources/changelog.md` BEFORE building**
+2. Run `npm run build-prod` to bundle the changelog into the JS
+3. Upload the new JS files: `scp static/js/*.js root@167.235.146.119:/opt/frenzyfront/static/js/`
+4. Purge Cloudflare cache (see below)
+5. Hard refresh your browser (Ctrl+Shift+R)
+
+**Why this happens**: Simply uploading a new `changelog.md` won't work because the NewsModal fetches the version that was embedded during the build process.
+
 ### Still seeing old version or "Loading version..."?
 
 **The version and changelog are bundled into the JS at build time!**
@@ -104,6 +126,27 @@ They are NOT loaded dynamically from the server.
 | Incognito    | Ctrl+Shift+N | ✅ YES - No cache at all                  |
 
 **Common symptom of stale cache**: New features don't appear, icons are broken/missing, or old bugs persist after deployment.
+
+### Icons/Images Missing In-Game?
+
+**Symptom**: Artillery, defense post, or other icons don't appear in the game UI.
+
+**Root Cause**: Images were not uploaded to the server after a build.
+
+**Solution**:
+
+```powershell
+# Upload all images to the server
+scp -r static/images root@167.235.146.119:/opt/frenzyfront/static/
+
+# Verify the image exists
+ssh root@167.235.146.119 "ls /opt/frenzyfront/static/images/ | grep -i artillery"
+
+# Restart nginx and purge cache
+ssh root@167.235.146.119 "systemctl restart nginx"
+```
+
+**Prevention**: Always run the image upload step when deploying changes that add or modify icons.
 
 ### Why does Cloudflare cache matter?
 
@@ -130,6 +173,46 @@ ssh root@167.235.146.119 "cat /etc/nginx/sites-enabled/default"
 ```powershell
 ssh root@167.235.146.119 "ps aux | grep node"
 ```
+
+### Join Button Missing / Games Start Too Fast?
+
+**Symptom**: The "Join Next Game" button doesn't appear on the main menu, or games start after only 5 seconds instead of 60 seconds.
+
+**Root Cause**: The `GAME_ENV` environment variable is not set, so the server defaults to `dev` mode. In dev mode, `gameCreationRate()` is only 5 seconds (vs 60 seconds in production), causing games to start before users can see and join them.
+
+**Diagnosis**:
+
+```powershell
+# Check if GAME_ENV is set
+ssh root@167.235.146.119 "cat /opt/frenzyfront/.env"
+
+# Check server logs - should say "using frenzy server config"
+ssh root@167.235.146.119 "head -20 /var/log/frenzyfront/server.log"
+```
+
+**Solution**:
+
+```powershell
+# 1. Stop the server
+ssh root@167.235.146.119 "pkill -f 'ts-node/esm'"
+
+# 2. Create/update .env file with correct environment
+ssh root@167.235.146.119 "echo 'GAME_ENV=frenzy' > /opt/frenzyfront/.env"
+
+# 3. Restart the server with the environment variable
+ssh root@167.235.146.119 "cd /opt/frenzyfront && export GAME_ENV=frenzy && nohup /usr/bin/node --loader ts-node/esm --experimental-specifier-resolution=node src/server/Server.ts > /var/log/frenzyfront/server.log 2>&1 &"
+
+# 4. Verify it's using the correct config
+ssh root@167.235.146.119 "sleep 3 && head -5 /var/log/frenzyfront/server.log | grep 'using.*config'"
+# Should show: "using frenzy server config"
+```
+
+**Available environments**:
+
+- `dev` - 5 second game start (for local testing)
+- `staging` - Pre-production testing
+- `frenzy` - Production Frenzy mode (60 second game start)
+- `prod` - Standard production
 
 ## Architecture Notes
 

@@ -38,9 +38,9 @@ export default async (env, argv) => {
         },
         {
           test: /\.md$/,
-          type: "asset/resource", // Changed from raw-loader
+          type: "asset/resource",
           generator: {
-            filename: "text/[name].[contenthash][ext]", // Added content hash
+            filename: "[name][ext]", // No hash for .md files to ensure consistent URL
           },
         },
         {
@@ -259,6 +259,8 @@ export default async (env, argv) => {
                 "/api/auth/callback",
                 "/api/auth/discord",
                 "/api/kick_player",
+                "/api/change_map",
+                "/api/start_now",
               ],
               target: "http://localhost:3000",
               secure: false,

@@ -488,6 +488,7 @@ export class GameView implements GameMap {
       maxShieldHealth?: number;
       weaponCooldown?: number;
       fireInterval?: number;
+      hasAttackOrder?: boolean;
     }>;
     coreBuildings: Array<{
       playerId: string;

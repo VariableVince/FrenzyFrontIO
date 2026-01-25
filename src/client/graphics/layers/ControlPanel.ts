@@ -44,6 +44,9 @@ export class ControlPanel extends LitElement implements Layer {
   private _unitCount: number = 0;
 
   @state()
+  private _freeUnitCount: number = 0;
+
+  @state()
   private _warshipCount: number = 0;
 
   @state()
@@ -122,12 +125,17 @@ export class ControlPanel extends LitElement implements Layer {
     if (isFrenzy) {
       const frenzy = this.game.frenzyManager();
       const myId = player.id();
-      // Count only mobile units (soldiers), not defense posts
-      this._unitCount = frenzy
+      // Count only mobile units (soldiers and elite soldiers), not defense posts or warships
+      const mySoldiers = frenzy
         ? frenzy.units.filter(
-            (u) => u.playerId === myId && u.unitType !== "defensePost",
-          ).length
-        : 0;
+            (u) =>
+              u.playerId === myId &&
+              (u.unitType === "soldier" || u.unitType === "eliteSoldier"),
+          )
+        : [];
+      this._unitCount = mySoldiers.length;
+      // Count free soldiers (no attack order)
+      this._freeUnitCount = mySoldiers.filter((u) => !u.hasAttackOrder).length;
       // Count warships (both tier 1 and tier 2 use "warship" type)
       this._warshipCount = frenzy
         ? frenzy.units.filter(
@@ -185,6 +193,32 @@ export class ControlPanel extends LitElement implements Layer {
     }
   }
 
+  /**
+   * Calculate the number of units that would be selected based on attack ratio.
+   * Matches the logic in FrenzyManager.handleAttackOrder
+   */
+  private getUnitsToSelect(): { count: number; type: string } {
+    const isMinimumRatio = this.attackRatio <= 0.01;
+
+    if (isMinimumRatio) {
+      // At 1%: select 1 closest FREE unit only
+      const freeCount = Math.min(1, this._freeUnitCount);
+      return {
+        count: freeCount,
+        type: translateText("control_panel.free_unit"),
+      };
+    } else {
+      // At other ratios: select closest X% of all units
+      const numToSelect = Math.max(
+        1,
+        Math.floor(this._unitCount * this.attackRatio),
+      );
+      return {
+        count: numToSelect,
+        type: translateText("control_panel.closest_units"),
+      };
+    }
+  }
   renderLayer(context: CanvasRenderingContext2D) {
     // Render any necessary canvas elements
   }
@@ -374,11 +408,14 @@ export class ControlPanel extends LitElement implements Layer {
             >
               <span>${(this.attackRatio * 100).toFixed(0)}%</span>
               <span>
-                (${this._isFrenzy
-                  ? Math.floor(this._troops * this.attackRatio)
-                  : renderTroops(
+                ${this._isFrenzy
+                  ? html`(${this.getUnitsToSelect().count})
+                      <span class="text-xs text-white/70"
+                        >${this.getUnitsToSelect().type}</span
+                      >`
+                  : html`(${renderTroops(
                       (this.game?.myPlayer()?.troops() ?? 0) * this.attackRatio,
-                    )})
+                    )})`}
               </span>
             </span>
           </label>

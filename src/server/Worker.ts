@@ -155,6 +155,38 @@ export async function startWorker() {
     res.json(game.gameInfo());
   });
 
+  // Cancel a game (used when changing maps)
+  app.post("/api/cancel_game/:id", async (req, res) => {
+    if (req.headers[config.adminHeader()] !== config.adminToken()) {
+      return res.status(401).send("Unauthorized");
+    }
+    log.info(`cancelling game with id ${req.params.id}`);
+    const game = gm.game(req.params.id);
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+    gm.endGame(req.params.id);
+    res.status(200).json({ success: true });
+  });
+
+  // Start a public game immediately
+  app.post("/api/start_public_game/:id", async (req, res) => {
+    if (req.headers[config.adminHeader()] !== config.adminToken()) {
+      return res.status(401).send("Unauthorized");
+    }
+    log.info(`starting public game immediately with id ${req.params.id}`);
+    const game = gm.game(req.params.id);
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+    // Prestart tells clients to load the game, then start after a brief delay
+    game.prestart();
+    setTimeout(() => {
+      game.start();
+    }, 1000);
+    res.status(200).json({ success: true });
+  });
+
   // Add other endpoints from your original server
   app.post("/api/start_game/:id", async (req, res) => {
     log.info(`starting private lobby with id ${req.params.id}`);
