@@ -16,7 +16,7 @@ const MENU_MUSIC_PATH =
 const IN_GAME_MUSIC_PATHS = [
   "/sounds/music/enveloped-mission-4-operation-alpha-116601.mp3",
   "/sounds/music/enveloped-mission-9-and-10-the-farewell-and-end-titles-261884.mp3",
-  "/sounds/music/the-z-files-untouched-248952.mp3",
+  "/sounds/music/the-z-files-_untouched-248952.mp3",
   "/sounds/music/enveloped-mission-5-d-day-124386.mp3",
   "/sounds/music/enveloped-mission-nice-to-meet-you-115992.mp3",
 ];
