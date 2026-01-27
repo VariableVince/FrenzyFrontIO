@@ -19,6 +19,10 @@ export interface FrenzyUnitData {
   maxShieldHealth?: number;
   weaponCooldown?: number;
   fireInterval?: number;
+  heading?: number; // Direction in radians (for transporter rotation)
+  isFlying?: boolean; // Whether transporter is flying
+  isWaitingForBoarding?: boolean; // Whether transporter is waiting for units to board
+  boardedUnits?: number[]; // IDs of boarded units
 }
 
 /**
@@ -52,6 +56,7 @@ export class UnitRenderer {
     const isDefensePost = unit.unitType === "defensePost";
     const isEliteSoldier = unit.unitType === "eliteSoldier";
     const isWarship = unit.unitType === "warship";
+    const isTransporter = unit.unitType === "transporter";
     const isArtillery = unit.unitType === "artillery";
     const isShieldGenerator = unit.unitType === "shieldGenerator";
     const isMissileSilo = unit.unitType === "missileSilo";
@@ -71,6 +76,8 @@ export class UnitRenderer {
       this.renderEliteSoldier(ctx.context, x, y, player);
     } else if (isWarship) {
       this.renderWarship(ctx.context, x, y, player, tier);
+    } else if (isTransporter) {
+      this.renderTransporter(ctx.context, x, y, player, unit.heading ?? 0);
     } else {
       this.renderSoldier(ctx.context, x, y, player);
     }
@@ -413,6 +420,57 @@ export class UnitRenderer {
     context.strokeStyle = strokeColor;
     context.lineWidth = tier >= 2 ? 1 : 0.5;
     context.strokeRect(x - 1.5, y - 2, 3, 2);
+  }
+
+  private renderTransporter(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+    heading: number = 0,
+  ) {
+    // Simple airplane/transporter shape
+    const bodyLength = 10;
+    const bodyWidth = 3;
+    const wingSpan = 12;
+    const wingWidth = 2;
+    const tailSpan = 5;
+    const tailWidth = 1.5;
+
+    // Save context and apply rotation
+    context.save();
+    context.translate(x, y);
+    context.rotate(heading);
+
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.strokeStyle = "#000";
+    context.lineWidth = 1;
+
+    // Fuselage (horizontal ellipse) - drawn at origin since we translated
+    context.beginPath();
+    context.ellipse(0, 0, bodyLength / 2, bodyWidth / 2, 0, 0, 2 * Math.PI);
+    context.fill();
+    context.stroke();
+
+    // Wings (horizontal rectangle across the body)
+    context.fillRect(-wingSpan / 2, -wingWidth / 2, wingSpan, wingWidth);
+    context.strokeRect(-wingSpan / 2, -wingWidth / 2, wingSpan, wingWidth);
+
+    // Tail (smaller horizontal rectangle at the back)
+    context.fillRect(bodyLength / 2 - 2, -tailSpan / 2, tailWidth, tailSpan);
+    context.strokeRect(bodyLength / 2 - 2, -tailSpan / 2, tailWidth, tailSpan);
+
+    // Nose cone (triangle at the front)
+    context.beginPath();
+    context.moveTo(-bodyLength / 2, 0);
+    context.lineTo(-bodyLength / 2 - 3, -1.5);
+    context.lineTo(-bodyLength / 2 - 3, 1.5);
+    context.closePath();
+    context.fill();
+    context.stroke();
+
+    // Restore context
+    context.restore();
   }
 
   private renderSoldier(

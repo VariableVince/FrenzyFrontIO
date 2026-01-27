@@ -12,6 +12,8 @@ export enum FrenzyStructureType {
   Factory = "factory",
   DefensePost = "defensePost",
   Port = "port",
+  Airport = "airport",
+  MiniHQ = "minihq",
   MissileSilo = "missileSilo",
   SAMLauncher = "samLauncher",
   Artillery = "artillery",
@@ -33,6 +35,10 @@ export interface FrenzyStructure {
   unit?: UnitView;
   constructionType?: FrenzyStructureType;
   constructionProgress?: number;
+  // Airport spawn info
+  hasTransporter?: boolean;
+  spawnTimer?: number;
+  spawnInterval?: number;
 }
 
 /**
@@ -60,6 +66,10 @@ export class StructureRenderer {
           tier: s.tier ?? 1,
           health: s.health ?? 100,
           maxHealth: s.maxHealth ?? 100,
+          // Airport spawn info
+          hasTransporter: s.hasTransporter,
+          spawnTimer: s.spawnTimer,
+          spawnInterval: s.spawnInterval,
         });
       }
     } else {
@@ -159,6 +169,9 @@ export class StructureRenderer {
             case UnitType.ShieldGenerator:
               constrType = FrenzyStructureType.ShieldGenerator;
               break;
+            case UnitType.Airport:
+              constrType = FrenzyStructureType.Airport;
+              break;
           }
           if (constrType && constructionUnitType) {
             const unitInfo = this.game.unitInfo(constructionUnitType);
@@ -214,6 +227,12 @@ export class StructureRenderer {
         break;
       case FrenzyStructureType.Port:
         this.renderPortIcon(ctx.context, x, y, player, structure.tier);
+        break;
+      case FrenzyStructureType.Airport:
+        this.renderAirportIcon(ctx.context, x, y, player, structure);
+        break;
+      case FrenzyStructureType.MiniHQ:
+        this.renderMiniHQIcon(ctx.context, x, y, player);
         break;
       case FrenzyStructureType.MissileSilo:
         this.renderMissileSiloIcon(ctx.context, x, y, player, structure.tier);
@@ -271,6 +290,8 @@ export class StructureRenderer {
       [FrenzyStructureType.Mine]: "mine",
       [FrenzyStructureType.Factory]: "factory",
       [FrenzyStructureType.Port]: "port",
+      [FrenzyStructureType.Airport]: "airport",
+      [FrenzyStructureType.MiniHQ]: "minihq",
       [FrenzyStructureType.DefensePost]: "defensePost",
       [FrenzyStructureType.MissileSilo]: "missileSilo",
       [FrenzyStructureType.SAMLauncher]: "samLauncher",
@@ -288,7 +309,10 @@ export class StructureRenderer {
       case FrenzyStructureType.Mine:
       case FrenzyStructureType.Factory:
       case FrenzyStructureType.Port:
+      case FrenzyStructureType.Airport:
         return 10;
+      case FrenzyStructureType.MiniHQ:
+        return 8;
       case FrenzyStructureType.DefensePost:
       case FrenzyStructureType.MissileSilo:
       case FrenzyStructureType.SAMLauncher:
@@ -621,6 +645,131 @@ export class StructureRenderer {
     }
   }
 
+  private renderAirportIcon(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+    structure: FrenzyStructure,
+  ) {
+    const size = STRUCTURE_CONFIGS.airport.size;
+    const halfSize = size / 2;
+
+    // Outer glow
+    context.fillStyle = player.territoryColor().alpha(0.4).toRgbString();
+    context.beginPath();
+    context.arc(x, y, halfSize + 2, 0, Math.PI * 2);
+    context.fill();
+
+    // Main circle (runway base)
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.beginPath();
+    context.arc(x, y, halfSize, 0, Math.PI * 2);
+    context.fill();
+
+    // Airplane silhouette
+    context.fillStyle = "rgba(255, 255, 255, 0.8)";
+    context.beginPath();
+    // Fuselage
+    context.moveTo(x, y - halfSize * 0.6);
+    context.lineTo(x + halfSize * 0.15, y + halfSize * 0.4);
+    context.lineTo(x, y + halfSize * 0.3);
+    context.lineTo(x - halfSize * 0.15, y + halfSize * 0.4);
+    context.closePath();
+    context.fill();
+    // Wings
+    context.beginPath();
+    context.moveTo(x - halfSize * 0.6, y);
+    context.lineTo(x + halfSize * 0.6, y);
+    context.lineTo(x + halfSize * 0.3, y + halfSize * 0.15);
+    context.lineTo(x - halfSize * 0.3, y + halfSize * 0.15);
+    context.closePath();
+    context.fill();
+    // Tail
+    context.beginPath();
+    context.moveTo(x - halfSize * 0.25, y + halfSize * 0.25);
+    context.lineTo(x + halfSize * 0.25, y + halfSize * 0.25);
+    context.lineTo(x + halfSize * 0.15, y + halfSize * 0.35);
+    context.lineTo(x - halfSize * 0.15, y + halfSize * 0.35);
+    context.closePath();
+    context.fill();
+
+    // Border
+    context.strokeStyle = "#000";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.arc(x, y, halfSize, 0, Math.PI * 2);
+    context.stroke();
+
+    // Energy bar when transporter is rebuilding (hasTransporter = false)
+    if (
+      structure.hasTransporter === false &&
+      structure.spawnTimer !== undefined &&
+      structure.spawnInterval !== undefined &&
+      structure.spawnInterval > 0
+    ) {
+      const progress = structure.spawnTimer / structure.spawnInterval;
+      const barWidth = size + 4;
+      const barHeight = 3;
+      const barY = y + halfSize + 4;
+
+      // Background
+      context.fillStyle = "rgba(0, 0, 0, 0.7)";
+      context.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
+
+      // Progress fill (blue energy bar)
+      context.fillStyle = "#4488ff";
+      context.fillRect(x - barWidth / 2, barY, barWidth * progress, barHeight);
+
+      // Border
+      context.strokeStyle = "#000";
+      context.lineWidth = 0.5;
+      context.strokeRect(x - barWidth / 2, barY, barWidth, barHeight);
+    }
+  }
+
+  private renderMiniHQIcon(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    player: PlayerView,
+  ) {
+    const size = STRUCTURE_CONFIGS.minihq.size;
+    const halfSize = size / 2;
+
+    // Outer glow
+    context.fillStyle = player.territoryColor().alpha(0.5).toRgbString();
+    context.beginPath();
+    context.arc(x, y, halfSize + 3, 0, Math.PI * 2);
+    context.fill();
+
+    // Main circle (round design)
+    context.fillStyle = player.territoryColor().toRgbString();
+    context.beginPath();
+    context.arc(x, y, halfSize, 0, Math.PI * 2);
+    context.fill();
+
+    // Inner ring
+    context.strokeStyle = player.territoryColor().lighten(0.3).toRgbString();
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(x, y, halfSize * 0.65, 0, Math.PI * 2);
+    context.stroke();
+
+    // Center dot
+    context.fillStyle = "rgba(255, 255, 255, 0.9)";
+    context.beginPath();
+    context.arc(x, y, halfSize * 0.25, 0, Math.PI * 2);
+    context.fill();
+
+    // Border
+    context.strokeStyle = "#000";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.arc(x, y, halfSize, 0, Math.PI * 2);
+    context.stroke();
+  }
+
   private renderMissileSiloIcon(
     context: CanvasRenderingContext2D,
     x: number,
@@ -860,6 +1009,18 @@ export class StructureRenderer {
         break;
       case FrenzyStructureType.ShieldGenerator:
         this.renderShieldGeneratorIcon(context, 0, 0, grayColor);
+        break;
+      case FrenzyStructureType.Airport:
+        this.renderAirportIcon(context, 0, 0, grayColor, {
+          type: FrenzyStructureType.Airport,
+          x: 0,
+          y: 0,
+          playerId: "",
+          tier: 0,
+          health: 0,
+          maxHealth: 0,
+          hasTransporter: true, // Don't show energy bar for construction ghost
+        });
         break;
     }
 

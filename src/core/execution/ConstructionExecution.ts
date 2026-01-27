@@ -212,6 +212,19 @@ export class ConstructionExecution implements Execution {
       case UnitType.Factory:
         this.mg.addExecution(new FactoryExecution(player, this.tile));
         break;
+      case UnitType.Airport:
+        // Airport only works in Frenzy mode
+        if (
+          this.mg.config().gameConfig().gameFork === GameFork.Frenzy &&
+          this.mg.frenzyManager()
+        ) {
+          const tileX = this.mg.x(this.tile);
+          const tileY = this.mg.y(this.tile);
+          this.mg
+            .frenzyManager()!
+            .registerAirport(player.id(), this.tile, tileX, tileY);
+        }
+        break;
       default:
         console.warn(
           `unit type ${this.constructionType} cannot be constructed`,

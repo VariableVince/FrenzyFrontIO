@@ -4,6 +4,7 @@ import { TileRef } from "../../../core/game/GameMap";
 import { GameView, PlayerView } from "../../../core/game/GameView";
 import { Emoji, flattenedEmojiTable } from "../../../core/Util";
 import { renderNumber, translateText } from "../../Utils";
+import { UIState } from "../UIState";
 import { BuildItemDisplay, BuildMenu, flattenedBuildTable } from "./BuildMenu";
 import { ChatIntegration } from "./ChatIntegration";
 import { EmojiTable } from "./EmojiTable";
@@ -11,6 +12,7 @@ import { PlayerActionHandler } from "./PlayerActionHandler";
 import { PlayerPanel } from "./PlayerPanel";
 import { TooltipItem } from "./RadialMenu";
 
+import airtransportIcon from "../../../../resources/images/AirtransportIconWhite.svg";
 import allianceIcon from "../../../../resources/images/AllianceIconWhite.svg";
 import boatIcon from "../../../../resources/images/BoatIconWhite.svg";
 import buildIcon from "../../../../resources/images/BuildIconWhite.svg";
@@ -25,6 +27,7 @@ import targetIcon from "../../../../resources/images/TargetIconWhite.svg";
 import traitorIcon from "../../../../resources/images/TraitorIconWhite.svg";
 import xIcon from "../../../../resources/images/XIcon.svg";
 import { EventBus } from "../../../core/EventBus";
+import { MoveTransporterIntentEvent } from "../../Transport";
 
 export interface MenuElementParams {
   myPlayer: PlayerView;
@@ -39,6 +42,7 @@ export interface MenuElementParams {
   chatIntegration: ChatIntegration;
   eventBus: EventBus;
   closeMenu: () => void;
+  uiState?: UIState;
 }
 
 export interface MenuElement {
@@ -330,6 +334,7 @@ function getAllEnabledUnits(myPlayer: boolean, config: Config): Set<UnitType> {
     addStructureIfEnabled(UnitType.City);
     addStructureIfEnabled(UnitType.Port);
     addStructureIfEnabled(UnitType.Factory);
+    addStructureIfEnabled(UnitType.Airport);
     // Tactical structures (shown in tactical submenu)
     addStructureIfEnabled(UnitType.DefensePost);
     addStructureIfEnabled(UnitType.MissileSilo);
@@ -350,6 +355,7 @@ const BUILDING_UNIT_TYPES: UnitType[] = [
   UnitType.City,
   UnitType.Port,
   UnitType.Factory,
+  UnitType.Airport,
 ];
 
 // Towers - military/defensive structures (left build menu)
@@ -1290,9 +1296,9 @@ export const buildMenuElement: MenuElement = {
 
   subMenu: (params: MenuElementParams) => {
     if (params === undefined) return [];
-    // Buildings + towers submenu
+    // Buildings submenu (towers removed - accessible from main menu)
     const buildingItems = createMenuElements(params, "buildings", "build");
-    return [...buildingItems, towersMenuElement];
+    return [...buildingItems];
   },
 };
 
@@ -1339,6 +1345,85 @@ export const boatMenuElement: MenuElement = {
       params.selected?.id() ?? null,
       params.tile,
       spawn !== false ? spawn : null,
+    );
+
+    params.closeMenu();
+  },
+};
+
+export const transporterMenuElement: MenuElement = {
+  id: "transporter",
+  name: "transporter",
+  disabled: (params: MenuElementParams) => {
+    // In Frenzy mode, check if player has an available transporter
+    const frenzyState = params.game.frenzyManager();
+    if (!frenzyState) return true;
+
+    const myPlayerId = params.myPlayer.id();
+    // Find any transporter owned by this player that is not currently flying or boarding
+    const hasAvailableTransporter = frenzyState.units.some(
+      (unit) =>
+        unit.playerId === myPlayerId &&
+        unit.unitType === "transporter" &&
+        !unit.isFlying &&
+        !unit.isWaitingForBoarding,
+    );
+    return !hasAvailableTransporter;
+  },
+  icon: airtransportIcon,
+  color: COLORS.boat,
+  tooltipKeys: [
+    {
+      key: "radial_menu.transporter_title",
+      className: "title",
+    },
+    {
+      key: "radial_menu.transporter_description",
+      className: "description",
+    },
+  ],
+
+  action: async (params: MenuElementParams) => {
+    const frenzyState = params.game.frenzyManager();
+    if (!frenzyState) return;
+
+    const myPlayerId = params.myPlayer.id();
+    // Find the first available transporter (not flying or waiting for boarding)
+    const transporter = frenzyState.units.find(
+      (unit) =>
+        unit.playerId === myPlayerId &&
+        unit.unitType === "transporter" &&
+        !unit.isFlying &&
+        !unit.isWaitingForBoarding,
+    );
+
+    if (!transporter) return;
+
+    // Get target coordinates from the tile
+    const targetX = params.game.x(params.tile);
+    const targetY = params.game.y(params.tile);
+
+    // Calculate unit count based on attack ratio (max 5)
+    const attackRatio = params.uiState?.attackRatio ?? 0.2;
+    // Count available soldiers (not on transport duty)
+    const soldiers = frenzyState.units.filter(
+      (unit) =>
+        unit.playerId === myPlayerId &&
+        (unit.unitType === "soldier" || unit.unitType === "eliteSoldier"),
+    );
+    const unitCount = Math.min(
+      5,
+      Math.max(1, Math.floor(soldiers.length * attackRatio)),
+    );
+
+    // Emit the move transporter intent with unit count
+    params.eventBus.emit(
+      new MoveTransporterIntentEvent(
+        transporter.id,
+        targetX,
+        targetY,
+        unitCount,
+      ),
     );
 
     params.closeMenu();
@@ -1615,7 +1700,7 @@ export const rootMenuElement: MenuElement = {
     const menuItems: (MenuElement | null)[] = [
       ...(isOwnTerritory
         ? [upgradeSlot, buildMenuElement, towersMenuElement, sellSlot]
-        : [infoMenuElement, boatMenuElement, ally, attackMenuElement]),
+        : [infoMenuElement, transporterMenuElement, ally, attackMenuElement]),
     ];
 
     return menuItems.filter((item): item is MenuElement => item !== null);

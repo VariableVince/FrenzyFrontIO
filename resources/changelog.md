@@ -17,6 +17,13 @@
 - Music plays in shuffled random order during gameplay
 - Menu music remains the same familiar track
 
+⚖️ **Balance Changes**
+
+- **Warship**: Range increased 45 → 50 (better shore bombardment)
+- **Elite Defense Post**: Range increased 37.5 → 50 (stronger tier 2)
+- **Shield Generator**: Shield HP increased 900 → 1500 (more durable)
+- **Elite Shield Generator**: Shield HP increased 2000 → 3000 (more durable)
+
 🔧 **Technical**
 
 - Various stability improvements
@@ -51,7 +58,13 @@
 
 ⚖️ **Balance Changes**
 
-- Missile Silo cost increased for better game balance
+- **Missile Silo**: Build cost reduced 1,000,000 → 200,000 (more accessible)
+- **Missile Silo**: Upgrade cost increased 100,000 → 400,000 (tier 2 nuke is premium)
+- **SAM Launcher**: Build cost reduced 1,500,000 → 150,000 (anti-nuke defense more viable)
+- **SAM Launcher**: Construction time reduced 30s → 10s
+- **Defense Post**: Build cost increased 25,000 → 35,000 (less spam, more strategic)
+- **Defense Post**: Range increased 25 → 30, projectile damage increased 15 → 20
+- **Mine**: Construction time increased 2s → 5s (more commitment to build)
 
 🔧 **Bug Fixes**
 

@@ -659,6 +659,15 @@ export class DefaultConfig implements Config {
               : 20 * 10,
           upgradable: true,
         };
+      case UnitType.Airport:
+        return {
+          cost: () => BigInt(STRUCTURE_CONFIGS.airport.buildCost),
+          territoryBound: true,
+          constructionDuration: this.instantBuild()
+            ? 0
+            : STRUCTURE_CONFIGS.airport.constructionTime,
+          upgradable: false,
+        };
       default:
         assertNever(type);
     }

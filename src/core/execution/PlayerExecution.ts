@@ -119,14 +119,69 @@ export class PlayerExecution implements Execution {
     this.player.largestClusterBoundingBox = calculateBoundingBox(this.mg, main);
     const surroundedBy = this.surroundedBySamePlayer(main);
     if (surroundedBy && !surroundedBy.isFriendly(this.player)) {
-      this.removeCluster(main);
+      // Don't annex main cluster if it contains an HQ or MiniHQ
+      if (!this.clusterContainsHQOrMiniHQ(main)) {
+        this.removeCluster(main);
+      }
     }
 
     for (const cluster of clusters) {
       if (this.isSurrounded(cluster)) {
-        this.removeCluster(cluster);
+        // Don't annex cluster if it contains an HQ or MiniHQ
+        if (!this.clusterContainsHQOrMiniHQ(cluster)) {
+          this.removeCluster(cluster);
+        }
       }
     }
+  }
+
+  /**
+   * Check if a cluster contains an HQ or MiniHQ belonging to this player.
+   * Clusters containing these structures cannot be annexed.
+   * Note: cluster only contains border tiles, so we need to check all tiles
+   * that would be captured (using BFS from a border tile).
+   */
+  private clusterContainsHQOrMiniHQ(cluster: Set<TileRef>): boolean {
+    const frenzyManager = this.mg.frenzyManager();
+    if (!frenzyManager) {
+      return false; // Not in Frenzy mode
+    }
+
+    const playerId = this.player.id();
+
+    // Get all tiles that would be captured (not just border tiles)
+    const firstTile = cluster.values().next().value;
+    if (!firstTile) {
+      return false;
+    }
+    const filter = (_: GameMap, t: TileRef): boolean =>
+      this.mg?.ownerID(t) === this.player?.smallID();
+    const allTilesInCluster = this.mg.bfs(firstTile, filter);
+
+    // Check for main HQ
+    const coreBuildings = frenzyManager.getCoreBuildings();
+    if (coreBuildings) {
+      const hq = coreBuildings.get(playerId);
+      if (hq && allTilesInCluster.has(hq.tile)) {
+        console.log(
+          `[Annexation Protection] Cluster contains HQ at tile ${hq.tile}, blocking annexation`,
+        );
+        return true;
+      }
+    }
+
+    // Check for MiniHQs
+    const miniHQs = frenzyManager.getMiniHQs();
+    for (const miniHQ of miniHQs.values()) {
+      if (miniHQ.playerId === playerId && allTilesInCluster.has(miniHQ.tile)) {
+        console.log(
+          `[Annexation Protection] Cluster contains MiniHQ at tile ${miniHQ.tile}, blocking annexation`,
+        );
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private surroundedBySamePlayer(cluster: Set<TileRef>): false | Player {

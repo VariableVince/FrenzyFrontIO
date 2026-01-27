@@ -206,6 +206,15 @@ export class MoveWarshipIntentEvent implements GameEvent {
   ) {}
 }
 
+export class MoveTransporterIntentEvent implements GameEvent {
+  constructor(
+    public readonly unitId: number,
+    public readonly targetX: number,
+    public readonly targetY: number,
+    public readonly unitCount?: number, // Number of units to board (max 5)
+  ) {}
+}
+
 export class SendKickPlayerIntentEvent implements GameEvent {
   constructor(public readonly target: string) {}
 }
@@ -285,6 +294,10 @@ export class Transport {
 
     this.eventBus.on(MoveWarshipIntentEvent, (e) => {
       this.onMoveWarshipEvent(e);
+    });
+
+    this.eventBus.on(MoveTransporterIntentEvent, (e) => {
+      this.onMoveTransporterEvent(e);
     });
 
     this.eventBus.on(SendDeleteUnitIntentEvent, (e) =>
@@ -687,6 +700,17 @@ export class Transport {
       clientID: this.lobbyConfig.clientID,
       unitId: event.unitId,
       tile: event.tile,
+    });
+  }
+
+  private onMoveTransporterEvent(event: MoveTransporterIntentEvent) {
+    this.sendIntent({
+      type: "move_transporter",
+      clientID: this.lobbyConfig.clientID,
+      unitId: event.unitId,
+      targetX: event.targetX,
+      targetY: event.targetY,
+      unitCount: event.unitCount,
     });
   }
 

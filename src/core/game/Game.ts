@@ -209,6 +209,7 @@ export enum UnitType {
   Factory = "Factory",
   ShieldGenerator = "Shield Generator",
   Artillery = "Artillery",
+  Airport = "Airport",
 }
 
 export enum TrainType {
@@ -226,6 +227,7 @@ const _structureTypes: ReadonlySet<UnitType> = new Set([
   UnitType.Factory,
   UnitType.ShieldGenerator,
   UnitType.Artillery,
+  UnitType.Airport,
 ]);
 
 export function isStructureType(type: UnitType): boolean {
@@ -300,6 +302,8 @@ export interface UnitParamsMap {
   [UnitType.ShieldGenerator]: Record<string, never>;
 
   [UnitType.Artillery]: Record<string, never>;
+
+  [UnitType.Airport]: Record<string, never>;
 }
 
 // Type helper to get params type for a specific unit type

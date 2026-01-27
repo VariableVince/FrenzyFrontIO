@@ -489,6 +489,17 @@ export class GameView implements GameMap {
       weaponCooldown?: number;
       fireInterval?: number;
       hasAttackOrder?: boolean;
+      attackOrderX?: number;
+      attackOrderY?: number;
+      heading?: number;
+      isFlying?: boolean;
+      isWaitingForBoarding?: boolean;
+      boardedUnits?: number[];
+      isBoardingTransporter?: boolean;
+      boardingTargetX?: number;
+      boardingTargetY?: number;
+      targetX?: number;
+      targetY?: number;
     }>;
     coreBuildings: Array<{
       playerId: string;

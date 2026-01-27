@@ -569,13 +569,15 @@ export class HostLobbyModal extends LitElement {
         <div class="start-game-button-container">
           <button
             @click=${this.startGame}
-            ?disabled=${this.clients.length < 2}
+            ?disabled=${this.clients.length < 2 || !this.isCreatorRegistered()}
             class="start-game-button"
           >
             ${
-              this.clients.length === 1
-                ? translateText("host_modal.waiting")
-                : translateText("host_modal.start")
+              !this.isCreatorRegistered()
+                ? translateText("host_modal.connecting")
+                : this.clients.length === 1
+                  ? translateText("host_modal.waiting")
+                  : translateText("host_modal.start")
             }
           </button>
         </div>
@@ -612,9 +614,11 @@ export class HostLobbyModal extends LitElement {
             composed: true,
           }),
         );
+        // Poll immediately after joining, then every 500ms for faster registration feedback
+        this.pollPlayers();
       });
     this.modalEl?.open();
-    this.playersInterval = setInterval(() => this.pollPlayers(), 1000);
+    this.playersInterval = setInterval(() => this.pollPlayers(), 500);
   }
 
   public close() {
@@ -837,6 +841,10 @@ export class HostLobbyModal extends LitElement {
     } catch (err) {
       console.error(`Failed to copy text: ${err}`);
     }
+  }
+
+  private isCreatorRegistered(): boolean {
+    return this.clients.some((c) => c.clientID === this.lobbyCreatorClientID);
   }
 
   private async pollPlayers() {

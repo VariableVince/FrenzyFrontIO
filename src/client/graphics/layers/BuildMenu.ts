@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import airportIcon from "../../../../resources/images/AirportIconWhite.svg";
 import artilleryIcon from "../../../../resources/images/ArtilleryIconWhite.svg";
 import goldCoinIcon from "../../../../resources/images/GoldCoinIcon.svg";
 import harborIcon from "../../../../resources/images/HarborIconWhite.svg";
@@ -130,6 +131,13 @@ export const buildTable: BuildItemDisplay[][] = [
       icon: unitFactoryIcon,
       description: "build_menu.desc.factory",
       key: "unit_type.factory",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Airport,
+      icon: airportIcon,
+      description: "build_menu.desc.airport",
+      key: "unit_type.airport",
       countable: true,
     },
   ],

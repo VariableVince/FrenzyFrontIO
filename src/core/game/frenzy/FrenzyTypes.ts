@@ -93,17 +93,20 @@ export const PROJECTILE_CONFIGS: Record<ProjectileType, ProjectileConfig> = {
  * - Mine: Generates gold from nearby crystals
  * - Factory: Spawns soldiers (tier 2: elite soldiers)
  * - Port: Spawns warships (tier 2: elite warships)
+ * - Airport: Spawns transporters (1-minute rebuild time)
  */
 export enum FrenzyStructureType {
   HQ = "hq",
   Mine = "mine",
   Factory = "factory",
   Port = "port",
+  Airport = "airport",
+  MiniHQ = "minihq",
 }
 
 /**
  * Frenzy unit types
- * - Mobile: soldier, eliteSoldier, warship (move and attack)
+ * - Mobile: soldier, eliteSoldier, warship, transporter (move and attack)
  * - Towers: defensePost, samLauncher, missileSilo, shieldGenerator, artillery (stationary defensive)
  */
 export enum FrenzyUnitType {
@@ -111,6 +114,7 @@ export enum FrenzyUnitType {
   Soldier = "soldier",
   EliteSoldier = "eliteSoldier",
   Warship = "warship",
+  Transporter = "transporter",
   // Towers (stationary)
   DefensePost = "defensePost",
   SAMLauncher = "samLauncher",
@@ -163,6 +167,10 @@ export interface StructureConfig {
   // Missile Silo specific
   nukeCost?: number; // Cost of atom bomb (for missile silo)
   hydroCost?: number; // Cost of hydrogen bomb (for missile silo)
+
+  // HQ and MiniHQ specific
+  captureRadius?: number; // Territory capture radius on spawn (for MiniHQ)
+  protectionRadius?: number; // Territory protection radius - tiles within this cannot be captured by enemies
 }
 
 /**
@@ -173,6 +181,8 @@ export type StructureTypeKey =
   | "mine"
   | "factory"
   | "port"
+  | "airport"
+  | "minihq"
   | "defensePost"
   | "samLauncher"
   | "missileSilo"
@@ -197,6 +207,7 @@ export const STRUCTURE_CONFIGS: Record<StructureTypeKey, StructureConfig> = {
     requiredHQTier: 1,
     sellRefundPercent: 0, // Cannot sell HQ
     spawnInterval: 4.0,
+    protectionRadius: 20, // Territory protection radius - tiles within this cannot be captured
     bars: { showHealthBar: true, showEnergyBar: false },
   },
   mine: {
@@ -311,6 +322,39 @@ export const STRUCTURE_CONFIGS: Record<StructureTypeKey, StructureConfig> = {
     sellRefundPercent: 50,
     bars: { showHealthBar: true, showEnergyBar: true, energyBarType: "reload" }, // Reload bar
   },
+
+  // === Airport (spawns transporters) ===
+  airport: {
+    buildCost: 150000,
+    constructionTime: 100, // 10 seconds
+    health: 300,
+    size: 8,
+    minDistance: 20, // size * 2 + 4
+    maxTier: 1, // Not upgradable
+    upgradeCost: 0,
+    upgradeHealthBonus: 0,
+    requiredHQTier: 1,
+    sellRefundPercent: 50,
+    spawnInterval: 60.0, // 1 minute rebuild time
+    bars: { showHealthBar: true, showEnergyBar: false },
+  },
+
+  // === MiniHQ (spawned by transporter landing) ===
+  minihq: {
+    buildCost: 0, // Cannot be built directly
+    constructionTime: 0, // Instant spawn
+    health: 200,
+    size: 6,
+    minDistance: 0, // No distance requirement
+    maxTier: 1, // Not upgradable
+    upgradeCost: 0,
+    upgradeHealthBonus: 0,
+    requiredHQTier: 1,
+    sellRefundPercent: 0, // Cannot be sold
+    captureRadius: 15, // Territory capture radius on spawn
+    protectionRadius: 15, // Territory protection radius - tiles within this cannot be captured
+    bars: { showHealthBar: true, showEnergyBar: false },
+  },
 };
 
 /**
@@ -335,6 +379,10 @@ export function structureTypeToKey(
       return "factory";
     case FrenzyStructureType.Port:
       return "port";
+    case FrenzyStructureType.Airport:
+      return "airport";
+    case FrenzyStructureType.MiniHQ:
+      return "minihq";
   }
 }
 
@@ -438,10 +486,24 @@ export interface FrenzyUnit {
   attackOrderX?: number; // Attack order target X
   attackOrderY?: number; // Attack order target Y
   hasAttackOrder?: boolean; // Whether unit has an active attack order
+  // Boarding state for units heading to transporter
+  isBoardingTransporter?: boolean; // True if unit is heading to board a transporter
+  boardingTargetX?: number; // X position of transporter to board
+  boardingTargetY?: number; // Y position of transporter to board
+  boardingTransporterId?: number; // ID of transporter this unit is boarding
   // Tier 2 warship missile barrage state
   barrageCount?: number; // Current number of missiles fired in this barrage (0-5)
   barrageCooldown?: number; // Cooldown between barrage volleys (short, for rapid fire)
   barragePhase?: number; // 0 = first volley of 5, 1 = second volley of 5, then reload
+  // Transporter-specific properties
+  airportTile?: TileRef; // Which airport this transporter belongs to
+  isFlying?: boolean; // Whether transporter is currently flying to destination
+  heading?: number; // Direction transporter is facing (radians)
+  // Boarding system for transporters
+  boardingUnits?: number[]; // IDs of units currently moving toward this transporter
+  boardedUnits?: number[]; // IDs of units that have boarded
+  maxBoardingCapacity?: number; // Max units that can board (default 5)
+  isWaitingForBoarding?: boolean; // True while waiting for units to board
 }
 
 export interface FrenzyProjectile {
@@ -513,10 +575,30 @@ export interface PortSpawner extends FrenzyStructure {
 }
 
 /**
+ * Airport building (spawns transporters)
+ */
+export interface AirportSpawner extends FrenzyStructure {
+  type: FrenzyStructureType.Airport;
+  spawnTimer: number;
+  spawnInterval: number;
+  hasTransporter: boolean; // Whether the airport currently has a transporter
+}
+
+/**
  * Mine building (generates gold from crystals)
  */
 export interface MineStructure extends FrenzyStructure {
   type: FrenzyStructureType.Mine;
+}
+
+/**
+ * MiniHQ building - spawned by transporter landing
+ * Captures territory around it and prevents annexation.
+ * If destroyed/captured, all territory not connected to main HQ is lost.
+ */
+export interface MiniHQStructure extends FrenzyStructure {
+  type: FrenzyStructureType.MiniHQ;
+  capturedTiles: Set<TileRef>; // Tiles captured by this MiniHQ
 }
 
 export interface CrystalCluster {
@@ -536,6 +618,7 @@ export interface FrenzyConfig {
     eliteSoldier: UnitTypeConfig;
     warship: UnitTypeConfig;
     eliteWarship: UnitTypeConfig;
+    transporter: UnitTypeConfig;
     // Towers
     defensePost: UnitTypeConfig;
     eliteDefensePost: UnitTypeConfig;
@@ -600,6 +683,8 @@ export function getUnitConfig(
       return config.units.eliteSoldier;
     case FrenzyUnitType.Warship:
       return config.units.warship;
+    case FrenzyUnitType.Transporter:
+      return config.units.transporter;
     case FrenzyUnitType.DefensePost:
       return config.units.defensePost;
     case FrenzyUnitType.SAMLauncher:
@@ -653,6 +738,13 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
       projectileDamage: 30, // Per-missile damage (fires 2x5 = 10 missiles)
       areaRadius: 5, // Small AOE per missile
       projectileType: ProjectileType.Missile, // Missile barrages
+    },
+    transporter: {
+      health: 150, // Moderate health
+      speed: 10.0, // Double soldier speed (2.5 * 2)
+      dps: 0, // No attack
+      range: 0, // No attack range
+      fireInterval: 0, // No firing
     },
     // Towers - health values come from STRUCTURE_CONFIGS
     defensePost: {

@@ -89,6 +89,19 @@ export class Executor {
         return new BoatRetreatExecution(player, intent.unitID);
       case "move_warship":
         return new MoveWarshipExecution(player, intent.unitId, intent.tile);
+      case "move_transporter": {
+        const frenzyManager = this.mg.frenzyManager();
+        if (frenzyManager) {
+          frenzyManager.commandTransporterToLand(
+            player.id(),
+            intent.unitId,
+            intent.targetX,
+            intent.targetY,
+            intent.unitCount ?? 1,
+          );
+        }
+        return new NoOpExecution();
+      }
       case "spawn":
         return new SpawnExecution(player.info(), intent.tile);
       case "boat":

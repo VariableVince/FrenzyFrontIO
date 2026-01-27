@@ -5,6 +5,8 @@ import "./components/Difficulties";
 import "./components/Maps";
 
 // Import icons for webpack to resolve paths correctly
+import airportIcon from "../../resources/images/AirportIconWhite.svg";
+import transporterIcon from "../../resources/images/AirtransporterWhite.svg";
 import allianceIcon from "../../resources/images/AllianceIconWhite.svg";
 import boatIcon from "../../resources/images/BoatIconWhite.svg";
 import buildIcon from "../../resources/images/BuildIconWhite.svg";
@@ -110,18 +112,6 @@ export class HelpModal extends LitElement {
                 <td>${translateText("help_modal.build_city_desc")}</td>
               </tr>
               <tr>
-                <td>${translateText("help_modal.build_defense")}</td>
-                <td>
-                  <img src="${shieldIcon}" alt="Defense Post" class="icon" />
-                </td>
-                <td>${translateText("help_modal.build_defense_desc")}</td>
-              </tr>
-              <tr>
-                <td>${translateText("help_modal.build_port")}</td>
-                <td><img src="${harborIcon}" alt="Port" class="icon" /></td>
-                <td>${translateText("help_modal.build_port_desc")}</td>
-              </tr>
-              <tr>
                 <td>${translateText("help_modal.build_factory")}</td>
                 <td>
                   <img src="${unitFactoryIcon}" alt="Factory" class="icon" />
@@ -129,20 +119,39 @@ export class HelpModal extends LitElement {
                 <td>${translateText("help_modal.build_factory_desc")}</td>
               </tr>
               <tr>
+                <td>${translateText("help_modal.build_airport")}</td>
+                <td>
+                  <img src="${airportIcon}" alt="Airport" class="icon" />
+                </td>
+                <td>${translateText("help_modal.build_airport_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_transporter")}</td>
+                <td>
+                  <img
+                    src="${transporterIcon}"
+                    alt="Transporter"
+                    class="icon"
+                  />
+                </td>
+                <td>${translateText("help_modal.build_transporter_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_port")}</td>
+                <td><img src="${harborIcon}" alt="Port" class="icon" /></td>
+                <td>${translateText("help_modal.build_port_desc")}</td>
+              </tr>
+              <tr>
                 <td>${translateText("help_modal.build_warship")}</td>
                 <td><img src="${shipIcon}" alt="Warship" class="icon" /></td>
                 <td>${translateText("help_modal.build_warship_desc")}</td>
               </tr>
               <tr>
-                <td>${translateText("help_modal.build_silo")}</td>
+                <td>${translateText("help_modal.build_defense")}</td>
                 <td>
-                  <img
-                    src="${missileSiloIcon}"
-                    alt="Missile Silo"
-                    class="icon"
-                  />
+                  <img src="${shieldIcon}" alt="Defense Post" class="icon" />
                 </td>
-                <td>${translateText("help_modal.build_silo_desc")}</td>
+                <td>${translateText("help_modal.build_defense_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_sam")}</td>
@@ -154,6 +163,17 @@ export class HelpModal extends LitElement {
                   />
                 </td>
                 <td>${translateText("help_modal.build_sam_desc")}</td>
+              </tr>
+              <tr>
+                <td>${translateText("help_modal.build_silo")}</td>
+                <td>
+                  <img
+                    src="${missileSiloIcon}"
+                    alt="Missile Silo"
+                    class="icon"
+                  />
+                </td>
+                <td>${translateText("help_modal.build_silo_desc")}</td>
               </tr>
               <tr>
                 <td>${translateText("help_modal.build_atom")}</td>

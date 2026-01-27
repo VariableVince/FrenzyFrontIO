@@ -115,12 +115,16 @@
     "build_city_desc": "Generates gold over time, boosted by crystals and land.",
     "build_factory": "Factory",
     "build_factory_desc": "Produces troops automatically over time.",
+    "build_airport": "Airport",
+    "build_airport_desc": "Spawns a Transporter that can fly troops to any location. 1 minute rebuild time.",
+    "build_transporter": "Transporter",
+    "build_transporter_desc": "Flying unit that can carry troops across land. Click on enemy or wilderness and choose transport action to deploy.",
     "build_defense": "Defense Tower",
     "build_defense_desc": "Attacks nearby enemies automatically. Place towers strategically to defend your territory and slow enemy advances.",
     "build_port": "Port",
     "build_port_desc": "Built on water. Produces Warships automatically over time.",
     "build_warship": "Warship",
-    "build_warship_desc": "Patrols water areas, attacking enemy warships and units. Control warships by attack-clicking on them, then attack-clicking where you want them to go.",
+    "build_warship_desc": "Naval unit that attacks enemies on water. Same control as land units: attack-click on a water automatically selects watships.",
     "build_silo": "Missile Silo",
     "build_silo_desc": "Allows launching Atom Bombs. Upgrade to tier 2 to launch Hydrogen Bombs.",
     "build_sam": "SAM Launcher",
@@ -298,6 +302,7 @@
     "player": "Player",
     "players": "Players",
     "waiting": "Waiting for players...",
+    "connecting": "Connecting...",
     "random_spawn": "Random spawn",
     "start": "Start Game",
     "host_badge": "Host",
@@ -350,6 +355,7 @@
     "hydrogen_bomb": "Hydrogen Bomb",
     "mirv": "MIRV",
     "factory": "Factory",
+    "airport": "Airport",
     "shield_generator": "Shield Generator",
     "artillery": "Artillery"
   },
@@ -555,6 +561,7 @@
       "defense_post": "Attacks nearby enemies automatically",
       "city": "Generates gold over time, boosted by crystals",
       "factory": "Produces troops automatically over time",
+      "airport": "Spawns a Transporter (1 minute rebuild)",
       "shield_generator": "Protects nearby units from damage",
       "artillery": "Long-range bombardment of enemy positions"
     },
@@ -810,7 +817,9 @@
     "towers_title": "Towers",
     "towers_description": "Build defensive towers",
     "buildings_title": "Buildings",
-    "buildings_description": "Build economy and production structures"
+    "buildings_description": "Build economy and production structures",
+    "transporter_title": "Send Transporter",
+    "transporter_description": "Fly a transporter to this location"
   },
   "discord_user_header": {
     "avatar_alt": "Avatar"

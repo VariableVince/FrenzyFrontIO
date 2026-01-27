@@ -11,6 +11,7 @@ import {
 } from "../Game";
 import { TileRef } from "../GameMap";
 import {
+  AirportSpawner,
   CoreBuilding,
   CrystalCluster,
   DEFAULT_FRENZY_CONFIG,
@@ -24,6 +25,7 @@ import {
   getStructureSellValue,
   getUnitConfig,
   MineStructure,
+  MiniHQStructure,
   PortSpawner,
   ProjectileType,
   STRUCTURE_CONFIGS,
@@ -42,6 +44,8 @@ export class FrenzyManager {
   private mines: Map<TileRef, MineStructure> = new Map(); // Mines
   private factories: Map<TileRef, FactorySpawner> = new Map(); // Factories
   private ports: Map<TileRef, PortSpawner> = new Map(); // Ports
+  private airports: Map<TileRef, AirportSpawner> = new Map(); // Airports
+  private miniHQs: Map<TileRef, MiniHQStructure> = new Map(); // MiniHQs
   private crystals: CrystalCluster[] = [];
   private nextCrystalId = 1;
   private nextStructureId = 1;
@@ -118,6 +122,10 @@ export class FrenzyManager {
           eliteWarship: {
             ...DEFAULT_FRENZY_CONFIG.units.eliteWarship,
             ...config.units.eliteWarship,
+          },
+          transporter: {
+            ...DEFAULT_FRENZY_CONFIG.units.transporter,
+            ...config.units.transporter,
           },
           // Towers
           defensePost: {
@@ -317,6 +325,10 @@ export class FrenzyManager {
           eliteWarship: {
             ...this.config.units.eliteWarship,
             ...overrides.units.eliteWarship,
+          },
+          transporter: {
+            ...this.config.units.transporter,
+            ...overrides.units.transporter,
           },
           // Towers
           defensePost: {
@@ -592,6 +604,30 @@ export class FrenzyManager {
           );
         }
         port.spawnTimer = port.spawnInterval;
+      }
+    }
+
+    // Spawn transporters from airports
+    for (const [tile, airport] of this.airports) {
+      // Check if airport still exists and is owned by same player
+      const owner = this.game.owner(tile);
+      if (!owner.isPlayer() || owner.id() !== airport.playerId) {
+        this.airports.delete(tile);
+        continue;
+      }
+
+      const building = this.coreBuildings.get(airport.playerId);
+      if (!building) continue;
+
+      // Only spawn if airport doesn't have a transporter
+      if (!airport.hasTransporter) {
+        airport.spawnTimer -= deltaTime;
+
+        if (airport.spawnTimer <= 0) {
+          // Spawn a transporter at the airport
+          this.spawnTransporter(airport);
+          airport.spawnTimer = airport.spawnInterval;
+        }
       }
     }
   }
@@ -999,10 +1035,21 @@ export class FrenzyManager {
         continue;
       }
 
+      // Transporters have special movement logic
+      if (unit.unitType === FrenzyUnitType.Transporter) {
+        this.updateTransporterMovement(unit, deltaTime);
+        continue;
+      }
+
       const territory = territories.get(unit.playerId);
 
-      // Check if unit has a per-unit attack order
-      if (
+      // Check if unit is boarding a transporter (highest priority - don't override)
+      if (unit.isBoardingTransporter) {
+        // Boarding units keep moving toward their transporter target
+        // Target is updated by updateTransporterBoarding(), so just continue with movement
+        // (don't reassign targetX/targetY here)
+      } else if (
+        // Check if unit has a per-unit attack order
         unit.hasAttackOrder &&
         unit.attackOrderX !== undefined &&
         unit.attackOrderY !== undefined
@@ -1310,6 +1357,293 @@ export class FrenzyManager {
       x: this.game.width() / 2,
       y: this.game.height() / 2,
     };
+  }
+
+  /**
+   * Update transporter movement.
+   * Transporters fly directly to their target at 2x soldier speed,
+   * then land and spawn a MiniHQ.
+   */
+  private updateTransporterMovement(unit: FrenzyUnit, deltaTime: number) {
+    // Handle boarding phase - wait for units to board
+    if (unit.isWaitingForBoarding) {
+      this.updateTransporterBoarding(unit);
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    // If not flying, transporter stays at airport position
+    if (!unit.isFlying) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    const LANDING_DISTANCE = 3; // Land when within 3 pixels of target
+    const unitConfig = getUnitConfig(this.config, FrenzyUnitType.Transporter);
+    const speed = unitConfig.speed;
+
+    // Calculate direction to target
+    const dx = unit.targetX - unit.x;
+    const dy = unit.targetY - unit.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Update heading to point in flight direction
+    if (dist > 0.1) {
+      unit.heading = Math.atan2(dy, dx);
+    }
+
+    if (dist < LANDING_DISTANCE) {
+      // Transporter has landed - spawn MiniHQ, unload units, and remove transporter
+      this.landTransporter(unit);
+      return;
+    }
+
+    // Move toward target at transporter speed
+    unit.vx = (dx / dist) * speed;
+    unit.vy = (dy / dist) * speed;
+    unit.x += unit.vx * deltaTime;
+    unit.y += unit.vy * deltaTime;
+  }
+
+  /**
+   * Update transporter boarding state - check if units have boarded or been destroyed
+   */
+  private updateTransporterBoarding(transporter: FrenzyUnit) {
+    if (!transporter.boardingUnits || !transporter.boardedUnits) return;
+
+    const BOARDING_DISTANCE = 5; // Distance at which units board the transporter
+
+    // Check each boarding unit
+    const remainingBoarding: number[] = [];
+    for (const unitId of transporter.boardingUnits) {
+      const unit = this.units.find((u) => u.id === unitId);
+
+      if (!unit) {
+        // Unit was destroyed on the way - continue without it
+        continue;
+      }
+
+      const dist = Math.hypot(unit.x - transporter.x, unit.y - transporter.y);
+
+      if (dist <= BOARDING_DISTANCE) {
+        // Unit has reached the transporter - board it
+        transporter.boardedUnits.push(unitId);
+        // Clear boarding state before removing
+        unit.isBoardingTransporter = false;
+        unit.boardingTargetX = undefined;
+        unit.boardingTargetY = undefined;
+        unit.boardingTransporterId = undefined;
+        // Remove the unit from the game (it's now inside the transporter)
+        const unitIndex = this.units.indexOf(unit);
+        if (unitIndex !== -1) {
+          this.units.splice(unitIndex, 1);
+        }
+        // Update unit count
+        const building = this.coreBuildings.get(transporter.playerId);
+        if (building && building.unitCount > 0) {
+          building.unitCount--;
+        }
+      } else {
+        // Unit still moving toward transporter - keep updating its target position
+        unit.targetX = transporter.x;
+        unit.targetY = transporter.y;
+        unit.boardingTargetX = transporter.x;
+        unit.boardingTargetY = transporter.y;
+        remainingBoarding.push(unitId);
+      }
+    }
+
+    transporter.boardingUnits = remainingBoarding;
+
+    // Check if all units have boarded or been destroyed
+    if (transporter.boardingUnits.length === 0) {
+      transporter.isWaitingForBoarding = false;
+      transporter.isFlying = true;
+    }
+  }
+
+  /**
+   * Handle transporter landing - remove from game and reset airport spawn timer
+   */
+  private landTransporter(unit: FrenzyUnit) {
+    if (!unit.airportTile) return;
+
+    // Find the airport this transporter belongs to
+    const airport = this.airports.get(unit.airportTile);
+    if (airport) {
+      airport.hasTransporter = false;
+      airport.spawnTimer = airport.spawnInterval; // Start rebuild timer
+    }
+
+    // Spawn a MiniHQ at the landing location
+    this.spawnMiniHQ(unit.playerId, unit.x, unit.y);
+
+    // Unload boarded units around the landing location
+    this.unloadTransporterUnits(unit);
+
+    // Remove the transporter unit
+    const index = this.units.indexOf(unit);
+    if (index !== -1) {
+      this.units.splice(index, 1);
+    }
+
+    // Update unit count
+    const building = this.coreBuildings.get(unit.playerId);
+    if (building && building.unitCount > 0) {
+      building.unitCount--;
+    }
+  }
+
+  /**
+   * Unload units from a landed transporter around its position
+   */
+  private unloadTransporterUnits(transporter: FrenzyUnit) {
+    if (!transporter.boardedUnits || transporter.boardedUnits.length === 0)
+      return;
+
+    const numUnits = transporter.boardedUnits.length;
+    const spreadRadius = 8; // Spread units around the landing spot
+    const attackOrderDistance = 5; // Distance for attack order from MiniHQ center
+
+    // MiniHQ center position (where transporter landed)
+    const miniHQX = transporter.x;
+    const miniHQY = transporter.y;
+
+    for (let i = 0; i < numUnits; i++) {
+      // Calculate position in a circle around the landing spot
+      const angle = (2 * Math.PI * i) / numUnits;
+      const offsetX = Math.cos(angle) * spreadRadius;
+      const offsetY = Math.sin(angle) * spreadRadius;
+
+      const spawnX = transporter.x + offsetX;
+      const spawnY = transporter.y + offsetY;
+
+      // Calculate attack order position at short distance from MiniHQ in same direction
+      const attackOrderX = miniHQX + Math.cos(angle) * attackOrderDistance;
+      const attackOrderY = miniHQY + Math.sin(angle) * attackOrderDistance;
+
+      // Spawn soldier with attack order at offset position
+      this.spawnSoldierWithAttackOrder(
+        transporter.playerId,
+        spawnX,
+        spawnY,
+        attackOrderX,
+        attackOrderY,
+      );
+    }
+  }
+
+  /**
+   * Spawn a soldier at a specific position with an attack order to a specific location
+   */
+  private spawnSoldierWithAttackOrder(
+    playerId: PlayerID,
+    x: number,
+    y: number,
+    attackX: number,
+    attackY: number,
+  ) {
+    const unitConfig = getUnitConfig(this.config, FrenzyUnitType.Soldier);
+
+    const unit: FrenzyUnit = {
+      id: this.nextUnitId++,
+      playerId,
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      health: unitConfig.health,
+      maxHealth: unitConfig.health,
+      targetX: attackX,
+      targetY: attackY,
+      weaponCooldown: 0,
+      unitType: FrenzyUnitType.Soldier,
+      fireInterval: unitConfig.fireInterval,
+      tier: 1,
+      hasAttackOrder: true,
+      attackOrderX: attackX,
+      attackOrderY: attackY,
+    };
+
+    this.units.push(unit);
+
+    // Update unit count for the player
+    const building = this.coreBuildings.get(playerId);
+    if (building) {
+      building.unitCount++;
+    }
+  }
+
+  /**
+   * Spawn a MiniHQ at the given location.
+   * Captures territory around it and tracks which tiles it captured.
+   */
+  private spawnMiniHQ(playerId: PlayerID, x: number, y: number) {
+    const tileX = Math.floor(x);
+    const tileY = Math.floor(y);
+
+    // Ensure we're on a valid land tile
+    if (!this.game.isValidCoord(tileX, tileY)) return;
+    const tile = this.game.ref(tileX, tileY);
+    if (!this.game.isLand(tile)) return;
+
+    const config = STRUCTURE_CONFIGS.minihq;
+    const captureRadius = (config as any).captureRadius ?? 15;
+
+    // Create the MiniHQ structure
+    // Store tile coordinates (integers) for proper protection radius checks
+    const miniHQ: MiniHQStructure = {
+      id: this.nextStructureId++,
+      type: FrenzyStructureType.MiniHQ,
+      playerId,
+      x: tileX, // Store tile coordinates, not pixel coordinates
+      y: tileY,
+      tile,
+      health: config.health,
+      maxHealth: config.health,
+      tier: 1,
+      capturedTiles: new Set<TileRef>(),
+    };
+
+    // Capture territory around the MiniHQ
+    const player = this.game.player(playerId);
+    if (player) {
+      for (let dx = -captureRadius; dx <= captureRadius; dx++) {
+        for (let dy = -captureRadius; dy <= captureRadius; dy++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= captureRadius) {
+            const tx = tileX + dx;
+            const ty = tileY + dy;
+            if (this.game.isValidCoord(tx, ty)) {
+              const captureTile = this.game.ref(tx, ty);
+              if (this.game.isLand(captureTile)) {
+                const owner = this.game.owner(captureTile);
+                // Only capture unowned or enemy tiles
+                if (!owner.isPlayer() || owner.id() !== playerId) {
+                  player.conquer(captureTile);
+                  miniHQ.capturedTiles.add(captureTile);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Store the MiniHQ
+    this.miniHQs.set(tile, miniHQ);
+    console.log(
+      `[FrenzyManager] MiniHQ created for ${playerId} at tile (${tileX}, ${tileY}), total MiniHQs: ${this.miniHQs.size}`,
+    );
+  }
+
+  /**
+   * Get all MiniHQs
+   */
+  getMiniHQs(): ReadonlyMap<TileRef, MiniHQStructure> {
+    return this.miniHQs;
   }
 
   /**
@@ -2704,7 +3038,93 @@ export class FrenzyManager {
       case FrenzyStructureType.Port:
         this.ports.delete(structure.tile);
         break;
+      case FrenzyStructureType.Airport:
+        this.airports.delete(structure.tile);
+        break;
+      case FrenzyStructureType.MiniHQ:
+        this.handleMiniHQDestroyed(structure as MiniHQStructure);
+        this.miniHQs.delete(structure.tile);
+        break;
     }
+  }
+
+  /**
+   * Handle MiniHQ destruction - release captured territory if not connected to main HQ
+   */
+  private handleMiniHQDestroyed(miniHQ: MiniHQStructure) {
+    const player = this.game.player(miniHQ.playerId);
+    if (!player) return;
+
+    // Get the player's main HQ
+    const mainHQ = this.coreBuildings.get(miniHQ.playerId);
+    if (!mainHQ) return;
+
+    // Check each tile captured by this MiniHQ
+    for (const tile of miniHQ.capturedTiles) {
+      // Skip if tile is no longer owned by this player
+      const owner = this.game.owner(tile);
+      if (!owner.isPlayer() || owner.id() !== miniHQ.playerId) continue;
+
+      // Check if tile is connected to main HQ (flood fill from HQ)
+      if (!this.isTileConnectedToHQ(tile, miniHQ.playerId, mainHQ)) {
+        // Tile is not connected - release it to TerraNullius
+        this.releaseTileToWilderness(tile);
+      }
+    }
+  }
+
+  /**
+   * Check if a tile is connected to the player's main HQ via owned territory
+   */
+  private isTileConnectedToHQ(
+    tile: TileRef,
+    playerId: PlayerID,
+    hq: CoreBuilding,
+  ): boolean {
+    const hqTileX = Math.floor(hq.x);
+    const hqTileY = Math.floor(hq.y);
+    if (!this.game.isValidCoord(hqTileX, hqTileY)) return false;
+
+    // BFS from the tile to check if we can reach HQ via owned tiles
+    const visited = new Set<TileRef>();
+    const queue: TileRef[] = [tile];
+    visited.add(tile);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+
+      // Check if we reached the HQ area
+      const currentX = this.game.x(current);
+      const currentY = this.game.y(current);
+      const distToHQ =
+        Math.abs(currentX - hqTileX) + Math.abs(currentY - hqTileY);
+      if (distToHQ <= STRUCTURE_CONFIGS.hq.size) {
+        return true; // Connected to HQ
+      }
+
+      // Check neighbors
+      for (const neighbor of this.game.neighbors(current)) {
+        if (visited.has(neighbor)) continue;
+        visited.add(neighbor);
+
+        const neighborOwner = this.game.owner(neighbor);
+        if (neighborOwner.isPlayer() && neighborOwner.id() === playerId) {
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    return false; // Not connected to HQ
+  }
+
+  /**
+   * Release a tile back to wilderness (TerraNullius)
+   */
+  private releaseTileToWilderness(tile: TileRef) {
+    // Simply let any nearby enemy or neutral force take it
+    // The tile will become contested and eventually captured
+    // For now, we mark it as no longer protected by the MiniHQ
+    // The normal territory capture mechanics will handle the rest
   }
 
   /**
@@ -3062,6 +3482,10 @@ export class FrenzyManager {
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
+      // Skip flying transporters - they don't capture territory during flight
+      if (unit.unitType === FrenzyUnitType.Transporter && unit.isFlying) {
+        continue;
+      }
       const player = this.safeGetPlayer(unit.playerId);
       if (!player) continue; // Skip if player no longer exists
       const playerId = unit.playerId;
@@ -3259,7 +3683,13 @@ export class FrenzyManager {
     for (const unit of deadUnits) {
       const building = this.coreBuildings.get(unit.playerId);
       if (building) {
+        // Decrement by 1 for the unit itself
         building.unitCount--;
+
+        // If this is a transporter with boarded units, also decrement for those
+        if (unit.unitType === FrenzyUnitType.Transporter && unit.boardedUnits) {
+          building.unitCount -= unit.boardedUnits.length;
+        }
       }
     }
 
@@ -3317,6 +3747,16 @@ export class FrenzyManager {
       console.log(
         `[FrenzyManager] Port captured by ${newOwnerId} from ${oldOwner}`,
       );
+    }
+
+    // Check for MiniHQ at this tile - MiniHQs are destroyed when captured, not transferred
+    const miniHQ = this.miniHQs.get(tile);
+    if (miniHQ && miniHQ.playerId !== newOwnerId) {
+      console.log(
+        `[FrenzyManager] MiniHQ destroyed by capture from ${miniHQ.playerId}`,
+      );
+      this.handleMiniHQDestroyed(miniHQ);
+      this.miniHQs.delete(tile);
     }
 
     // Check for tower units (DefensePost, SAM, Silo, Artillery, Shield) at or near this tile
@@ -3765,6 +4205,154 @@ export class FrenzyManager {
   }
 
   /**
+   * Register an airport as a transporter spawner
+   */
+  registerAirport(playerId: PlayerID, tile: TileRef, x: number, y: number) {
+    if (this.defeatedPlayers.has(playerId)) {
+      return;
+    }
+    if (this.airports.has(tile)) {
+      return; // Already registered
+    }
+    const airportConfig = STRUCTURE_CONFIGS.airport;
+    this.airports.set(tile, {
+      id: this.nextStructureId++,
+      type: FrenzyStructureType.Airport,
+      playerId,
+      x,
+      y,
+      tile,
+      spawnTimer: 0, // Spawn transporter immediately when built
+      spawnInterval: airportConfig.spawnInterval ?? 60.0, // 1 minute rebuild time
+      health: airportConfig.health,
+      maxHealth: airportConfig.health,
+      tier: 1,
+      hasTransporter: false, // Starts without a transporter
+    });
+  }
+
+  /**
+   * Spawn a transporter at an airport
+   */
+  private spawnTransporter(airport: AirportSpawner) {
+    const unitConfig = getUnitConfig(this.config, FrenzyUnitType.Transporter);
+
+    const unit: FrenzyUnit = {
+      id: this.nextUnitId++,
+      playerId: airport.playerId,
+      x: airport.x,
+      y: airport.y,
+      vx: 0,
+      vy: 0,
+      health: unitConfig.health,
+      maxHealth: unitConfig.health,
+      targetX: airport.x,
+      targetY: airport.y,
+      weaponCooldown: 0,
+      unitType: FrenzyUnitType.Transporter,
+      fireInterval: 0,
+      tier: 1,
+      airportTile: airport.tile, // Track which airport this transporter belongs to
+      isFlying: false,
+    };
+
+    this.units.push(unit);
+    airport.hasTransporter = true;
+
+    // Update unit count for the player
+    const building = this.coreBuildings.get(airport.playerId);
+    if (building) {
+      building.unitCount++;
+    }
+  }
+
+  /**
+   * Command a transporter to fly to a target location and land.
+   * First, nearby units will board the transporter, then it takes off.
+   */
+  commandTransporterToLand(
+    playerId: PlayerID,
+    transporterId: number,
+    targetX: number,
+    targetY: number,
+    unitCount: number = 1,
+  ) {
+    // Validate target is on land
+    const tileX = Math.floor(targetX);
+    const tileY = Math.floor(targetY);
+    if (!this.game.isValidCoord(tileX, tileY)) return;
+    const tile = this.game.ref(tileX, tileY);
+    if (!this.game.isLand(tile)) return; // Only allow landing on land tiles
+
+    const transporter = this.units.find(
+      (u) =>
+        u.id === transporterId &&
+        u.playerId === playerId &&
+        u.unitType === FrenzyUnitType.Transporter &&
+        !u.isFlying &&
+        !u.isWaitingForBoarding,
+    );
+
+    if (!transporter) return;
+
+    // Set target position for the transporter
+    transporter.targetX = targetX;
+    transporter.targetY = targetY;
+
+    // Initialize boarding state
+    const maxUnits = Math.min(5, Math.max(1, unitCount));
+    transporter.maxBoardingCapacity = maxUnits;
+    transporter.boardingUnits = [];
+    transporter.boardedUnits = [];
+    transporter.isWaitingForBoarding = true;
+
+    // Find the closest soldiers/elite soldiers to board
+    const eligibleUnits = this.units.filter(
+      (u) =>
+        u.playerId === playerId &&
+        (u.unitType === FrenzyUnitType.Soldier ||
+          u.unitType === FrenzyUnitType.EliteSoldier) &&
+        !u.hasAttackOrder && // Don't pull units that have attack orders
+        !u.isBoardingTransporter, // Don't pull units already boarding another transporter
+    );
+
+    // Sort by distance to transporter
+    eligibleUnits.sort((a, b) => {
+      const distA = Math.hypot(a.x - transporter.x, a.y - transporter.y);
+      const distB = Math.hypot(b.x - transporter.x, b.y - transporter.y);
+      return distA - distB;
+    });
+
+    // Select the closest units to board
+    const unitsToBoard = eligibleUnits.slice(0, maxUnits);
+
+    for (const unit of unitsToBoard) {
+      // Set the unit's target to the transporter position
+      unit.targetX = transporter.x;
+      unit.targetY = transporter.y;
+      // Mark as boarding (not attack order, so it uses blue line and isn't overwritten)
+      unit.isBoardingTransporter = true;
+      unit.boardingTargetX = transporter.x;
+      unit.boardingTargetY = transporter.y;
+      unit.boardingTransporterId = transporter.id;
+      transporter.boardingUnits!.push(unit.id);
+    }
+
+    // If no units available, just take off immediately
+    if (unitsToBoard.length === 0) {
+      transporter.isWaitingForBoarding = false;
+      transporter.isFlying = true;
+    }
+  }
+
+  /**
+   * Get all airports
+   */
+  getAirports(): ReadonlyMap<TileRef, AirportSpawner> {
+    return this.airports;
+  }
+
+  /**
    * Find a water tile near a port to spawn a warship
    */
   private findWaterSpawnNearPort(
@@ -3887,6 +4475,9 @@ export class FrenzyManager {
         case UnitType.Factory:
           frenzyType = FrenzyStructureType.Factory;
           break;
+        case UnitType.Airport:
+          frenzyType = FrenzyStructureType.Airport;
+          break;
         case UnitType.DefensePost:
           return this.units.filter(
             (u) =>
@@ -3937,6 +4528,10 @@ export class FrenzyManager {
         return Array.from(this.ports.values()).filter(
           (p) => p.playerId === playerId,
         ).length;
+      case FrenzyStructureType.Airport:
+        return Array.from(this.airports.values()).filter(
+          (a) => a.playerId === playerId,
+        ).length;
       default:
         return 0;
     }
@@ -3955,6 +4550,8 @@ export class FrenzyManager {
         return Array.from(this.factories.keys());
       case FrenzyStructureType.Port:
         return Array.from(this.ports.keys());
+      case FrenzyStructureType.Airport:
+        return Array.from(this.airports.keys());
       default:
         return [];
     }
@@ -4604,6 +5201,7 @@ export class FrenzyManager {
       spawnInterval?: number;
       unitCount?: number;
       maxUnits?: number;
+      hasTransporter?: boolean;
     }> = [];
 
     // Add HQs
@@ -4674,6 +5272,39 @@ export class FrenzyManager {
       });
     }
 
+    // Add airports
+    for (const a of this.airports.values()) {
+      structures.push({
+        id: a.id ?? 0,
+        type: FrenzyStructureType.Airport,
+        playerId: a.playerId,
+        x: a.x,
+        y: a.y,
+        tile: a.tile,
+        tier: a.tier,
+        health: a.health,
+        maxHealth: a.maxHealth,
+        spawnTimer: a.spawnTimer,
+        spawnInterval: a.spawnInterval,
+        hasTransporter: a.hasTransporter,
+      });
+    }
+
+    // Add MiniHQs
+    for (const m of this.miniHQs.values()) {
+      structures.push({
+        id: m.id,
+        type: FrenzyStructureType.MiniHQ,
+        playerId: m.playerId,
+        x: m.x,
+        y: m.y,
+        tile: m.tile,
+        tier: m.tier,
+        health: m.health,
+        maxHealth: m.maxHealth,
+      });
+    }
+
     return {
       units: this.units.map((u) => ({
         id: u.id,
@@ -4692,6 +5323,17 @@ export class FrenzyManager {
         hasAttackOrder: u.hasAttackOrder,
         attackOrderX: u.attackOrderX,
         attackOrderY: u.attackOrderY,
+        // Boarding data for rendering (blue line)
+        isBoardingTransporter: u.isBoardingTransporter,
+        boardingTargetX: u.boardingTargetX,
+        boardingTargetY: u.boardingTargetY,
+        // Transporter properties
+        heading: u.heading,
+        isFlying: u.isFlying,
+        isWaitingForBoarding: u.isWaitingForBoarding,
+        boardedUnits: u.boardedUnits,
+        targetX: u.targetX,
+        targetY: u.targetY,
       })),
       // Unified structures array (new)
       structures,

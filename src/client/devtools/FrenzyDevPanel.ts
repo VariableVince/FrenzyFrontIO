@@ -758,6 +758,7 @@ function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
       eliteSoldier: { ...DEFAULT_FRENZY_CONFIG.units.eliteSoldier },
       warship: { ...DEFAULT_FRENZY_CONFIG.units.warship },
       eliteWarship: { ...DEFAULT_FRENZY_CONFIG.units.eliteWarship },
+      transporter: { ...DEFAULT_FRENZY_CONFIG.units.transporter },
       // Towers
       defensePost: { ...DEFAULT_FRENZY_CONFIG.units.defensePost },
       eliteDefensePost: { ...DEFAULT_FRENZY_CONFIG.units.eliteDefensePost },
@@ -789,6 +790,7 @@ function sanitizeConfig(partial: Partial<FrenzyConfig>): FrenzyConfig {
         "eliteSoldier",
         "warship",
         "eliteWarship",
+        "transporter",
         "defensePost",
         "eliteDefensePost",
         "samLauncher",

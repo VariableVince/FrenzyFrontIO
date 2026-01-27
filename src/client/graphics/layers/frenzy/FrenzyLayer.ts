@@ -311,6 +311,14 @@ export class FrenzyLayer implements Layer {
       hasAttackOrder?: boolean;
       attackOrderX?: number;
       attackOrderY?: number;
+      isBoardingTransporter?: boolean;
+      boardingTargetX?: number;
+      boardingTargetY?: number;
+      unitType?: string;
+      isFlying?: boolean;
+      isWaitingForBoarding?: boolean;
+      targetX?: number;
+      targetY?: number;
     }>,
   ) {
     const myPlayer = this.game.myPlayer();
@@ -318,9 +326,53 @@ export class FrenzyLayer implements Layer {
     const myPlayerId = myPlayer.id();
 
     ctx.context.save();
-    ctx.context.strokeStyle = "rgba(255, 80, 80, 0.25)";
+
+    // First pass: Render blue lines for boarding units and transporters
+    ctx.context.strokeStyle = "rgba(80, 120, 255, 0.4)";
     ctx.context.lineWidth = 0.5;
     ctx.context.setLineDash([4, 3]);
+
+    for (const unit of units) {
+      if (unit.playerId !== myPlayerId) continue;
+
+      // Render blue line for units boarding a transporter
+      if (
+        unit.isBoardingTransporter &&
+        unit.boardingTargetX !== undefined &&
+        unit.boardingTargetY !== undefined
+      ) {
+        const unitX = unit.x - ctx.halfWidth;
+        const unitY = unit.y - ctx.halfHeight;
+        const targetX = unit.boardingTargetX - ctx.halfWidth;
+        const targetY = unit.boardingTargetY - ctx.halfHeight;
+
+        ctx.context.beginPath();
+        ctx.context.moveTo(unitX, unitY);
+        ctx.context.lineTo(targetX, targetY);
+        ctx.context.stroke();
+      }
+
+      // Render blue line for flying or waiting transporters to their target
+      if (
+        unit.unitType === "transporter" &&
+        (unit.isFlying || unit.isWaitingForBoarding)
+      ) {
+        if (unit.targetX !== undefined && unit.targetY !== undefined) {
+          const unitX = unit.x - ctx.halfWidth;
+          const unitY = unit.y - ctx.halfHeight;
+          const targetX = unit.targetX - ctx.halfWidth;
+          const targetY = unit.targetY - ctx.halfHeight;
+
+          ctx.context.beginPath();
+          ctx.context.moveTo(unitX, unitY);
+          ctx.context.lineTo(targetX, targetY);
+          ctx.context.stroke();
+        }
+      }
+    }
+
+    // Second pass: Render red lines for attack orders
+    ctx.context.strokeStyle = "rgba(255, 80, 80, 0.25)";
 
     for (const unit of units) {
       if (unit.playerId !== myPlayerId) continue;

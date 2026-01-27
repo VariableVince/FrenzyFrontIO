@@ -130,6 +130,7 @@ export class MainRadialMenu extends LitElement implements Layer {
       chatIntegration: this.chatIntegration,
       closeMenu: () => this.closeMenu(),
       eventBus: this.eventBus,
+      uiState: this.uiState,
     };
 
     this.radialMenu.setParams(params);
