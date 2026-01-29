@@ -1,4 +1,5 @@
 import { PseudoRandom } from "../../PseudoRandom";
+import { simpleHash } from "../../Util";
 import {
   Game,
   GameMapType,
@@ -1346,9 +1347,26 @@ export class FrenzyManager {
         }
       }
 
+      let finalX = targetPos.x;
+      let finalY = targetPos.y;
+
+      // Defensive stance can cause units to converge on the same point.
+      // Add a tiny deterministic offset per unit to avoid full stacking.
+      if (!isAttackingUnit && defensiveStance < 0.5) {
+        const maxSpread = this.config.separationRadius * 0.6;
+        const spread = maxSpread * (1 - Math.min(1, defensiveStance * 2));
+        if (spread > 0.01) {
+          const hash = simpleHash(`${unit.playerId}:${unit.id}`);
+          const angle = (hash % 360) * (Math.PI / 180);
+          const radius = (((hash >> 8) % 1000) / 1000) * spread;
+          finalX += Math.cos(angle) * radius;
+          finalY += Math.sin(angle) * radius;
+        }
+      }
+
       return {
-        x: Math.max(0, Math.min(this.game.width(), targetPos.x)),
-        y: Math.max(0, Math.min(this.game.height(), targetPos.y)),
+        x: Math.max(0, Math.min(this.game.width(), finalX)),
+        y: Math.max(0, Math.min(this.game.height(), finalY)),
       };
     }
 
@@ -1494,6 +1512,46 @@ export class FrenzyManager {
     if (building && building.unitCount > 0) {
       building.unitCount--;
     }
+  }
+
+  private releaseBoardingUnits(transporter: FrenzyUnit) {
+    if (!transporter.boardingUnits || transporter.boardingUnits.length === 0) {
+      return;
+    }
+
+    for (const unitId of transporter.boardingUnits) {
+      const unit = this.units.find((u) => u.id === unitId);
+      if (!unit) continue;
+      unit.isBoardingTransporter = false;
+      unit.boardingTargetX = undefined;
+      unit.boardingTargetY = undefined;
+      unit.boardingTransporterId = undefined;
+      unit.targetX = unit.x;
+      unit.targetY = unit.y;
+    }
+  }
+
+  private removeTransportersForAirport(airportTile: TileRef) {
+    if (this.units.length === 0) return;
+
+    const remaining: FrenzyUnit[] = [];
+    for (const unit of this.units) {
+      if (
+        unit.unitType === FrenzyUnitType.Transporter &&
+        unit.airportTile === airportTile
+      ) {
+        this.releaseBoardingUnits(unit);
+        const building = this.coreBuildings.get(unit.playerId);
+        if (building) {
+          const boarded = unit.boardedUnits?.length ?? 0;
+          building.unitCount = Math.max(0, building.unitCount - 1 - boarded);
+        }
+        continue;
+      }
+      remaining.push(unit);
+    }
+
+    this.units = remaining;
   }
 
   /**
@@ -3039,6 +3097,7 @@ export class FrenzyManager {
         this.ports.delete(structure.tile);
         break;
       case FrenzyStructureType.Airport:
+        this.removeTransportersForAirport(structure.tile);
         this.airports.delete(structure.tile);
         break;
       case FrenzyStructureType.MiniHQ:
@@ -3689,6 +3748,17 @@ export class FrenzyManager {
         // If this is a transporter with boarded units, also decrement for those
         if (unit.unitType === FrenzyUnitType.Transporter && unit.boardedUnits) {
           building.unitCount -= unit.boardedUnits.length;
+        }
+      }
+
+      if (unit.unitType === FrenzyUnitType.Transporter) {
+        this.releaseBoardingUnits(unit);
+        if (unit.airportTile) {
+          const airport = this.airports.get(unit.airportTile);
+          if (airport) {
+            airport.hasTransporter = false;
+            airport.spawnTimer = airport.spawnInterval;
+          }
         }
       }
     }
@@ -4400,6 +4470,60 @@ export class FrenzyManager {
   }
 
   /**
+   * Apply nuke damage to all Frenzy structures within a radius.
+   * Nukes damage friendly and enemy structures alike.
+   */
+  applyNukeStructureDamage(
+    centerX: number,
+    centerY: number,
+    radius: number,
+    damage: number,
+    attackerPlayerId: PlayerID,
+  ) {
+    const radiusSquared = radius * radius;
+
+    const applyDamageToStructure = (structure: FrenzyStructure) => {
+      const dx = structure.x - centerX;
+      const dy = structure.y - centerY;
+      if (dx * dx + dy * dy > radiusSquared) return;
+
+      structure.health -= damage;
+
+      if (structure.health <= 0) {
+        if (structure.type === FrenzyStructureType.HQ) {
+          this.defeatPlayer(structure.playerId, attackerPlayerId);
+        } else {
+          this.removeFrenzyStructure(structure);
+        }
+      }
+    };
+
+    for (const building of Array.from(this.coreBuildings.values())) {
+      applyDamageToStructure(building);
+    }
+
+    for (const structure of Array.from(this.mines.values())) {
+      applyDamageToStructure(structure);
+    }
+
+    for (const structure of Array.from(this.factories.values())) {
+      applyDamageToStructure(structure);
+    }
+
+    for (const structure of Array.from(this.ports.values())) {
+      applyDamageToStructure(structure);
+    }
+
+    for (const structure of Array.from(this.airports.values())) {
+      applyDamageToStructure(structure);
+    }
+
+    for (const structure of Array.from(this.miniHQs.values())) {
+      applyDamageToStructure(structure);
+    }
+  }
+
+  /**
    * Get all units for rendering
    */
   getUnits(): readonly FrenzyUnit[] {
@@ -5071,6 +5195,20 @@ export class FrenzyManager {
         if (dx * dx + dy * dy <= rangeSquared) {
           const refund = getStructureSellValue("port", port.tier);
           this.ports.delete(tile);
+          const player = this.game.players().find((p) => p.id() === playerId);
+          if (player) player.addGold(BigInt(refund));
+          return true;
+        }
+      }
+    } else if (structureType === "airport") {
+      for (const [tile, airport] of this.airports.entries()) {
+        if (airport.playerId !== playerId) continue;
+        const dx = airport.x - x;
+        const dy = airport.y - y;
+        if (dx * dx + dy * dy <= rangeSquared) {
+          const refund = getStructureSellValue("airport", airport.tier);
+          this.removeTransportersForAirport(tile);
+          this.airports.delete(tile);
           const player = this.game.players().find((p) => p.id() === playerId);
           if (player) player.addGold(BigInt(refund));
           return true;

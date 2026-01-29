@@ -91,37 +91,10 @@ describe("BotBehavior.handleAllianceRequests", () => {
     return mockRequest;
   }
 
-  test("should accept alliance when all conditions are met", () => {
-    const request = setupAllianceRequest({});
-
-    botBehavior.handleAllianceRequests();
-
-    expect(request.accept).toHaveBeenCalled();
-    expect(request.reject).not.toHaveBeenCalled();
-  });
-
-  test("should reject alliance if requestor is a traitor", () => {
-    const request = setupAllianceRequest({ isTraitor: true });
-
-    botBehavior.handleAllianceRequests();
-
-    expect(request.accept).not.toHaveBeenCalled();
-    expect(request.reject).toHaveBeenCalled();
-  });
-
-  test("should reject alliance if relation is malicious", () => {
-    const request = setupAllianceRequest({ relationDelta: -2 });
-
-    botBehavior.handleAllianceRequests();
-
-    expect(request.accept).not.toHaveBeenCalled();
-    expect(request.reject).toHaveBeenCalled();
-  });
-
-  test("should accept alliance if requestor is much larger (> 3 times size of recipient) and has too many alliances (>= 3)", () => {
+  test("should accept alliance if requestor has more territory", () => {
     const request = setupAllianceRequest({
-      numTilesRequestor: 40,
-      alliancesCount: 4,
+      numTilesPlayer: 10,
+      numTilesRequestor: 20,
     });
 
     botBehavior.handleAllianceRequests();
@@ -130,20 +103,23 @@ describe("BotBehavior.handleAllianceRequests", () => {
     expect(request.reject).not.toHaveBeenCalled();
   });
 
-  test("should accept alliance if requestor is much larger (> 3 times size of recipient) and does not have too many alliances (< 3)", () => {
+  test("should reject alliance if requestor has equal territory", () => {
     const request = setupAllianceRequest({
-      numTilesRequestor: 40,
-      alliancesCount: 2,
+      numTilesPlayer: 10,
+      numTilesRequestor: 10,
     });
 
     botBehavior.handleAllianceRequests();
 
-    expect(request.accept).toHaveBeenCalled();
-    expect(request.reject).not.toHaveBeenCalled();
+    expect(request.accept).not.toHaveBeenCalled();
+    expect(request.reject).toHaveBeenCalled();
   });
 
-  test("should reject alliance if requestor is acceptably small (<= 3 times size of recipient) and has too many alliances (>= 3)", () => {
-    const request = setupAllianceRequest({ alliancesCount: 3 });
+  test("should reject alliance if requestor has less territory", () => {
+    const request = setupAllianceRequest({
+      numTilesPlayer: 20,
+      numTilesRequestor: 10,
+    });
 
     botBehavior.handleAllianceRequests();
 

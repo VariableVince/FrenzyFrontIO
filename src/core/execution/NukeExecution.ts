@@ -303,7 +303,25 @@ export class NukeExecution implements Execution {
     if (frenzyManager) {
       const centerX = this.mg.x(this.dst);
       const centerY = this.mg.y(this.dst);
-      frenzyManager.applyAreaDamage(centerX, centerY, magnitude.outer, 1000);
+      const frenzyConfig = frenzyManager.getConfig();
+      const frenzyDamage =
+        this.nukeType === UnitType.HydrogenBomb
+          ? frenzyConfig.hydroDamage
+          : frenzyConfig.nukeDamage;
+
+      frenzyManager.applyAreaDamage(
+        centerX,
+        centerY,
+        magnitude.outer,
+        frenzyDamage,
+      );
+      frenzyManager.applyNukeStructureDamage(
+        centerX,
+        centerY,
+        magnitude.outer,
+        frenzyDamage,
+        this.player.id(),
+      );
     }
 
     this.redrawBuildings(magnitude.outer + SPRITE_RADIUS);

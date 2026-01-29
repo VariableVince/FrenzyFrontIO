@@ -25,6 +25,7 @@ const EMOJI_RELATION_TOO_LOW = (["🥱", "🤦‍♂️"] as const).map(emojiId)
 const EMOJI_TARGET_ME = (["🥺", "💀"] as const).map(emojiId);
 const EMOJI_TARGET_ALLY = (["🕊️", "👎"] as const).map(emojiId);
 export const EMOJI_HECKLE = (["🤡", "😡"] as const).map(emojiId);
+const EMOJI_CLOWN = emojiId("🤡");
 
 export class BotBehavior {
   private enemy: Player | null = null;
@@ -45,6 +46,7 @@ export class BotBehavior {
         req.accept();
       } else {
         req.reject();
+        this.emoji(req.requestor(), EMOJI_CLOWN);
       }
     }
   }
@@ -407,17 +409,6 @@ export class BotBehavior {
 }
 
 function shouldAcceptAllianceRequest(player: Player, request: AllianceRequest) {
-  if (player.relation(request.requestor()) < Relation.Neutral) {
-    return false; // Reject if hasMalice
-  }
-  if (request.requestor().isTraitor()) {
-    return false; // Reject if isTraitor
-  }
-  if (request.requestor().numTilesOwned() > player.numTilesOwned() * 3) {
-    return true; // Accept if requestorIsMuchLarger
-  }
-  if (request.requestor().alliances().length >= 3) {
-    return false; // Reject if tooManyAlliances
-  }
-  return true; // Accept otherwise
+  // Accept only if the requestor has more territory than this bot/nation.
+  return request.requestor().numTilesOwned() > player.numTilesOwned();
 }

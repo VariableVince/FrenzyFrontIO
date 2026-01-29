@@ -1,3 +1,60 @@
+📦 **FrenzyFront Patch Notes - v0.08**
+
+💥 **Nuke Structure Damage**
+
+- Nukes now damage Frenzy structures (buildings and towers)
+- Atom Bomb: 500 damage to structures in blast radius
+- Hydrogen Bomb: 1000 damage to structures in blast radius
+
+🛡️ **Defensive Stance Fix**
+
+- Fixed: Units no longer stack on top of each other when in defensive stance
+- Each unit now spreads out with a unique offset around the defense target
+
+✈️ **Airport & Transporter Fixes**
+
+- Fixed: Airports now properly rebuild transporters after the transporter is destroyed
+- Fixed: Selling airports now works correctly (refunds gold and removes transporter)
+
+🤖 **AI Improvements**
+
+- FakeHuman nations now upgrade ALL mines, factories, and ports (not just one of each)
+- Bots and FakeHumans now only accept alliances from players with more territory
+- When rejecting alliance requests, they send the 🤡 emoji
+
+---
+
+📦 **FrenzyFront Patch Notes - v0.07**
+
+✈️ **New Unit: Transporter**
+
+- **Airport**: Build airports to deploy Transporters (1 min rebuild time after each launch)
+- **Transporter**: Flying unit that carries troops across land to enemy territory
+  → Select an enemy territory to deploy - Transporter flies there automatically
+  → Carries troops based on your total population (more troops = bigger army)
+  → When it lands, it spawns a **Mini HQ** and captures surrounding territory
+- **Mini HQ**: Temporary base that captures territory and prevents annexation
+  → Territory containing HQ or Mini HQ cannot be surrounded and annexed
+  → Mini HQ decays over time but buys crucial time for reinforcements
+
+🛡️ **Annexation Protection**
+
+- Territory containing your HQ or Mini HQ can no longer be annexed (surrounded and captured)
+- This protects your base from being cut off and instantly lost
+
+🎮 **Lobby Fix**
+
+- Fixed: Start button now shows "Connecting..." until player registration completes
+- Prevents issues when rapidly clicking Start before fully connected
+
+📖 **Help Modal Updates**
+
+- Added Airport and Transporter to the instructions modal
+- Fixed Warship description (removed incorrect reference to transport)
+- Reordered table: buildings with units first, then towers, then nukes
+
+---
+
 📦 **FrenzyFront Patch Notes - v0.06**
 
 🎮 **Lobby Controls**

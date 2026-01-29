@@ -622,7 +622,6 @@ export class FakeHumanExecution implements Execution {
     // Try to upgrade HQ first (most important)
     if (frenzyManager.canUpgradeHQ(playerId)) {
       frenzyManager.upgradeHQ(playerId);
-      return;
     }
 
     // Try to upgrade mines (economy)
@@ -630,7 +629,6 @@ export class FakeHumanExecution implements Execution {
     for (const mine of mines) {
       if (frenzyManager.canUpgradeMine(playerId, mine.tile)) {
         frenzyManager.upgradeMine(playerId, mine.tile);
-        return;
       }
     }
 
@@ -641,9 +639,7 @@ export class FakeHumanExecution implements Execution {
         "factory",
       );
       for (const factory of factories) {
-        if (frenzyManager.upgradeFactory(playerId, factory.tile)) {
-          return;
-        }
+        frenzyManager.upgradeFactory(playerId, factory.tile);
       }
     }
 
@@ -651,9 +647,7 @@ export class FakeHumanExecution implements Execution {
     if (frenzyManager.canUpgradePort(playerId)) {
       const ports = frenzyManager.getStructuresForPlayer(playerId, "port");
       for (const port of ports) {
-        if (frenzyManager.upgradePort(playerId, port.tile)) {
-          return;
-        }
+        frenzyManager.upgradePort(playerId, port.tile);
       }
     }
 

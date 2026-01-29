@@ -168,9 +168,8 @@ export interface StructureConfig {
   nukeCost?: number; // Cost of atom bomb (for missile silo)
   hydroCost?: number; // Cost of hydrogen bomb (for missile silo)
 
-  // HQ and MiniHQ specific
+  // MiniHQ specific
   captureRadius?: number; // Territory capture radius on spawn (for MiniHQ)
-  protectionRadius?: number; // Territory protection radius - tiles within this cannot be captured by enemies
 }
 
 /**
@@ -207,7 +206,6 @@ export const STRUCTURE_CONFIGS: Record<StructureTypeKey, StructureConfig> = {
     requiredHQTier: 1,
     sellRefundPercent: 0, // Cannot sell HQ
     spawnInterval: 4.0,
-    protectionRadius: 20, // Territory protection radius - tiles within this cannot be captured
     bars: { showHealthBar: true, showEnergyBar: false },
   },
   mine: {
@@ -352,7 +350,6 @@ export const STRUCTURE_CONFIGS: Record<StructureTypeKey, StructureConfig> = {
     requiredHQTier: 1,
     sellRefundPercent: 0, // Cannot be sold
     captureRadius: 15, // Territory capture radius on spawn
-    protectionRadius: 15, // Territory protection radius - tiles within this cannot be captured
     bars: { showHealthBar: true, showEnergyBar: false },
   },
 };
@@ -648,6 +645,10 @@ export interface FrenzyConfig {
   projectileSpeed: number; // Speed of visual shells (default: 140px/s)
   projectileSize: number; // Diameter of visual shells in pixels (default: 4px)
 
+  // Nukes (Frenzy-specific damage)
+  nukeDamage: number; // Damage dealt by atom bombs (default: 500)
+  hydroDamage: number; // Damage dealt by hydrogen bombs (default: 1000)
+
   // Buildings - DEPRECATED: Use STRUCTURE_CONFIGS instead
   // Kept for backward compatibility
   hqCaptureRadius: number; // Tiles around HQ that must fall before defeat (default: 2 tiles)
@@ -846,6 +847,10 @@ export const DEFAULT_FRENZY_CONFIG: FrenzyConfig = {
   // Projectiles
   projectileSpeed: 10,
   projectileSize: 1,
+
+  // Nukes (Frenzy-specific damage)
+  nukeDamage: 500,
+  hydroDamage: 1000,
 
   // Buildings - values now come from STRUCTURE_CONFIGS
   hqCaptureRadius: 2,
