@@ -8,7 +8,7 @@ import { UserSettings } from "../core/game/UserSettings";
 import { FrenzyConfig } from "../core/game/frenzy/FrenzyTypes";
 import "./AccountModal";
 import { joinLobby } from "./ClientGameRunner";
-import { fetchCosmetics } from "./Cosmetics";
+// Cosmetics are not used in this build yet.
 import "./DarkModeButton";
 import { DarkModeButton } from "./DarkModeButton";
 import "./FlagInput";
@@ -177,6 +177,11 @@ class Client {
     document.addEventListener(FRENZY_RESTART_EVENT, () => {
       this.handleDevRestart();
     });
+
+    // Warm caches so joining a lobby doesn't block on network fetches.
+    void getServerConfigFromClient().catch((err) =>
+      console.warn("Failed to prefetch server config", err),
+    );
 
     const spModal = document.querySelector(
       "single-player-modal",
@@ -514,9 +519,7 @@ class Client {
     }
     const config = await getServerConfigFromClient();
 
-    const pattern = this.userSettings.getSelectedPatternName(
-      await fetchCosmetics(),
-    );
+    // Cosmetics are disabled: don't block join on cosmetics, and don't send them.
 
     this.gameStop = joinLobby(
       this.eventBus,
@@ -525,8 +528,8 @@ class Client {
         serverConfig: config,
         cosmetics: {
           color: this.userSettings.getSelectedColor() ?? undefined,
-          patternName: pattern?.name ?? undefined,
-          patternColorPaletteName: pattern?.colorPalette?.name ?? undefined,
+          patternName: undefined,
+          patternColorPaletteName: undefined,
           flag:
             this.flagInput === null || this.flagInput.getCurrentFlag() === "xx"
               ? ""

@@ -24,7 +24,7 @@ import {
 import { createPartialGameRecord, getClanTag } from "../core/Util";
 import { archive, finalizeGameRecord } from "./Archive";
 import { Client } from "./Client";
-import { logGameStart, logGameEnd } from "./GameMetrics";
+import { logGameEnd, logGameStart } from "./GameMetrics";
 export enum GamePhase {
   Lobby = "LOBBY",
   Active = "ACTIVE",
@@ -348,6 +348,23 @@ export class GameServer {
     // In case a client joined the game late and missed the start message.
     if (this._hasStarted) {
       this.sendStartGameMsg(client.ws, lastTurn);
+    }
+
+    // If the game is in the prestart window, ensure late-joining clients still
+    // receive map preload information.
+    if (this._hasPrestarted && !this._hasStarted) {
+      try {
+        const prestartMsg = ServerPrestartMessageSchema.safeParse({
+          type: "prestart",
+          gameMap: this.gameConfig.gameMap,
+          gameMapSize: this.gameConfig.gameMapSize,
+        });
+        if (prestartMsg.success) {
+          client.ws.send(JSON.stringify(prestartMsg.data));
+        }
+      } catch {
+        // ignore
+      }
     }
   }
 

@@ -1,3 +1,18 @@
+📦 **FrenzyFront Patch Notes - v0.09**
+
+🎮 **Public Lobby Join Reliability**
+
+- Fixed: Joining the public lobby now registers faster, so you can reliably pick a spawn before the game starts
+- Improved: “Start Now” is briefly locked right after joining (and after map change auto-rejoin) to prevent starting while a join is still in-flight
+- Improved: Public lobby player list updates more quickly
+
+🔧 **Technical**
+
+- Cosmetics are disabled (no cosmetics fetch/validation on join)
+- Late joiners during the preload window now receive the map prestart message
+
+---
+
 📦 **FrenzyFront Patch Notes - v0.08**
 
 💥 **Nuke Structure Damage**

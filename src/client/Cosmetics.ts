@@ -8,6 +8,13 @@ import {
 import { getApiBase, getAuthHeader } from "./jwt";
 import { getPersistentID } from "./Main";
 
+let cachedCosmetics: Cosmetics | null | undefined;
+let cosmeticsInFlight: Promise<Cosmetics | null> | null = null;
+
+export function getCachedCosmetics(): Cosmetics | null | undefined {
+  return cachedCosmetics;
+}
+
 export async function handlePurchase(
   pattern: Pattern,
   colorPalette: ColorPalette | null,
@@ -56,26 +63,40 @@ export async function handlePurchase(
 }
 
 export async function fetchCosmetics(): Promise<Cosmetics | null> {
+  if (cachedCosmetics !== undefined) {
+    return cachedCosmetics;
+  }
+  if (cosmeticsInFlight) {
+    return cosmeticsInFlight;
+  }
   try {
     const apiBase = getApiBase();
     if (apiBase === null) {
       // No API available (e.g., frenzyfront.io)
+      cachedCosmetics = null;
       return null;
     }
-    const response = await fetch(`${apiBase}/cosmetics.json`);
-    if (!response.ok) {
-      console.error(`HTTP error! status: ${response.status}`);
-      return null;
-    }
-    const result = CosmeticsSchema.safeParse(await response.json());
-    if (!result.success) {
-      console.error(`Invalid cosmetics: ${result.error.message}`);
-      return null;
-    }
-    return result.data;
+    cosmeticsInFlight = (async () => {
+      const response = await fetch(`${apiBase}/cosmetics.json`);
+      if (!response.ok) {
+        console.error(`HTTP error! status: ${response.status}`);
+        return null;
+      }
+      const result = CosmeticsSchema.safeParse(await response.json());
+      if (!result.success) {
+        console.error(`Invalid cosmetics: ${result.error.message}`);
+        return null;
+      }
+      cachedCosmetics = result.data;
+      return result.data;
+    })();
+
+    return await cosmeticsInFlight;
   } catch (error) {
     console.error("Error getting cosmetics:", error);
     return null;
+  } finally {
+    cosmeticsInFlight = null;
   }
 }
 

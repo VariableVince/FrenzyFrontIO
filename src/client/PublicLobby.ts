@@ -20,6 +20,7 @@ export class PublicLobby extends LitElement {
   private lobbiesInterval: number | null = null;
   private currLobby: GameInfo | null = null;
   private debounceDelay: number = 750;
+  private joinGraceUntilMs: number = 0;
   private lobbyIDToStart = new Map<GameID, number>();
   private lobbiesFetchInFlight: Promise<GameInfo[]> | null = null;
 
@@ -124,6 +125,8 @@ export class PublicLobby extends LitElement {
     // Disable map changes in the last 10 seconds before game starts
     const MAP_CHANGE_LOCKOUT_SECONDS = 10;
     const isMapChangeLocked = timeRemaining <= MAP_CHANGE_LOCKOUT_SECONDS;
+    const isStartNowLocked =
+      this.currLobby !== null && Date.now() < this.joinGraceUntilMs;
 
     const teamCount =
       lobby.gameConfig.gameMode === GameMode.Team
@@ -304,12 +307,15 @@ export class PublicLobby extends LitElement {
           <!-- Start Now button -->
           <button
             @click=${(e: Event) => this.startNow(e)}
-            ?disabled=${this.isMapChanging}
+            ?disabled=${this.isMapChanging || isStartNowLocked}
             class="flex-1 max-w-48 py-1.5 px-4 text-white text-sm font-semibold rounded-lg transition-colors duration-200 ${this
               .isMapChanging
               ? "opacity-50 cursor-not-allowed"
               : ""}"
             style="background-color: rgb(100, 60, 60);"
+            title=${isStartNowLocked
+              ? translateText("public_lobby.joining_please_wait")
+              : ""}
           >
             ${translateText("public_lobby.start_now")}
           </button>
@@ -384,6 +390,7 @@ export class PublicLobby extends LitElement {
           const newLobby = this.lobbies[0];
           this.isLobbyHighlighted = true;
           this.currLobby = newLobby;
+          this.joinGraceUntilMs = Date.now() + 1500;
           this.dispatchEvent(
             new CustomEvent("join-lobby", {
               detail: {
@@ -446,6 +453,7 @@ export class PublicLobby extends LitElement {
     if (this.currLobby === null) {
       this.isLobbyHighlighted = true;
       this.currLobby = lobby;
+      this.joinGraceUntilMs = Date.now() + 1500;
       this.dispatchEvent(
         new CustomEvent("join-lobby", {
           detail: {

@@ -12,5 +12,8 @@ resources/.DS_Store
 CLAUDE.md
 .idea/
 
+# Local perf tooling (not part of release)
+tools/perf/
+
 # External sound assets (download separately - see sounds/README.md)
 sounds/music/*.mp3

@@ -25,7 +25,6 @@ import { getUserMe, verifyClientToken } from "./jwt";
 import { logger } from "./Logger";
 
 import { MapPlaylist } from "./MapPlaylist";
-import { PrivilegeRefresher } from "./PrivilegeRefresher";
 import { initWorkerMetrics } from "./WorkerMetrics";
 
 const config = getServerConfigFromServer();
@@ -63,11 +62,8 @@ export async function startWorker() {
     initWorkerMetrics(gm);
   }
 
-  const privilegeRefresher = new PrivilegeRefresher(
-    config.jwtIssuer() + "/cosmetics.json",
-    log,
-  );
-  privilegeRefresher.start();
+  // Cosmetics are currently disabled. If re-enabled, restore PrivilegeRefresher
+  // and validate ClientJoinMessage cosmetics.
 
   // Middleware to handle /wX path prefix
   app.use((req, res, next) => {
@@ -409,17 +405,7 @@ export async function startWorker() {
           }
         }
 
-        const cosmeticResult = privilegeRefresher
-          .get()
-          .isAllowed(flares ?? [], clientMsg.cosmetics ?? {});
-
-        if (cosmeticResult.type === "forbidden") {
-          log.warn(`Forbidden: ${cosmeticResult.reason}`, {
-            clientID: clientMsg.clientID,
-          });
-          ws.close(1002, cosmeticResult.reason);
-          return;
-        }
+        const cosmeticResult = { type: "allowed", cosmetics: {} as const };
 
         // Create client and add to game
         const client = new Client(

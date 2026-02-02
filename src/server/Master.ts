@@ -123,13 +123,14 @@ export async function startMaster() {
         const scheduleInterval = config.gameCreationRate() * 2;
         setInterval(checkAndSchedule, scheduleInterval);
 
-        // Refresh lobby info frequently and schedule new game if needed
+        // Refresh lobby info frequently and schedule new game if needed.
+        // Lower interval improves how quickly newly-joined players show up on the main page.
         setInterval(async () => {
           const lobbies = await fetchLobbies();
           if (lobbies === 0) {
             await scheduleLobbies();
           }
-        }, 2000);
+        }, 1000);
       }
     }
   });
