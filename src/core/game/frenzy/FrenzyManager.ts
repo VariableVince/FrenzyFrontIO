@@ -1,3 +1,6 @@
+import { LandHPAPathFinder } from "../../pathfinding/LandHPAPathFinder";
+import { PathFinder } from "../../pathfinding/PathFinding";
+import { WaterHPAPathFinder } from "../../pathfinding/WaterHPAPathFinder";
 import { PseudoRandom } from "../../PseudoRandom";
 import { simpleHash } from "../../Util";
 import {
@@ -57,6 +60,23 @@ export class FrenzyManager {
   private config: FrenzyConfig;
   private defeatedPlayers = new Set<PlayerID>();
 
+  // Pathfinding (created lazily per-unit; used only when needed)
+  private landPathFinders: Map<number, PathFinder> = new Map();
+
+  // Land pathing: hierarchical land graph (built once per map) + per-unit cached routes
+  private landHPA: LandHPAPathFinder | null = null;
+  private landRoutes: Map<
+    number,
+    { destTile: TileRef; path: TileRef[]; index: number }
+  > = new Map();
+
+  // Warship pathing: hierarchical water graph (built once per map) + per-unit cached routes
+  private waterHPA: WaterHPAPathFinder | null = null;
+  private warshipRoutes: Map<
+    number,
+    { destTile: TileRef; path: TileRef[]; index: number }
+  > = new Map();
+
   // Mine gold payout tracking
   private mineGoldTimer = 0; // Seconds until next mine gold payout
   private pendingGoldPayouts: Array<{
@@ -93,6 +113,17 @@ export class FrenzyManager {
 
   // Performance profiling: stores last tick breakdown
   private lastTickBreakdown: Record<string, number> = {};
+
+  // Lightweight instrumentation: how often movement uses direct motion vs HPA routing.
+  // Counts are reset every tick and copied into `lastTickBreakdown` using `_pf_*` keys.
+  private pfThisTick = {
+    landDirectMoves: 0,
+    landPathAttempts: 0,
+    landReplans: 0,
+    warshipDirectMoves: 0,
+    warshipPathAttempts: 0,
+    warshipReplans: 0,
+  };
 
   // Deterministic random number generator (seeded for multiplayer sync)
   private random: PseudoRandom;
@@ -459,6 +490,14 @@ export class FrenzyManager {
 
     mark("start");
 
+    // Reset per-tick pathfinding counters.
+    this.pfThisTick.landDirectMoves = 0;
+    this.pfThisTick.landPathAttempts = 0;
+    this.pfThisTick.landReplans = 0;
+    this.pfThisTick.warshipDirectMoves = 0;
+    this.pfThisTick.warshipPathAttempts = 0;
+    this.pfThisTick.warshipReplans = 0;
+
     // Check for newly spawned players and create their HQs
     // Performance: Use numTilesOwned() instead of tiles() to avoid creating a Set copy
     for (const player of this.game.players()) {
@@ -505,6 +544,11 @@ export class FrenzyManager {
     this.removeDeadUnits();
     mark("removeDeadUnits");
 
+    // Path caches are keyed by unit id; prune periodically to avoid leaks when units are removed.
+    if (this.tickCount % 30 === 0) {
+      this.prunePerUnitPathCaches();
+    }
+
     this.rebuildSpatialGrid();
     mark("rebuildSpatialGrid");
 
@@ -517,6 +561,18 @@ export class FrenzyManager {
     // Calculate total
     this.lastTickBreakdown["_total"] =
       times[keys[keys.length - 1]] - times["start"];
+
+    // Add lightweight pathfinding counters (counts per tick, not milliseconds).
+    this.lastTickBreakdown["_pf_land_direct"] = this.pfThisTick.landDirectMoves;
+    this.lastTickBreakdown["_pf_land_path_attempts"] =
+      this.pfThisTick.landPathAttempts;
+    this.lastTickBreakdown["_pf_land_replans"] = this.pfThisTick.landReplans;
+    this.lastTickBreakdown["_pf_warship_direct"] =
+      this.pfThisTick.warshipDirectMoves;
+    this.lastTickBreakdown["_pf_warship_path_attempts"] =
+      this.pfThisTick.warshipPathAttempts;
+    this.lastTickBreakdown["_pf_warship_replans"] =
+      this.pfThisTick.warshipReplans;
   }
 
   /**
@@ -669,7 +725,12 @@ export class FrenzyManager {
       }
 
       // Only place on land
-      const tile = this.game.ref(Math.floor(x), Math.floor(y));
+      const tileX = Math.floor(x);
+      const tileY = Math.floor(y);
+      if (!this.game.isValidCoord(tileX, tileY)) {
+        continue;
+      }
+      const tile = this.game.ref(tileX, tileY);
       if (!tile || this.game.isWater(tile)) {
         continue;
       }
@@ -871,8 +932,10 @@ export class FrenzyManager {
           const distSqToMine = dxSample * dxSample + dySample * dySample;
           if (distSqToMine > mineRadiusSq) continue;
 
-          const tile = this.game.ref(Math.floor(sx), Math.floor(sy));
-          if (tile === undefined) continue;
+          const sampleX = Math.floor(sx);
+          const sampleY = Math.floor(sy);
+          if (!this.game.isValidCoord(sampleX, sampleY)) continue;
+          const tile = this.game.ref(sampleX, sampleY);
 
           // Must be owned by this player
           const tileOwner = this.game.owner(tile);
@@ -1014,6 +1077,7 @@ export class FrenzyManager {
     // Performance: Use squared distances to avoid sqrt calls
     const RETARGET_DISTANCE_SQ = 15 * 15; // Recalculate when within this distance of target
     const ATTACK_ORDER_ARRIVAL_DISTANCE_SQ = 20 * 20; // Clear attack order when this close to target
+    const AUTO_DIRECT_DISTANCE = 10; // tiles; skip pathfinding for short automatic moves
 
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
@@ -1103,20 +1167,88 @@ export class FrenzyManager {
         const unitConfig = getUnitConfig(this.config, unit.unitType);
         const speed = unitConfig.speed;
 
-        // Normalize direction
-        unit.vx = (dx / dist) * speed;
-        unit.vy = (dy / dist) * speed;
+        const hasManualAttackOrder =
+          unit.hasAttackOrder &&
+          unit.attackOrderX !== undefined &&
+          unit.attackOrderY !== undefined;
 
-        // Apply separation from nearby friendlies
-        this.applySeparation(unit);
+        // Automatic expansion: for short distances, direct motion is cheaper than pathfinding.
+        // Manual attack orders always use pathfinding.
+        const shouldUseDirectMotion =
+          !hasManualAttackOrder && dist <= AUTO_DIRECT_DISTANCE;
 
-        // Update position
-        unit.x += unit.vx * deltaTime;
-        unit.y += unit.vy * deltaTime;
+        if (shouldUseDirectMotion) {
+          this.pfThisTick.landDirectMoves++;
+          // Direct motion + separation; only step onto land.
+          if (dist > 0.0001) {
+            let vx = (dx / dist) * speed;
+            let vy = (dy / dist) * speed;
 
-        // Keep within map bounds
-        unit.x = Math.max(0, Math.min(this.game.width(), unit.x));
-        unit.y = Math.max(0, Math.min(this.game.height(), unit.y));
+            unit.vx = vx;
+            unit.vy = vy;
+            this.applySeparation(unit);
+            vx = unit.vx;
+            vy = unit.vy;
+
+            const nextX = unit.x + vx * deltaTime;
+            const nextY = unit.y + vy * deltaTime;
+            const nextTile = this.tileFromXY(nextX, nextY);
+            if (nextTile !== null && this.game.isLand(nextTile)) {
+              unit.x = nextX;
+              unit.y = nextY;
+              unit.vx = vx;
+              unit.vy = vy;
+            } else {
+              unit.vx = 0;
+              unit.vy = 0;
+            }
+          } else {
+            unit.vx = 0;
+            unit.vy = 0;
+          }
+        } else {
+          this.pfThisTick.landPathAttempts++;
+          // Hierarchical land pathing (HPA*) with safe local refinement.
+          const moved = this.updateLandUnitMovementPathfinding(
+            unit,
+            deltaTime,
+            speed,
+          );
+
+          if (!moved) {
+            // Fallback: straight-line movement + separation
+            if (dist > 0.0001) {
+              let vx = (dx / dist) * speed;
+              let vy = (dy / dist) * speed;
+
+              unit.vx = vx;
+              unit.vy = vy;
+              this.applySeparation(unit);
+              vx = unit.vx;
+              vy = unit.vy;
+
+              const nextX = unit.x + vx * deltaTime;
+              const nextY = unit.y + vy * deltaTime;
+              const nextTile = this.tileFromXY(nextX, nextY);
+              if (nextTile !== null && this.game.isLand(nextTile)) {
+                unit.x = nextX;
+                unit.y = nextY;
+                unit.vx = vx;
+                unit.vy = vy;
+              } else {
+                unit.vx = 0;
+                unit.vy = 0;
+              }
+            } else {
+              unit.vx = 0;
+              unit.vy = 0;
+            }
+          }
+        }
+
+        // Always clamp to bounds (some logic paths may stop without moving).
+        unit.x = Math.max(0, Math.min(this.game.width() - 1e-3, unit.x));
+        unit.y = Math.max(0, Math.min(this.game.height() - 1e-3, unit.y));
       } else {
         // At target, pick a new target on next tick
         unit.vx = 0;
@@ -1365,8 +1497,8 @@ export class FrenzyManager {
       }
 
       return {
-        x: Math.max(0, Math.min(this.game.width(), finalX)),
-        y: Math.max(0, Math.min(this.game.height(), finalY)),
+        x: Math.max(0, Math.min(this.game.width() - 1e-3, finalX)),
+        y: Math.max(0, Math.min(this.game.height() - 1e-3, finalY)),
       };
     }
 
@@ -1423,6 +1555,10 @@ export class FrenzyManager {
     unit.vy = (dy / dist) * speed;
     unit.x += unit.vx * deltaTime;
     unit.y += unit.vy * deltaTime;
+
+    // Keep within map bounds
+    unit.x = Math.max(0, Math.min(this.game.width() - 1e-3, unit.x));
+    unit.y = Math.max(0, Math.min(this.game.height() - 1e-3, unit.y));
   }
 
   /**
@@ -1710,11 +1846,723 @@ export class FrenzyManager {
    * - SquareMap: Uses diagonal-based linear interpolation
    */
   private updateWarshipMovement(unit: FrenzyUnit, deltaTime: number) {
-    const mapType = this.game.config().gameConfig().gameMap;
-    if (mapType === GameMapType.SquareMap) {
-      this.updateWarshipMovementSquare(unit, deltaTime);
+    this.updateWarshipMovementPathfinding(unit, deltaTime);
+  }
+
+  private updateWarshipMovementPathfinding(
+    unit: FrenzyUnit,
+    deltaTime: number,
+  ) {
+    const ATTACK_ORDER_ARRIVAL_DISTANCE = 3; // tiles
+    const AUTO_DIRECT_DISTANCE = 10; // tiles; skip pathfinding for short automatic moves
+
+    // Determine target coordinates
+    let destX: number = unit.targetX;
+    let destY: number = unit.targetY;
+
+    if (
+      unit.hasAttackOrder &&
+      unit.attackOrderX !== undefined &&
+      unit.attackOrderY !== undefined
+    ) {
+      destX = unit.attackOrderX;
+      destY = unit.attackOrderY;
+      const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
+
+      if (distToTarget < ATTACK_ORDER_ARRIVAL_DISTANCE) {
+        unit.hasAttackOrder = false;
+        unit.attackOrderX = undefined;
+        unit.attackOrderY = undefined;
+        destX = unit.targetX;
+        destY = unit.targetY;
+      }
     } else {
-      this.updateWarshipMovementPolar(unit, deltaTime);
+      const distToTarget = Math.hypot(destX - unit.x, destY - unit.y);
+
+      if (distToTarget < 2 || (unit.targetX === 0 && unit.targetY === 0)) {
+        const newTarget = this.findWarshipTarget(unit);
+        unit.targetX = newTarget.x;
+        unit.targetY = newTarget.y;
+        destX = newTarget.x;
+        destY = newTarget.y;
+      }
+    }
+
+    const unitConfig = getUnitConfig(this.config, unit.unitType);
+    const speed = unitConfig.speed;
+
+    // Automatic movement: for short distances, direct motion is cheaper.
+    // Manual attack orders always use pathfinding.
+    if (!unit.hasAttackOrder) {
+      const distToDest = Math.hypot(destX - unit.x, destY - unit.y);
+      if (distToDest <= AUTO_DIRECT_DISTANCE) {
+        if (distToDest > 0.0001) {
+          const dx = destX - unit.x;
+          const dy = destY - unit.y;
+          unit.vx = (dx / distToDest) * speed;
+          unit.vy = (dy / distToDest) * speed;
+
+          const nextX = unit.x + unit.vx * deltaTime;
+          const nextY = unit.y + unit.vy * deltaTime;
+          const nextTile = this.tileFromXY(nextX, nextY);
+          if (nextTile !== null && this.game.isWater(nextTile)) {
+            unit.x = nextX;
+            unit.y = nextY;
+            unit.x = Math.max(0, Math.min(this.game.width() - 1e-3, unit.x));
+            unit.y = Math.max(0, Math.min(this.game.height() - 1e-3, unit.y));
+            this.pfThisTick.warshipDirectMoves++;
+            return;
+          }
+        }
+        // If direct step is blocked, fall through to pathfinding.
+      }
+    }
+
+    this.pfThisTick.warshipPathAttempts++;
+
+    const currTile = this.tileFromXY(unit.x, unit.y);
+    const rawDstTile = this.tileFromXY(destX, destY);
+    if (currTile === null || rawDstTile === null) {
+      // Correct any out-of-bounds drift and stop.
+      unit.x = Math.max(0, Math.min(this.game.width() - 1e-3, unit.x));
+      unit.y = Math.max(0, Math.min(this.game.height() - 1e-3, unit.y));
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    const startTile = this.findNearbyWaterTile(currTile, 2);
+    const dstTile = this.findNearbyWaterTile(rawDstTile, 10);
+    if (startTile === null || dstTile === null) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    const state = this.warshipRoutes.get(unit.id);
+    const needNewRoute =
+      !state || state.destTile !== dstTile || state.index >= state.path.length;
+
+    if (needNewRoute) {
+      this.pfThisTick.warshipReplans++;
+      const newRoute = this.computeWarshipRoute(startTile, dstTile);
+      if (!newRoute) {
+        unit.vx = 0;
+        unit.vy = 0;
+        return;
+      }
+      this.warshipRoutes.set(unit.id, {
+        destTile: dstTile,
+        path: newRoute,
+        index: 0,
+      });
+    }
+
+    const route = this.warshipRoutes.get(unit.id);
+    if (!route || route.path.length === 0) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    // Advance waypoint if we reached it
+    while (route.index < route.path.length) {
+      const waypoint = route.path[route.index];
+      const wx = this.game.x(waypoint) + 0.5;
+      const wy = this.game.y(waypoint) + 0.5;
+      const d = Math.hypot(wx - unit.x, wy - unit.y);
+      if (d > 0.35) break;
+      route.index++;
+    }
+
+    if (route.index >= route.path.length) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    const nextWaypoint = route.path[route.index];
+    const tx = this.game.x(nextWaypoint) + 0.5;
+    const ty = this.game.y(nextWaypoint) + 0.5;
+
+    const dx = tx - unit.x;
+    const dy = ty - unit.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= 0.001) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return;
+    }
+
+    unit.vx = (dx / d) * speed;
+    unit.vy = (dy / d) * speed;
+
+    const nextX = unit.x + unit.vx * deltaTime;
+    const nextY = unit.y + unit.vy * deltaTime;
+    const nextTile = this.tileFromXY(nextX, nextY);
+    if (nextTile !== null && this.game.isWater(nextTile)) {
+      unit.x = nextX;
+      unit.y = nextY;
+
+      // Keep within map bounds
+      unit.x = Math.max(0, Math.min(this.game.width() - 1e-3, unit.x));
+      unit.y = Math.max(0, Math.min(this.game.height() - 1e-3, unit.y));
+    } else {
+      // Replan if we drifted into a blocked area.
+      this.warshipRoutes.delete(unit.id);
+      unit.vx = 0;
+      unit.vy = 0;
+    }
+  }
+
+  private tileFromXY(x: number, y: number): TileRef | null {
+    const fx = Math.floor(x);
+    const fy = Math.floor(y);
+    if (!this.game.isValidCoord(fx, fy)) return null;
+    return this.game.ref(fx, fy);
+  }
+
+  private updateLandUnitMovementPathfinding(
+    unit: FrenzyUnit,
+    deltaTime: number,
+    speed: number,
+  ): boolean {
+    const currTile = this.tileFromXY(unit.x, unit.y);
+    const rawDstTile = this.tileFromXY(unit.targetX, unit.targetY);
+    if (currTile === null || rawDstTile === null) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return false;
+    }
+
+    const startTile = this.findNearbyLandTile(currTile, 2);
+    const dstTile = this.findNearbyLandTile(rawDstTile, 10);
+    if (startTile === null || dstTile === null) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return false;
+    }
+
+    const state = this.landRoutes.get(unit.id);
+    const needNewRoute =
+      !state || state.destTile !== dstTile || state.index >= state.path.length;
+
+    if (needNewRoute) {
+      this.pfThisTick.landReplans++;
+      const newRoute = this.computeLandRoute(startTile, dstTile);
+      if (!newRoute) {
+        return false;
+      }
+      this.landRoutes.set(unit.id, {
+        destTile: dstTile,
+        path: newRoute,
+        index: 0,
+      });
+    }
+
+    const route = this.landRoutes.get(unit.id);
+    if (!route || route.path.length === 0) {
+      return false;
+    }
+
+    // Advance waypoint if we reached it
+    while (route.index < route.path.length) {
+      const waypoint = route.path[route.index];
+      const wx = this.game.x(waypoint) + 0.5;
+      const wy = this.game.y(waypoint) + 0.5;
+      const d = Math.hypot(wx - unit.x, wy - unit.y);
+      if (d > 0.35) break;
+      route.index++;
+    }
+
+    if (route.index >= route.path.length) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return true;
+    }
+
+    const nextWaypoint = route.path[route.index];
+    const tx = this.game.x(nextWaypoint) + 0.5;
+    const ty = this.game.y(nextWaypoint) + 0.5;
+
+    const dx = tx - unit.x;
+    const dy = ty - unit.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= 0.001) {
+      unit.vx = 0;
+      unit.vy = 0;
+      return true;
+    }
+
+    let vx = (dx / d) * speed;
+    let vy = (dy / d) * speed;
+
+    // Apply separation, but don't allow it to push into water.
+    unit.vx = vx;
+    unit.vy = vy;
+    this.applySeparation(unit);
+    vx = unit.vx;
+    vy = unit.vy;
+
+    const nextX = unit.x + vx * deltaTime;
+    const nextY = unit.y + vy * deltaTime;
+    const nextTile = this.tileFromXY(nextX, nextY);
+    if (nextTile !== null && this.game.isLand(nextTile)) {
+      unit.x = nextX;
+      unit.y = nextY;
+      unit.vx = vx;
+      unit.vy = vy;
+
+      // Keep within map bounds
+      unit.x = Math.max(0, Math.min(this.game.width() - 1e-3, unit.x));
+      unit.y = Math.max(0, Math.min(this.game.height() - 1e-3, unit.y));
+      return true;
+    }
+
+    // Replan if we drifted into a blocked area.
+    this.landRoutes.delete(unit.id);
+    unit.vx = 0;
+    unit.vy = 0;
+    return true;
+  }
+
+  private computeLandRoute(
+    startTile: TileRef,
+    dstTile: TileRef,
+  ): TileRef[] | null {
+    const gameMap = this.game.map();
+
+    const startMini = this.gameTileToMiniTile(startTile);
+    const dstMini = this.gameTileToMiniTile(dstTile);
+    if (startMini === null || dstMini === null) return null;
+
+    const startMiniLand = this.findNearbyMiniLandTile(startMini, 2);
+    const dstMiniLand = this.findNearbyMiniLandTile(dstMini, 3);
+    if (startMiniLand === null || dstMiniLand === null) return null;
+
+    const hpa = this.getOrCreateLandHPA();
+    const miniPath = hpa.findMiniPath(startMiniLand, dstMiniLand);
+    if (!miniPath) return null;
+
+    const waypoints = hpa.miniPathToGameMap(gameMap, miniPath, (t) =>
+      this.game.isLand(t),
+    );
+    if (waypoints.length === 0) return null;
+
+    if (waypoints[0] !== startTile) {
+      waypoints.unshift(startTile);
+    }
+    if (waypoints[waypoints.length - 1] !== dstTile) {
+      waypoints.push(dstTile);
+    }
+
+    return this.refineTerrainWaypointsToPath(
+      waypoints,
+      (t) => this.game.isLand(t),
+      6,
+    );
+  }
+
+  private getOrCreateLandHPA(): LandHPAPathFinder {
+    if (this.landHPA) return this.landHPA;
+    this.landHPA = LandHPAPathFinder.build(this.game.miniMap(), {
+      clusterSize: 16,
+      scaleFactorToGameMap: 2,
+    });
+    return this.landHPA;
+  }
+
+  private ensureAdjacentLand(tile: TileRef): TileRef | null {
+    if (this.game.isLand(tile)) return tile;
+    for (const n of this.game.neighbors(tile)) {
+      if (this.game.isLand(n)) return n;
+    }
+    return null;
+  }
+
+  private findNearbyLandTile(tile: TileRef, maxRadius: number): TileRef | null {
+    if (this.game.isLand(tile)) return tile;
+
+    const x0 = this.game.x(tile);
+    const y0 = this.game.y(tile);
+
+    for (let r = 1; r <= maxRadius; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const xTop = x0 + dx;
+        const yTop = y0 - r;
+        const yBottom = y0 + r;
+
+        if (this.game.isValidCoord(xTop, yTop)) {
+          const t = this.game.ref(xTop, yTop);
+          if (this.game.isLand(t)) return t;
+        }
+        if (this.game.isValidCoord(xTop, yBottom)) {
+          const t = this.game.ref(xTop, yBottom);
+          if (this.game.isLand(t)) return t;
+        }
+      }
+
+      for (let dy = -r + 1; dy <= r - 1; dy++) {
+        const ySide = y0 + dy;
+        const xLeft = x0 - r;
+        const xRight = x0 + r;
+
+        if (this.game.isValidCoord(xLeft, ySide)) {
+          const t = this.game.ref(xLeft, ySide);
+          if (this.game.isLand(t)) return t;
+        }
+        if (this.game.isValidCoord(xRight, ySide)) {
+          const t = this.game.ref(xRight, ySide);
+          if (this.game.isLand(t)) return t;
+        }
+      }
+    }
+
+    return this.ensureAdjacentLand(tile);
+  }
+
+  private ensureAdjacentWater(tile: TileRef): TileRef | null {
+    if (this.game.isWater(tile)) return tile;
+    for (const n of this.game.neighbors(tile)) {
+      if (this.game.isWater(n)) return n;
+    }
+    return null;
+  }
+
+  private findNearbyWaterTile(
+    tile: TileRef,
+    maxRadius: number,
+  ): TileRef | null {
+    if (this.game.isWater(tile)) return tile;
+
+    const x0 = this.game.x(tile);
+    const y0 = this.game.y(tile);
+
+    for (let r = 1; r <= maxRadius; r++) {
+      // Perimeter scan (cheaper than full square scan)
+      for (let dx = -r; dx <= r; dx++) {
+        const xTop = x0 + dx;
+        const yTop = y0 - r;
+        const yBottom = y0 + r;
+
+        if (this.game.isValidCoord(xTop, yTop)) {
+          const t = this.game.ref(xTop, yTop);
+          if (this.game.isWater(t)) return t;
+        }
+        if (this.game.isValidCoord(xTop, yBottom)) {
+          const t = this.game.ref(xTop, yBottom);
+          if (this.game.isWater(t)) return t;
+        }
+      }
+
+      for (let dy = -r + 1; dy <= r - 1; dy++) {
+        const ySide = y0 + dy;
+        const xLeft = x0 - r;
+        const xRight = x0 + r;
+
+        if (this.game.isValidCoord(xLeft, ySide)) {
+          const t = this.game.ref(xLeft, ySide);
+          if (this.game.isWater(t)) return t;
+        }
+        if (this.game.isValidCoord(xRight, ySide)) {
+          const t = this.game.ref(xRight, ySide);
+          if (this.game.isWater(t)) return t;
+        }
+      }
+    }
+
+    return this.ensureAdjacentWater(tile);
+  }
+
+  private computeWarshipRoute(
+    startTile: TileRef,
+    dstTile: TileRef,
+  ): TileRef[] | null {
+    const gameMap = this.game.map();
+
+    const startMini = this.gameTileToMiniTile(startTile);
+    const dstMini = this.gameTileToMiniTile(dstTile);
+    if (startMini === null || dstMini === null) return null;
+
+    const startMiniWater = this.findNearbyMiniWaterTile(startMini, 2);
+    const dstMiniWater = this.findNearbyMiniWaterTile(dstMini, 3);
+    if (startMiniWater === null || dstMiniWater === null) return null;
+
+    const hpa = this.getOrCreateWaterHPA();
+    const miniPath = hpa.findMiniPath(startMiniWater, dstMiniWater);
+    if (!miniPath) return null;
+
+    const waypoints = hpa.miniPathToGameMap(gameMap, miniPath, (t) =>
+      this.game.isWater(t),
+    );
+    if (waypoints.length === 0) return null;
+
+    // Ensure endpoints are sane for the current unit
+    if (waypoints[0] !== startTile) {
+      waypoints.unshift(startTile);
+    }
+    if (waypoints[waypoints.length - 1] !== dstTile) {
+      waypoints.push(dstTile);
+    }
+
+    // Refine to a full-res, step-by-step water path.
+    return this.refineTerrainWaypointsToPath(
+      waypoints,
+      (t) => this.game.isWater(t),
+      6,
+    );
+  }
+
+  private refineTerrainWaypointsToPath(
+    waypoints: TileRef[],
+    isPassable: (tile: TileRef) => boolean,
+    pad: number,
+  ): TileRef[] | null {
+    const filtered = waypoints.filter(isPassable);
+    if (filtered.length === 0) return null;
+    if (filtered.length === 1) return filtered;
+
+    const out: TileRef[] = [];
+    for (let i = 0; i < filtered.length - 1; i++) {
+      const a = filtered[i];
+      const b = filtered[i + 1];
+      const seg = this.findLocalTerrainPath(a, b, pad, isPassable);
+      if (!seg) return null;
+      if (out.length === 0) {
+        out.push(...seg);
+      } else {
+        out.push(...seg.slice(1));
+      }
+    }
+    return out;
+  }
+
+  private findLocalTerrainPath(
+    start: TileRef,
+    goal: TileRef,
+    pad: number,
+    isPassable: (tile: TileRef) => boolean,
+  ): TileRef[] | null {
+    if (start === goal) return [start];
+    if (!isPassable(start) || !isPassable(goal)) return null;
+
+    const sx = this.game.x(start);
+    const sy = this.game.y(start);
+    const gx = this.game.x(goal);
+    const gy = this.game.y(goal);
+
+    const x0 = Math.max(0, Math.min(sx, gx) - pad);
+    const y0 = Math.max(0, Math.min(sy, gy) - pad);
+    const x1 = Math.min(this.game.width() - 1, Math.max(sx, gx) + pad);
+    const y1 = Math.min(this.game.height() - 1, Math.max(sy, gy) + pad);
+
+    const w = x1 - x0 + 1;
+    const size = w * (y1 - y0 + 1);
+
+    const startIdx = (sy - y0) * w + (sx - x0);
+    const goalIdx = (gy - y0) * w + (gx - x0);
+
+    const prev = new Int32Array(size);
+    prev.fill(-1);
+    const visited = new Uint8Array(size);
+
+    const queue = new Int32Array(size);
+    let qh = 0;
+    let qt = 0;
+    visited[startIdx] = 1;
+    queue[qt++] = startIdx;
+
+    const tryPush = (
+      fromIdx: number,
+      nx: number,
+      ny: number,
+      toIdx: number,
+    ) => {
+      if (visited[toIdx]) return;
+      const tile = this.game.ref(nx, ny);
+      if (!isPassable(tile)) return;
+      visited[toIdx] = 1;
+      prev[toIdx] = fromIdx;
+      queue[qt++] = toIdx;
+    };
+
+    while (qh < qt) {
+      const idx = queue[qh++];
+      if (idx === goalIdx) break;
+
+      const lx = idx % w;
+      const ly = Math.floor(idx / w);
+      const x = x0 + lx;
+      const y = y0 + ly;
+
+      if (y > y0) {
+        const ny = y - 1;
+        const to = (ny - y0) * w + (x - x0);
+        tryPush(idx, x, ny, to);
+      }
+      if (y < y1) {
+        const ny = y + 1;
+        const to = (ny - y0) * w + (x - x0);
+        tryPush(idx, x, ny, to);
+      }
+      if (x > x0) {
+        const nx = x - 1;
+        const to = (y - y0) * w + (nx - x0);
+        tryPush(idx, nx, y, to);
+      }
+      if (x < x1) {
+        const nx = x + 1;
+        const to = (y - y0) * w + (nx - x0);
+        tryPush(idx, nx, y, to);
+      }
+    }
+
+    if (!visited[goalIdx]) return null;
+
+    const reversed: TileRef[] = [];
+    let cur = goalIdx;
+    while (cur !== -1) {
+      const lx = cur % w;
+      const ly = Math.floor(cur / w);
+      reversed.push(this.game.ref(x0 + lx, y0 + ly));
+      if (cur === startIdx) break;
+      cur = prev[cur];
+    }
+    reversed.reverse();
+    return reversed;
+  }
+
+  private getOrCreateWaterHPA(): WaterHPAPathFinder {
+    if (this.waterHPA) return this.waterHPA;
+    this.waterHPA = WaterHPAPathFinder.build(this.game.miniMap(), {
+      clusterSize: 16,
+      scaleFactorToGameMap: 2,
+    });
+    return this.waterHPA;
+  }
+
+  private gameTileToMiniTile(tile: TileRef): TileRef | null {
+    const gx = this.game.x(tile);
+    const gy = this.game.y(tile);
+    const miniMap = this.game.miniMap();
+    const mx = Math.max(0, Math.min(miniMap.width() - 1, Math.floor(gx / 2)));
+    const my = Math.max(0, Math.min(miniMap.height() - 1, Math.floor(gy / 2)));
+    if (!miniMap.isValidCoord(mx, my)) return null;
+    return miniMap.ref(mx, my);
+  }
+
+  private findNearbyMiniLandTile(
+    tile: TileRef,
+    maxRadius: number,
+  ): TileRef | null {
+    const miniMap = this.game.miniMap();
+    if (miniMap.isLand(tile)) return tile;
+
+    const x0 = miniMap.x(tile);
+    const y0 = miniMap.y(tile);
+
+    for (let r = 1; r <= maxRadius; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const xTop = x0 + dx;
+        const yTop = y0 - r;
+        const yBottom = y0 + r;
+        if (miniMap.isValidCoord(xTop, yTop)) {
+          const t = miniMap.ref(xTop, yTop);
+          if (miniMap.isLand(t)) return t;
+        }
+        if (miniMap.isValidCoord(xTop, yBottom)) {
+          const t = miniMap.ref(xTop, yBottom);
+          if (miniMap.isLand(t)) return t;
+        }
+      }
+      for (let dy = -r + 1; dy <= r - 1; dy++) {
+        const ySide = y0 + dy;
+        const xLeft = x0 - r;
+        const xRight = x0 + r;
+        if (miniMap.isValidCoord(xLeft, ySide)) {
+          const t = miniMap.ref(xLeft, ySide);
+          if (miniMap.isLand(t)) return t;
+        }
+        if (miniMap.isValidCoord(xRight, ySide)) {
+          const t = miniMap.ref(xRight, ySide);
+          if (miniMap.isLand(t)) return t;
+        }
+      }
+    }
+    return null;
+  }
+
+  private findNearbyMiniWaterTile(
+    tile: TileRef,
+    maxRadius: number,
+  ): TileRef | null {
+    const miniMap = this.game.miniMap();
+    if (miniMap.isWater(tile)) return tile;
+
+    const x0 = miniMap.x(tile);
+    const y0 = miniMap.y(tile);
+
+    for (let r = 1; r <= maxRadius; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const xTop = x0 + dx;
+        const yTop = y0 - r;
+        const yBottom = y0 + r;
+        if (miniMap.isValidCoord(xTop, yTop)) {
+          const t = miniMap.ref(xTop, yTop);
+          if (miniMap.isWater(t)) return t;
+        }
+        if (miniMap.isValidCoord(xTop, yBottom)) {
+          const t = miniMap.ref(xTop, yBottom);
+          if (miniMap.isWater(t)) return t;
+        }
+      }
+      for (let dy = -r + 1; dy <= r - 1; dy++) {
+        const ySide = y0 + dy;
+        const xLeft = x0 - r;
+        const xRight = x0 + r;
+        if (miniMap.isValidCoord(xLeft, ySide)) {
+          const t = miniMap.ref(xLeft, ySide);
+          if (miniMap.isWater(t)) return t;
+        }
+        if (miniMap.isValidCoord(xRight, ySide)) {
+          const t = miniMap.ref(xRight, ySide);
+          if (miniMap.isWater(t)) return t;
+        }
+      }
+    }
+    return null;
+  }
+
+  private getOrCreateLandPathFinder(unitId: number): PathFinder {
+    const existing = this.landPathFinders.get(unitId);
+    if (existing) return existing;
+    const created = PathFinder.Mini(this.game, 2_000, false, 30);
+    this.landPathFinders.set(unitId, created);
+    return created;
+  }
+
+  private prunePerUnitPathCaches() {
+    if (
+      this.landPathFinders.size === 0 &&
+      this.warshipRoutes.size === 0 &&
+      this.landRoutes.size === 0
+    ) {
+      return;
+    }
+
+    const alive = new Set<number>();
+    for (const unit of this.units) {
+      alive.add(unit.id);
+    }
+
+    for (const id of this.landPathFinders.keys()) {
+      if (!alive.has(id)) this.landPathFinders.delete(id);
+    }
+    for (const id of this.warshipRoutes.keys()) {
+      if (!alive.has(id)) this.warshipRoutes.delete(id);
+    }
+    for (const id of this.landRoutes.keys()) {
+      if (!alive.has(id)) this.landRoutes.delete(id);
     }
   }
 
@@ -2185,8 +3033,13 @@ export class FrenzyManager {
     }
 
     // Check if target is on water or land
-    const targetTile = this.game.ref(Math.floor(targetX), Math.floor(targetY));
-    const targetIsWater = targetTile && this.game.isWater(targetTile);
+    const targetTileX = Math.floor(targetX);
+    const targetTileY = Math.floor(targetY);
+    if (!this.game.isValidCoord(targetTileX, targetTileY)) {
+      return;
+    }
+    const targetTile = this.game.ref(targetTileX, targetTileY);
+    const targetIsWater = this.game.isWater(targetTile);
 
     // Get mobile units for this player based on target terrain
     // Water target = warships only, Land target = soldiers only
@@ -2849,6 +3702,7 @@ export class FrenzyManager {
     // Convert pixel position to tile ref
     const tileX = Math.floor(unit.x);
     const tileY = Math.floor(unit.y);
+    if (!this.game.isValidCoord(tileX, tileY)) return;
     const tile = this.game.ref(tileX, tileY);
     if (!this.game.isValidRef(tile)) return;
 
@@ -3764,6 +4618,11 @@ export class FrenzyManager {
     }
 
     this.units = this.units.filter((u) => u.health > 0);
+
+    // Dead units can leave behind cached path state.
+    if (deadUnits.length > 0) {
+      this.prunePerUnitPathCaches();
+    }
   }
 
   private enforceUnitCaps() {
@@ -3782,6 +4641,9 @@ export class FrenzyManager {
       }
     }
     this.units = kept;
+
+    // Units may have been removed; prune any cached per-unit path state.
+    this.prunePerUnitPathCaches();
   }
 
   /**
@@ -4764,12 +5626,19 @@ export class FrenzyManager {
               u.playerId === playerId &&
               u.unitType === FrenzyUnitType.MissileSilo,
           )
-          .map((u) => ({
-            x: u.x,
-            y: u.y,
-            tile: this.game.ref(Math.floor(u.x), Math.floor(u.y)),
-            tier: u.tier ?? 1,
-          }));
+          .flatMap((u) => {
+            const tileX = Math.floor(u.x);
+            const tileY = Math.floor(u.y);
+            if (!this.game.isValidCoord(tileX, tileY)) return [];
+            return [
+              {
+                x: u.x,
+                y: u.y,
+                tile: this.game.ref(tileX, tileY),
+                tier: u.tier ?? 1,
+              },
+            ];
+          });
       default:
         return [];
     }

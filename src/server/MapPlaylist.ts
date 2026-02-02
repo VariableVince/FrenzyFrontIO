@@ -14,7 +14,11 @@ import { GameConfig } from "../core/Schemas";
 // (calculated in GameRunner.init())
 const FRENZY_MAP_MAX_PLAYERS = 20;
 const FRENZY_BOT_TARGET = 10;
-const FRENZY_MAPS = [GameMapType.CircleMap, GameMapType.SquareMap];
+const FRENZY_MAPS = [
+  GameMapType.World,
+  GameMapType.CircleMap,
+  GameMapType.SquareMap,
+];
 
 export class MapPlaylist {
   private currentMapIndex = 0;
