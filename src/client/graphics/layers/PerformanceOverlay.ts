@@ -124,10 +124,10 @@ export class PerformanceOverlay extends LitElement implements Layer {
 
     .close-button {
       position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 20px;
-      height: 20px;
+      top: calc(8px + env(safe-area-inset-top, 0px));
+      left: calc(8px + env(safe-area-inset-left, 0px));
+      width: 28px;
+      height: 28px;
       background-color: rgba(0, 0, 0, 0.8);
       border-radius: 4px;
       color: white;
@@ -140,12 +140,13 @@ export class PerformanceOverlay extends LitElement implements Layer {
       line-height: 1;
       user-select: none;
       pointer-events: auto;
+      touch-action: manipulation;
     }
 
     .reset-button {
       position: absolute;
-      top: 8px;
-      left: 8px;
+      top: calc(8px + env(safe-area-inset-top, 0px));
+      right: calc(8px + env(safe-area-inset-right, 0px));
       height: 20px;
       padding: 0 6px;
       background-color: rgba(0, 0, 0, 0.8);
@@ -160,12 +161,13 @@ export class PerformanceOverlay extends LitElement implements Layer {
       line-height: 1;
       user-select: none;
       pointer-events: auto;
+      touch-action: manipulation;
     }
 
     .copy-json-button {
       position: absolute;
-      top: 8px;
-      left: 70px;
+      top: calc(8px + env(safe-area-inset-top, 0px));
+      right: calc(70px + env(safe-area-inset-right, 0px));
       height: 20px;
       padding: 0 6px;
       background-color: rgba(0, 0, 0, 0.8);
@@ -180,12 +182,48 @@ export class PerformanceOverlay extends LitElement implements Layer {
       line-height: 1;
       user-select: none;
       pointer-events: auto;
+      touch-action: manipulation;
     }
 
     .layers-section {
       margin-top: 4px;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       padding-top: 4px;
+    }
+
+    .frenzy-section {
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 4px;
+    }
+
+    .frenzy-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .frenzy-key {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0.95;
+    }
+
+    .frenzy-val {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      opacity: 0.95;
+    }
+
+    .frenzy-hint {
+      opacity: 0.75;
+      font-size: 10px;
+      margin-top: 2px;
     }
 
     .layer-row {
@@ -248,6 +286,7 @@ export class PerformanceOverlay extends LitElement implements Layer {
 
   private handleClose() {
     this.userSettings.togglePerformanceOverlay();
+    this.setVisible(this.userSettings.performanceOverlay());
   }
 
   private handleMouseDown = (e: MouseEvent) => {
@@ -520,6 +559,16 @@ export class PerformanceOverlay extends LitElement implements Layer {
     };
   }
 
+  private formatFrenzyBreakdownValue(key: string, value: number): string {
+    if (key.startsWith("_pf_")) {
+      return `${Math.floor(value)}`;
+    }
+    if (key === "_total") {
+      return `${value.toFixed(2)}ms`;
+    }
+    return `${value.toFixed(2)}ms`;
+  }
+
   private clearCopyStatusTimeout() {
     if (this.copyStatusTimeoutId !== null) {
       clearTimeout(this.copyStatusTimeoutId);
@@ -586,6 +635,16 @@ export class PerformanceOverlay extends LitElement implements Layer {
         ? Math.max(...this.layerBreakdown.map((l) => l.avg))
         : 1;
 
+    const frenzyEntries = Object.entries(this.frenzyTickBreakdown);
+    const frenzyPfEntries = frenzyEntries
+      .filter(([k]) => k.startsWith("_pf_"))
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    const frenzyTimeEntries = frenzyEntries
+      .filter(([k]) => !k.startsWith("_pf_"))
+      .sort((a, b) => b[1] - a[1]);
+
+    const frenzyTopTimeEntries = frenzyTimeEntries.slice(0, 12);
+
     return html`
       <div
         class="performance-overlay ${this.isDragging ? "dragging" : ""}"
@@ -631,6 +690,37 @@ export class PerformanceOverlay extends LitElement implements Layer {
           <span>${this.tickDelayAvg.toFixed(2)}ms</span>
           (max: <span>${this.tickDelayMax}ms</span>)
         </div>
+        ${frenzyEntries.length
+          ? html`<div class="frenzy-section">
+              <div class="performance-line">Frenzy tick breakdown</div>
+              ${frenzyPfEntries.length
+                ? html`<div class="frenzy-hint">
+                      Pathfinding counters (counts per tick)
+                    </div>
+                    ${frenzyPfEntries.map(
+                      ([k, v]) =>
+                        html`<div class="frenzy-row">
+                          <span class="frenzy-key" title=${k}>${k}</span>
+                          <span class="frenzy-val"
+                            >${this.formatFrenzyBreakdownValue(k, v)}</span
+                          >
+                        </div>`,
+                    )}`
+                : html``}
+              ${frenzyTopTimeEntries.length
+                ? html`<div class="frenzy-hint">Top tick contributors (ms)</div>
+                    ${frenzyTopTimeEntries.map(
+                      ([k, v]) =>
+                        html`<div class="frenzy-row">
+                          <span class="frenzy-key" title=${k}>${k}</span>
+                          <span class="frenzy-val"
+                            >${this.formatFrenzyBreakdownValue(k, v)}</span
+                          >
+                        </div>`,
+                    )}`
+                : html``}
+            </div>`
+          : html``}
         ${this.layerBreakdown.length
           ? html`<div class="layers-section">
               <div class="performance-line">
