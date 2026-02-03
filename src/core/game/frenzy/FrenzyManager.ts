@@ -91,6 +91,16 @@ export class FrenzyManager {
   // Defensive stance per player: 0 = stay near HQ, 0.5 = fire range, 1 = offensive (border)
   private playerDefensiveStance: Map<PlayerID, number> = new Map();
 
+  // Combat perf: cache targets for DPS units to avoid spatial queries every tick.
+  private dpsTargetCache: Map<number, FrenzyUnit> = new Map();
+
+  // Scratch arrays to avoid per-query allocations in hot paths.
+  private nearbyScratchCombat: FrenzyUnit[] = [];
+  private nearbyScratchSeparation: FrenzyUnit[] = [];
+
+  // Scratch map to memo alliance checks during a single target scan.
+  private allianceScratchCombat: Map<PlayerID, boolean> = new Map();
+
   // Performance: Cache territory data and only rebuild periodically
   private territoryCache: Map<PlayerID, PlayerTerritorySnapshot> = new Map();
   private territoryCacheTick = 0;
@@ -1077,7 +1087,8 @@ export class FrenzyManager {
     // Performance: Use squared distances to avoid sqrt calls
     const RETARGET_DISTANCE_SQ = 15 * 15; // Recalculate when within this distance of target
     const ATTACK_ORDER_ARRIVAL_DISTANCE_SQ = 20 * 20; // Clear attack order when this close to target
-    const AUTO_DIRECT_DISTANCE = 10; // tiles; skip pathfinding for short automatic moves
+    const stopDistance = Math.max(0, this.config.stopDistance);
+    const stopDistanceSq = stopDistance * stopDistance;
 
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
@@ -1159,10 +1170,8 @@ export class FrenzyManager {
 
       const dx = unit.targetX - unit.x;
       const dy = unit.targetY - unit.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      const stopDistance = Math.max(0, this.config.stopDistance);
-      if (dist > stopDistance) {
+      const distSq = dx * dx + dy * dy;
+      if (distSq > stopDistanceSq) {
         // Get unit-specific speed
         const unitConfig = getUnitConfig(this.config, unit.unitType);
         const speed = unitConfig.speed;
@@ -1172,13 +1181,15 @@ export class FrenzyManager {
           unit.attackOrderX !== undefined &&
           unit.attackOrderY !== undefined;
 
-        // Automatic expansion: for short distances, direct motion is cheaper than pathfinding.
-        // Manual attack orders always use pathfinding.
-        const shouldUseDirectMotion =
-          !hasManualAttackOrder && dist <= AUTO_DIRECT_DISTANCE;
+        // Aggressive performance optimization:
+        // - Automatic expansion ALWAYS uses direct steering (any distance).
+        // - If a direct step would hit water/out-of-bounds, we stop and force a retarget next tick.
+        // - Manual attack orders always use pathfinding.
+        const dist = Math.sqrt(distSq);
 
-        if (shouldUseDirectMotion) {
-          this.pfThisTick.landDirectMoves++;
+        let moved = false;
+
+        if (!hasManualAttackOrder) {
           // Direct motion + separation; only step onto land.
           if (dist > 0.0001) {
             let vx = (dx / dist) * speed;
@@ -1194,55 +1205,41 @@ export class FrenzyManager {
             const nextY = unit.y + vy * deltaTime;
             const nextTile = this.tileFromXY(nextX, nextY);
             if (nextTile !== null && this.game.isLand(nextTile)) {
+              this.pfThisTick.landDirectMoves++;
               unit.x = nextX;
               unit.y = nextY;
               unit.vx = vx;
               unit.vy = vy;
+              moved = true;
             } else {
               unit.vx = 0;
               unit.vy = 0;
+              // Blocked: never invoke pathfinding for automatic expansion.
+              // Force retarget next tick so the unit can pick another border direction.
+              unit.targetX = unit.x;
+              unit.targetY = unit.y;
+              moved = true;
             }
           } else {
             unit.vx = 0;
             unit.vy = 0;
+            moved = true;
           }
-        } else {
+        }
+
+        if (!moved) {
           this.pfThisTick.landPathAttempts++;
           // Hierarchical land pathing (HPA*) with safe local refinement.
-          const moved = this.updateLandUnitMovementPathfinding(
+          moved = this.updateLandUnitMovementPathfinding(
             unit,
             deltaTime,
             speed,
           );
 
           if (!moved) {
-            // Fallback: straight-line movement + separation
-            if (dist > 0.0001) {
-              let vx = (dx / dist) * speed;
-              let vy = (dy / dist) * speed;
-
-              unit.vx = vx;
-              unit.vy = vy;
-              this.applySeparation(unit);
-              vx = unit.vx;
-              vy = unit.vy;
-
-              const nextX = unit.x + vx * deltaTime;
-              const nextY = unit.y + vy * deltaTime;
-              const nextTile = this.tileFromXY(nextX, nextY);
-              if (nextTile !== null && this.game.isLand(nextTile)) {
-                unit.x = nextX;
-                unit.y = nextY;
-                unit.vx = vx;
-                unit.vy = vy;
-              } else {
-                unit.vx = 0;
-                unit.vy = 0;
-              }
-            } else {
-              unit.vx = 0;
-              unit.vy = 0;
-            }
+            // Fallback: stop (don't keep trying to push into water).
+            unit.vx = 0;
+            unit.vy = 0;
           }
         }
 
@@ -3162,7 +3159,12 @@ export class FrenzyManager {
   private applySeparation(unit: FrenzyUnit) {
     const separationRadius = this.config.separationRadius;
     const separationRadiusSq = separationRadius * separationRadius;
-    const nearby = this.spatialGrid.getNearby(unit.x, unit.y, separationRadius);
+    const nearby = this.spatialGrid.getNearbyInto(
+      unit.x,
+      unit.y,
+      separationRadius,
+      this.nearbyScratchSeparation,
+    );
 
     let sepX = 0;
     let sepY = 0;
@@ -3240,6 +3242,7 @@ export class FrenzyManager {
         continue;
       }
 
+      // Cooldowns tick down for all combat-capable units.
       unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
 
       const unitPlayer = this.safeGetPlayer(unit.playerId);
@@ -3270,29 +3273,94 @@ export class FrenzyManager {
         unit.fireInterval = effectiveFireInterval;
       }
 
-      // Performance: Find nearest enemy without creating intermediate arrays
-      const nearbyUnits = this.spatialGrid.getNearby(
-        unit.x,
-        unit.y,
-        combatRange,
-      );
-      let nearest: FrenzyUnit | null = null;
-      let nearestDistSq = Infinity;
+      const isBurstUnit =
+        isArtillery ||
+        unitConfig.projectileDamage !== undefined ||
+        (unit.unitType === FrenzyUnitType.DefensePost && unitConfig.dps <= 0);
+
+      // If this unit can only deal damage on shot and isn't ready, skip all target acquisition.
+      if (isBurstUnit && unit.weaponCooldown > 0 && !isWarshipT2) {
+        continue;
+      }
+
+      const combatRangeSq = combatRange * combatRange;
       const unitX = unit.x;
       const unitY = unit.y;
 
-      for (const other of nearbyUnits) {
-        if (other.playerId === unit.playerId) continue;
-        // Don't attack allies
-        const otherPlayer = this.safeGetPlayer(other.playerId);
-        if (otherPlayer && unitPlayer.isAlliedWith(otherPlayer)) continue;
+      let nearest: FrenzyUnit | null = null;
+      let nearestDistSq = Infinity;
 
-        const dx = other.x - unitX;
-        const dy = other.y - unitY;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < nearestDistSq) {
-          nearestDistSq = distSq;
-          nearest = other;
+      const isDpsUnit =
+        unitConfig.projectileDamage === undefined && !isArtillery;
+
+      // DPS units keep a cached target as long as it stays valid/in-range.
+      if (isDpsUnit) {
+        const cached = this.dpsTargetCache.get(unit.id);
+        const shouldRefreshTarget = ((this.tickCount + unit.id) & 3) === 0; // staggered every 4 ticks
+
+        if (
+          cached &&
+          !shouldRefreshTarget &&
+          cached.health > 0 &&
+          cached.playerId !== unit.playerId
+        ) {
+          const cachedDx = cached.x - unitX;
+          const cachedDy = cached.y - unitY;
+          const cachedDistSq = cachedDx * cachedDx + cachedDy * cachedDy;
+          if (cachedDistSq <= combatRangeSq) {
+            // Check alliance once (cheap cache per unit scan)
+            const cachedOtherPlayer = this.safeGetPlayer(cached.playerId);
+            if (
+              !cachedOtherPlayer ||
+              !unitPlayer.isAlliedWith(cachedOtherPlayer)
+            ) {
+              nearest = cached;
+              nearestDistSq = cachedDistSq;
+            }
+          }
+        }
+      }
+
+      if (nearest === null) {
+        // Performance: Find nearest enemy without allocating intermediate arrays.
+        const nearbyUnits = this.spatialGrid.getNearbyInto(
+          unitX,
+          unitY,
+          combatRange,
+          this.nearbyScratchCombat,
+        );
+
+        const allianceCache = this.allianceScratchCombat;
+        allianceCache.clear();
+        for (let i = 0; i < nearbyUnits.length; i++) {
+          const other = nearbyUnits[i];
+          if (other.playerId === unit.playerId) continue;
+
+          // Don't attack allies (memoized per other playerId)
+          const otherPlayerId = other.playerId;
+          let isAllied = allianceCache.get(otherPlayerId);
+          if (isAllied === undefined) {
+            const otherPlayer = this.safeGetPlayer(otherPlayerId);
+            isAllied = !!(otherPlayer && unitPlayer.isAlliedWith(otherPlayer));
+            allianceCache.set(otherPlayerId, isAllied);
+          }
+          if (isAllied) continue;
+
+          const dx = other.x - unitX;
+          const dy = other.y - unitY;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < nearestDistSq) {
+            nearestDistSq = distSq;
+            nearest = other;
+          }
+        }
+
+        if (isDpsUnit) {
+          if (nearest) {
+            this.dpsTargetCache.set(unit.id, nearest);
+          } else {
+            this.dpsTargetCache.delete(unit.id);
+          }
         }
       }
 
@@ -3341,6 +3409,8 @@ export class FrenzyManager {
           }
         }
       } else {
+        // Clear cached target if it went out of range / died.
+        this.dpsTargetCache.delete(unit.id);
         // No Frenzy enemy units nearby - check for enemy structures
         // Tier 2 warships use missile barrages on structures too
         if (unit.unitType === FrenzyUnitType.Warship && unit.tier >= 2) {
@@ -3477,8 +3547,7 @@ export class FrenzyManager {
       unit.barrageCooldown = 0;
     }
 
-    // Decrement cooldowns
-    unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
+    // Decrement barrage cooldown (weaponCooldown is decremented in updateCombat)
     unit.barrageCooldown = Math.max(0, (unit.barrageCooldown ?? 0) - deltaTime);
 
     // If in reload phase (after 2 volleys of 5), wait for main cooldown
@@ -3610,8 +3679,7 @@ export class FrenzyManager {
       unit.barrageCooldown = 0;
     }
 
-    // Decrement cooldowns
-    unit.weaponCooldown = Math.max(0, unit.weaponCooldown - deltaTime);
+    // Decrement barrage cooldown (weaponCooldown is decremented in updateCombat)
     unit.barrageCooldown = Math.max(0, (unit.barrageCooldown ?? 0) - deltaTime);
 
     // If in reload phase (after 2 volleys of 5), wait for main cooldown
@@ -3654,22 +3722,43 @@ export class FrenzyManager {
    * Returns the shield generator if protected, null otherwise
    */
   private getProtectingShield(unit: FrenzyUnit): FrenzyUnit | null {
-    for (const other of this.units) {
+    // Fast path: query only within the maximum possible shield radius.
+    const shieldConfig = getUnitConfig(
+      this.config,
+      FrenzyUnitType.ShieldGenerator,
+    );
+    const baseRadius = shieldConfig.shieldRadius ?? 30;
+    const maxShieldRadius = baseRadius * 1.5; // tier 2 max
+
+    const nearby = this.spatialGrid.getNearbyInto(
+      unit.x,
+      unit.y,
+      maxShieldRadius,
+      this.nearbyScratchCombat,
+    );
+
+    let best: FrenzyUnit | null = null;
+    let bestDistSq = Infinity;
+
+    for (let i = 0; i < nearby.length; i++) {
+      const other = nearby[i];
       if (other.unitType !== FrenzyUnitType.ShieldGenerator) continue;
       if (other.playerId !== unit.playerId) continue;
       if (!other.shieldHealth || other.shieldHealth <= 0) continue;
 
-      const unitConfig = getUnitConfig(this.config, other.unitType);
-      // Tier 2 shields have 1.5x radius
-      const baseRadius = unitConfig.shieldRadius ?? 30;
       const shieldRadius = other.tier >= 2 ? baseRadius * 1.5 : baseRadius;
-      const dist = Math.hypot(unit.x - other.x, unit.y - other.y);
+      const dx = unit.x - other.x;
+      const dy = unit.y - other.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq > shieldRadius * shieldRadius) continue;
 
-      if (dist <= shieldRadius) {
-        return other;
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        best = other;
       }
     }
-    return null;
+
+    return best;
   }
 
   /**
@@ -4231,8 +4320,13 @@ export class FrenzyManager {
     const radius = projectile.areaRadius ?? 15;
     const damage = projectile.damage ?? 60;
 
-    // Find all enemy units in the blast radius
-    const unitsInRadius = this.spatialGrid.getNearby(impactX, impactY, radius);
+    // Find all enemy units in the blast radius (no allocations)
+    const unitsInRadius = this.spatialGrid.getNearbyInto(
+      impactX,
+      impactY,
+      radius,
+      this.nearbyScratchCombat,
+    );
 
     for (const unit of unitsInRadius) {
       // Don't damage friendly units
@@ -4267,8 +4361,13 @@ export class FrenzyManager {
     const damage = projectile.damage ?? 25;
     const projectilePlayer = this.safeGetPlayer(projectile.playerId);
 
-    // Find all enemy units in the blast radius
-    const unitsInRadius = this.spatialGrid.getNearby(impactX, impactY, radius);
+    // Find all enemy units in the blast radius (no allocations)
+    const unitsInRadius = this.spatialGrid.getNearbyInto(
+      impactX,
+      impactY,
+      radius,
+      this.nearbyScratchCombat,
+    );
 
     for (const unit of unitsInRadius) {
       // Don't damage friendly units
@@ -4373,16 +4472,28 @@ export class FrenzyManager {
     const mapWidth = this.game.width();
     const mapHeight = this.game.height();
 
-    // Performance: Track tiles we've already checked this tick to avoid duplicate work
-    const checkedTiles = new Set<number>();
+    // Performance: Track tiles we've already checked this tick to avoid duplicate work.
+    // Store a bitmask per tile instead of a (tile,player) key to reduce Set size.
+    const checkedTilesMask = new Map<number, number>();
+
+    // Player index mapping for the per-tile bitmask.
+    const playerIndexById = new Map<PlayerID, number>();
+    let playerIndex = 0;
+    for (const player of this.game.players()) {
+      // Limit to 31 players for 32-bit masks; if exceeded, we just won't dedupe.
+      if (playerIndex >= 31) break;
+      playerIndexById.set(player.id(), playerIndex++);
+    }
 
     // Performance: Stagger unit captures - only process subset each tick
     // But always process all units if there are fewer than 100 (early game)
     const unitCount = this.units.length;
     const processAll = unitCount < 100;
+    // Heavier staggering for large games; territory capture is still effectively continuous.
+    const captureDivisor = unitCount > 1500 ? 5 : 3;
     const unitsPerTick = processAll
       ? unitCount
-      : Math.max(50, Math.ceil(unitCount / 3));
+      : Math.max(50, Math.ceil(unitCount / captureDivisor));
     const startIdx = processAll
       ? 0
       : (this.tickCount * unitsPerTick) % unitCount;
@@ -4402,6 +4513,7 @@ export class FrenzyManager {
       const player = this.safeGetPlayer(unit.playerId);
       if (!player) continue; // Skip if player no longer exists
       const playerId = unit.playerId;
+      const maskIndex = playerIndexById.get(playerId);
 
       // Check tiles in a radius around the unit
       const centerX = Math.floor(unit.x);
@@ -4421,11 +4533,14 @@ export class FrenzyManager {
           const tile = this.game.ref(tileX, tileY);
 
           // Performance: Skip if already checked by this player this tick
-          const tileKey = tile * 1000 + playerId.charCodeAt(0);
-          if (checkedTiles.has(tileKey)) {
-            continue;
+          if (maskIndex !== undefined) {
+            const bit = 1 << maskIndex;
+            const prevMask = checkedTilesMask.get(tile) ?? 0;
+            if ((prevMask & bit) !== 0) {
+              continue;
+            }
+            checkedTilesMask.set(tile, prevMask | bit);
           }
-          checkedTiles.add(tileKey);
 
           if (this.game.isWater(tile)) {
             continue;
@@ -4481,8 +4596,6 @@ export class FrenzyManager {
 
             // Capture structures on this tile
             this.captureStructuresOnTile(tile, playerId);
-
-            this.checkForHQCapture(currentOwner, tileX, tileY, playerId);
           }
         }
       }

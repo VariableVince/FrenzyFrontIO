@@ -31,7 +31,20 @@ export class SpatialHashGrid {
   }
 
   getNearby(x: number, y: number, radius: number): FrenzyUnit[] {
-    const nearby: FrenzyUnit[] = [];
+    return this.getNearbyInto(x, y, radius, []);
+  }
+
+  /**
+   * Fill `out` with all units within `radius` of (x,y).
+   * This is a hot-path helper to avoid allocating a new array per query.
+   */
+  getNearbyInto(
+    x: number,
+    y: number,
+    radius: number,
+    out: FrenzyUnit[],
+  ): FrenzyUnit[] {
+    out.length = 0;
     const radiusSq = radius * radius;
     const invCellSize = 1 / this.cellSize;
 
@@ -52,13 +65,13 @@ export class SpatialHashGrid {
           const dy = unit.y - y;
           const distSq = dx * dx + dy * dy;
           if (distSq <= radiusSq) {
-            nearby.push(unit);
+            out.push(unit);
           }
         }
       }
     }
 
-    return nearby;
+    return out;
   }
 
   private getKey(x: number, y: number): number {
