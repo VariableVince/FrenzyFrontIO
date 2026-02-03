@@ -95,11 +95,19 @@ export class FrenzyManager {
   private dpsTargetCache: Map<number, FrenzyUnit> = new Map();
 
   // Scratch arrays to avoid per-query allocations in hot paths.
-  private nearbyScratchCombat: FrenzyUnit[] = [];
+  // IMPORTANT: Do not reuse one scratch array across nested calls.
+  // `applyDamage()` can run during combat loops; it must not clobber the combat scan array.
+  private nearbyScratchCombatTargets: FrenzyUnit[] = [];
+  private nearbyScratchCombatAoE: FrenzyUnit[] = [];
+  private nearbyScratchShield: FrenzyUnit[] = [];
   private nearbyScratchSeparation: FrenzyUnit[] = [];
 
   // Scratch map to memo alliance checks during a single target scan.
   private allianceScratchCombat: Map<PlayerID, boolean> = new Map();
+
+  // Shield coverage cache (rebuilt each tick before combat damage is applied)
+  private shieldCoverageByUnitId: Map<number, FrenzyUnit> = new Map();
+  private shieldCoverageDistSqByUnitId: Map<number, number> = new Map();
 
   // Performance: Cache territory data and only rebuild periodically
   private territoryCache: Map<PlayerID, PlayerTerritorySnapshot> = new Map();
@@ -3221,6 +3229,9 @@ export class FrenzyManager {
       }
     }
 
+    // Rebuild shield coverage after regen so shields that just recovered can protect.
+    this.rebuildShieldCoverageCache();
+
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
@@ -3327,7 +3338,7 @@ export class FrenzyManager {
           unitX,
           unitY,
           combatRange,
-          this.nearbyScratchCombat,
+          this.nearbyScratchCombatTargets,
         );
 
         const allianceCache = this.allianceScratchCombat;
@@ -3722,7 +3733,12 @@ export class FrenzyManager {
    * Returns the shield generator if protected, null otherwise
    */
   private getProtectingShield(unit: FrenzyUnit): FrenzyUnit | null {
-    // Fast path: query only within the maximum possible shield radius.
+    const cached = this.shieldCoverageByUnitId.get(unit.id);
+    if (cached && cached.shieldHealth && cached.shieldHealth > 0) {
+      return cached;
+    }
+
+    // Rare fallback: cache may be empty (first tick) or cached shield depleted mid-tick.
     const shieldConfig = getUnitConfig(
       this.config,
       FrenzyUnitType.ShieldGenerator,
@@ -3734,12 +3750,11 @@ export class FrenzyManager {
       unit.x,
       unit.y,
       maxShieldRadius,
-      this.nearbyScratchCombat,
+      this.nearbyScratchShield,
     );
 
     let best: FrenzyUnit | null = null;
     let bestDistSq = Infinity;
-
     for (let i = 0; i < nearby.length; i++) {
       const other = nearby[i];
       if (other.unitType !== FrenzyUnitType.ShieldGenerator) continue;
@@ -3751,14 +3766,56 @@ export class FrenzyManager {
       const dy = unit.y - other.y;
       const distSq = dx * dx + dy * dy;
       if (distSq > shieldRadius * shieldRadius) continue;
-
       if (distSq < bestDistSq) {
         bestDistSq = distSq;
         best = other;
       }
     }
-
     return best;
+  }
+
+  private rebuildShieldCoverageCache() {
+    this.shieldCoverageByUnitId.clear();
+    this.shieldCoverageDistSqByUnitId.clear();
+
+    const shieldConfig = getUnitConfig(
+      this.config,
+      FrenzyUnitType.ShieldGenerator,
+    );
+    const baseRadius = shieldConfig.shieldRadius ?? 30;
+    const maxShieldRadius = baseRadius * 1.5; // tier 2 max
+
+    for (const shield of this.units) {
+      if (shield.unitType !== FrenzyUnitType.ShieldGenerator) continue;
+      if (!shield.shieldHealth || shield.shieldHealth <= 0) continue;
+
+      const shieldRadius = shield.tier >= 2 ? maxShieldRadius : baseRadius;
+      const shieldRadiusSq = shieldRadius * shieldRadius;
+
+      const nearby = this.spatialGrid.getNearbyInto(
+        shield.x,
+        shield.y,
+        shieldRadius,
+        this.nearbyScratchShield,
+      );
+
+      for (let i = 0; i < nearby.length; i++) {
+        const unit = nearby[i];
+        if (unit.playerId !== shield.playerId) continue;
+        if (unit.health <= 0) continue;
+
+        const dx = unit.x - shield.x;
+        const dy = unit.y - shield.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > shieldRadiusSq) continue;
+
+        const prevDistSq = this.shieldCoverageDistSqByUnitId.get(unit.id);
+        if (prevDistSq === undefined || distSq < prevDistSq) {
+          this.shieldCoverageDistSqByUnitId.set(unit.id, distSq);
+          this.shieldCoverageByUnitId.set(unit.id, shield);
+        }
+      }
+    }
   }
 
   /**
@@ -4325,7 +4382,7 @@ export class FrenzyManager {
       impactX,
       impactY,
       radius,
-      this.nearbyScratchCombat,
+      this.nearbyScratchCombatAoE,
     );
 
     for (const unit of unitsInRadius) {
@@ -4366,7 +4423,7 @@ export class FrenzyManager {
       impactX,
       impactY,
       radius,
-      this.nearbyScratchCombat,
+      this.nearbyScratchCombatAoE,
     );
 
     for (const unit of unitsInRadius) {
