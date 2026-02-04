@@ -38,6 +38,12 @@ import {
 } from "./FrenzyTypes";
 import { SpatialHashGrid } from "./SpatialHashGrid";
 
+type CachedStructureTarget =
+  | { kind: "none"; expiresTick: number }
+  | { kind: "frenzy"; expiresTick: number; target: FrenzyStructure }
+  | { kind: "unit"; expiresTick: number; target: Unit }
+  | { kind: "hq"; expiresTick: number; target: CoreBuilding };
+
 /**
  * FrenzyManager handles all unit-based warfare logic for Frenzy mode
  * ALL structures (HQ, Mine, Factory, Port) and units are managed here.
@@ -94,6 +100,10 @@ export class FrenzyManager {
   // Combat perf: cache targets for DPS units to avoid spatial queries every tick.
   private dpsTargetCache: Map<number, FrenzyUnit> = new Map();
 
+  // Combat perf: cache structure targets (and negative results) to avoid expensive structure
+  // queries when units have no enemy FrenzyUnits in range.
+  private structureTargetCache: Map<number, CachedStructureTarget> = new Map();
+
   // Scratch arrays to avoid per-query allocations in hot paths.
   // IMPORTANT: Do not reuse one scratch array across nested calls.
   // `applyDamage()` can run during combat loops; it must not clobber the combat scan array.
@@ -131,6 +141,9 @@ export class FrenzyManager {
 
   // Performance profiling: stores last tick breakdown
   private lastTickBreakdown: Record<string, number> = {};
+
+  // Extra per-tick metrics (counts and/or sub-timers) merged into `lastTickBreakdown`.
+  private extraTickMetrics: Record<string, number> = {};
 
   // Lightweight instrumentation: how often movement uses direct motion vs HPA routing.
   // Counts are reset every tick and copied into `lastTickBreakdown` using `_pf_*` keys.
@@ -500,6 +513,9 @@ export class FrenzyManager {
 
     this.tickCount++;
 
+    // Reset extra per-tick metrics.
+    this.extraTickMetrics = {};
+
     // Profiling: always track time for each operation
     const times: Record<string, number> = {};
     const mark = (name: string) => {
@@ -581,6 +597,10 @@ export class FrenzyManager {
       times[keys[keys.length - 1]] - times["start"];
 
     // Add lightweight pathfinding counters (counts per tick, not milliseconds).
+    // Merge any extra per-tick metrics (counts/subtimers) before exporting.
+    for (const [k, v] of Object.entries(this.extraTickMetrics)) {
+      this.lastTickBreakdown[k] = v;
+    }
     this.lastTickBreakdown["_pf_land_direct"] = this.pfThisTick.landDirectMoves;
     this.lastTickBreakdown["_pf_land_path_attempts"] =
       this.pfThisTick.landPathAttempts;
@@ -2550,7 +2570,9 @@ export class FrenzyManager {
     if (
       this.landPathFinders.size === 0 &&
       this.warshipRoutes.size === 0 &&
-      this.landRoutes.size === 0
+      this.landRoutes.size === 0 &&
+      this.dpsTargetCache.size === 0 &&
+      this.structureTargetCache.size === 0
     ) {
       return;
     }
@@ -2568,6 +2590,13 @@ export class FrenzyManager {
     }
     for (const id of this.landRoutes.keys()) {
       if (!alive.has(id)) this.landRoutes.delete(id);
+    }
+
+    for (const id of this.dpsTargetCache.keys()) {
+      if (!alive.has(id)) this.dpsTargetCache.delete(id);
+    }
+    for (const id of this.structureTargetCache.keys()) {
+      if (!alive.has(id)) this.structureTargetCache.delete(id);
     }
   }
 
@@ -3208,10 +3237,17 @@ export class FrenzyManager {
   }
 
   private updateCombat(deltaTime: number) {
+    const combatStart = performance.now();
+    let combatUnitsProcessed = 0;
+    let combatTargetScanCalls = 0;
+    let combatTargetCandidatesChecked = 0;
+    let combatStructureTargetChecks = 0;
+
     // Track which units are in combat to apply mutual damage
     const combatPairs = new Map<number, number>();
 
     // Update shield regeneration
+    const shieldRegenStart = performance.now();
     for (const unit of this.units) {
       if (unit.unitType === FrenzyUnitType.ShieldGenerator) {
         if (unit.shieldRegenTimer !== undefined && unit.shieldRegenTimer > 0) {
@@ -3228,14 +3264,24 @@ export class FrenzyManager {
         }
       }
     }
+    const shieldRegenMs = performance.now() - shieldRegenStart;
 
     // Rebuild shield coverage after regen so shields that just recovered can protect.
-    this.rebuildShieldCoverageCache();
+    // This can be expensive in very large games, so rebuild every other tick.
+    const shieldCacheStart = performance.now();
+    if ((this.tickCount & 1) === 0) {
+      this.rebuildShieldCoverageCache();
+    }
+    const shieldCacheMs = performance.now() - shieldCacheStart;
+
+    const unitLoopStart = performance.now();
 
     for (const unit of this.units) {
       if (this.defeatedPlayers.has(unit.playerId)) {
         continue;
       }
+
+      combatUnitsProcessed++;
 
       // Shield generators don't attack
       if (unit.unitType === FrenzyUnitType.ShieldGenerator) {
@@ -3334,6 +3380,7 @@ export class FrenzyManager {
 
       if (nearest === null) {
         // Performance: Find nearest enemy without allocating intermediate arrays.
+        combatTargetScanCalls++;
         const nearbyUnits = this.spatialGrid.getNearbyInto(
           unitX,
           unitY,
@@ -3343,26 +3390,66 @@ export class FrenzyManager {
 
         const allianceCache = this.allianceScratchCombat;
         allianceCache.clear();
-        for (let i = 0; i < nearbyUnits.length; i++) {
-          const other = nearbyUnits[i];
-          if (other.playerId === unit.playerId) continue;
 
-          // Don't attack allies (memoized per other playerId)
-          const otherPlayerId = other.playerId;
-          let isAllied = allianceCache.get(otherPlayerId);
-          if (isAllied === undefined) {
-            const otherPlayer = this.safeGetPlayer(otherPlayerId);
-            isAllied = !!(otherPlayer && unitPlayer.isAlliedWith(otherPlayer));
-            allianceCache.set(otherPlayerId, isAllied);
+        const nearbyLen = nearbyUnits.length;
+        // In very dense battles, scanning every candidate for every unit is too expensive.
+        // Cap the number of candidates checked, sampling deterministically across the list.
+        const maxChecks = nearbyLen > 64 ? 48 : nearbyLen;
+        if (nearbyLen <= maxChecks) {
+          combatTargetCandidatesChecked += nearbyLen;
+          for (let i = 0; i < nearbyLen; i++) {
+            const other = nearbyUnits[i];
+            if (other.playerId === unit.playerId) continue;
+
+            // Don't attack allies (memoized per other playerId)
+            const otherPlayerId = other.playerId;
+            let isAllied = allianceCache.get(otherPlayerId);
+            if (isAllied === undefined) {
+              const otherPlayer = this.safeGetPlayer(otherPlayerId);
+              isAllied = !!(
+                otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
+              );
+              allianceCache.set(otherPlayerId, isAllied);
+            }
+            if (isAllied) continue;
+
+            const dx = other.x - unitX;
+            const dy = other.y - unitY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < nearestDistSq) {
+              nearestDistSq = distSq;
+              nearest = other;
+            }
           }
-          if (isAllied) continue;
+        } else {
+          combatTargetCandidatesChecked += maxChecks;
+          const stride = Math.max(1, Math.floor(nearbyLen / maxChecks));
+          let idx = unit.id % stride;
+          for (let checks = 0; checks < maxChecks; checks++) {
+            const other = nearbyUnits[idx % nearbyLen];
+            idx += stride;
 
-          const dx = other.x - unitX;
-          const dy = other.y - unitY;
-          const distSq = dx * dx + dy * dy;
-          if (distSq < nearestDistSq) {
-            nearestDistSq = distSq;
-            nearest = other;
+            if (other.playerId === unit.playerId) continue;
+
+            // Don't attack allies (memoized per other playerId)
+            const otherPlayerId = other.playerId;
+            let isAllied = allianceCache.get(otherPlayerId);
+            if (isAllied === undefined) {
+              const otherPlayer = this.safeGetPlayer(otherPlayerId);
+              isAllied = !!(
+                otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
+              );
+              allianceCache.set(otherPlayerId, isAllied);
+            }
+            if (isAllied) continue;
+
+            const dx = other.x - unitX;
+            const dy = other.y - unitY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < nearestDistSq) {
+              nearestDistSq = distSq;
+              nearest = other;
+            }
           }
         }
 
@@ -3424,6 +3511,7 @@ export class FrenzyManager {
         this.dpsTargetCache.delete(unit.id);
         // No Frenzy enemy units nearby - check for enemy structures
         // Tier 2 warships use missile barrages on structures too
+        combatStructureTargetChecks++;
         if (unit.unitType === FrenzyUnitType.Warship && unit.tier >= 2) {
           this.attackNearbyStructuresWithMissiles(unit, deltaTime, combatRange);
         } else {
@@ -3431,6 +3519,21 @@ export class FrenzyManager {
         }
       }
     }
+
+    const unitLoopMs = performance.now() - unitLoopStart;
+    const combatTotalMs = performance.now() - combatStart;
+
+    // Export lightweight combat sub-metrics into the perf overlay.
+    this.extraTickMetrics["_combat_shield_regen_ms"] = shieldRegenMs;
+    this.extraTickMetrics["_combat_shield_cache_ms"] = shieldCacheMs;
+    this.extraTickMetrics["_combat_unit_loop_ms"] = unitLoopMs;
+    this.extraTickMetrics["_combat_total_ms"] = combatTotalMs;
+    this.extraTickMetrics["_combat_units_processed"] = combatUnitsProcessed;
+    this.extraTickMetrics["_combat_target_scan_calls"] = combatTargetScanCalls;
+    this.extraTickMetrics["_combat_target_candidates_checked"] =
+      combatTargetCandidatesChecked;
+    this.extraTickMetrics["_combat_structure_target_checks"] =
+      combatStructureTargetChecks;
   }
 
   private spawnProjectile(
@@ -3845,6 +3948,100 @@ export class FrenzyManager {
     const unitPlayer = this.safeGetPlayer(unit.playerId);
     if (!unitPlayer) return; // Skip if player no longer exists
 
+    // Cache structure target acquisition to avoid calling `nearbyUnits()` for every unit
+    // on every tick when no enemy FrenzyUnits are in range.
+    const cached = this.structureTargetCache.get(unit.id);
+    if (cached && cached.expiresTick > this.tickCount) {
+      if (cached.kind === "none") {
+        return;
+      }
+
+      if (cached.kind === "frenzy") {
+        const target = cached.target;
+        if (target.health > 0 && target.playerId !== unit.playerId) {
+          const targetPlayer = this.safeGetPlayer(target.playerId);
+          if (!targetPlayer || !unitPlayer.isAlliedWith(targetPlayer)) {
+            const dx = target.x - unit.x;
+            const dy = target.y - unit.y;
+            if (dx * dx + dy * dy <= combatRange * combatRange) {
+              this.attackFrenzyStructure(unit, target, deltaTime, unitConfig);
+              return;
+            }
+          }
+        }
+      } else if (cached.kind === "unit") {
+        const target = cached.target;
+        if (target.isActive() && target.hasHealth()) {
+          const structureOwner = target.owner();
+          if (
+            structureOwner.isPlayer() &&
+            structureOwner.id() !== unit.playerId
+          ) {
+            const ownerPlayer = this.safeGetPlayer(structureOwner.id());
+            if (!ownerPlayer || !unitPlayer.isAlliedWith(ownerPlayer)) {
+              const targetTile = target.tile();
+              const targetX = this.game.x(targetTile);
+              const targetY = this.game.y(targetTile);
+              const dx = targetX - unit.x;
+              const dy = targetY - unit.y;
+              if (dx * dx + dy * dy <= combatRange * combatRange) {
+                if (unitConfig.projectileDamage !== undefined) {
+                  if (unit.weaponCooldown <= 0) {
+                    target.modifyHealth(
+                      -unitConfig.projectileDamage,
+                      unitPlayer,
+                    );
+                    this.spawnProjectileToStructure(unit, target);
+                    unit.weaponCooldown = unit.fireInterval;
+                  }
+                } else {
+                  target.modifyHealth(-unitConfig.dps * deltaTime, unitPlayer);
+                  if (unit.weaponCooldown <= 0) {
+                    this.spawnProjectileToStructure(unit, target);
+                    unit.weaponCooldown = unit.fireInterval;
+                  }
+                }
+                return;
+              }
+            }
+          }
+        }
+      } else if (cached.kind === "hq") {
+        const target = cached.target;
+        if (target.health > 0 && target.playerId !== unit.playerId) {
+          const ownerPlayer = this.safeGetPlayer(target.playerId);
+          if (!ownerPlayer || !unitPlayer.isAlliedWith(ownerPlayer)) {
+            const dx = target.x - unit.x;
+            const dy = target.y - unit.y;
+            if (dx * dx + dy * dy <= combatRange * combatRange) {
+              if (unitConfig.projectileDamage !== undefined) {
+                if (unit.weaponCooldown <= 0) {
+                  target.health -= unitConfig.projectileDamage;
+                  this.spawnProjectileToHQ(unit, target);
+                  unit.weaponCooldown = unit.fireInterval;
+                }
+              } else {
+                target.health -= unitConfig.dps * deltaTime;
+                if (unit.weaponCooldown <= 0) {
+                  this.spawnProjectileToHQ(unit, target);
+                  unit.weaponCooldown = unit.fireInterval;
+                }
+              }
+
+              if (target.health <= 0) {
+                this.defeatPlayer(target.playerId, unit.playerId);
+              }
+
+              return;
+            }
+          }
+        }
+      }
+
+      // Cached target is no longer valid.
+      this.structureTargetCache.delete(unit.id);
+    }
+
     // Convert pixel position to tile ref
     const tileX = Math.floor(unit.x);
     const tileY = Math.floor(unit.y);
@@ -3859,6 +4056,11 @@ export class FrenzyManager {
     );
 
     if (nearestFrenzyStructure) {
+      this.structureTargetCache.set(unit.id, {
+        kind: "frenzy",
+        target: nearestFrenzyStructure,
+        expiresTick: this.tickCount + 8,
+      });
       this.attackFrenzyStructure(
         unit,
         nearestFrenzyStructure,
@@ -3887,8 +4089,57 @@ export class FrenzyManager {
     );
 
     if (nearbyStructures.length === 0) {
-      // No City/Factory nearby - check for enemy HQs
-      this.attackNearbyHQ(unit, deltaTime, unitConfig, combatRange);
+      // No City/Factory nearby - check for enemy HQs (cached)
+      let nearestHQ: CoreBuilding | null = null;
+      let nearestDistSquared = combatRange * combatRange;
+
+      for (const [playerId, building] of this.coreBuildings) {
+        if (playerId === unit.playerId) continue;
+        const hqOwner = this.safeGetPlayer(playerId);
+        if (hqOwner && unitPlayer.isAlliedWith(hqOwner)) continue;
+
+        const dx = building.x - unit.x;
+        const dy = building.y - unit.y;
+        const distSquared = dx * dx + dy * dy;
+        if (distSquared <= nearestDistSquared) {
+          nearestHQ = building;
+          nearestDistSquared = distSquared;
+        }
+      }
+
+      if (!nearestHQ) {
+        this.structureTargetCache.set(unit.id, {
+          kind: "none",
+          expiresTick: this.tickCount + 3,
+        });
+        return;
+      }
+
+      this.structureTargetCache.set(unit.id, {
+        kind: "hq",
+        target: nearestHQ,
+        expiresTick: this.tickCount + 8,
+      });
+
+      // Attack the HQ
+      if (unitConfig.projectileDamage !== undefined) {
+        if (unit.weaponCooldown <= 0) {
+          nearestHQ.health -= unitConfig.projectileDamage;
+          this.spawnProjectileToHQ(unit, nearestHQ);
+          unit.weaponCooldown = unit.fireInterval;
+        }
+      } else {
+        nearestHQ.health -= unitConfig.dps * deltaTime;
+        if (unit.weaponCooldown <= 0) {
+          this.spawnProjectileToHQ(unit, nearestHQ);
+          unit.weaponCooldown = unit.fireInterval;
+        }
+      }
+
+      if (nearestHQ.health <= 0) {
+        this.defeatPlayer(nearestHQ.playerId, unit.playerId);
+      }
+
       return;
     }
 
@@ -3897,6 +4148,12 @@ export class FrenzyManager {
       current.distSquared < closest.distSquared ? current : closest,
     );
     const targetStructure = nearest.unit;
+
+    this.structureTargetCache.set(unit.id, {
+      kind: "unit",
+      target: targetStructure,
+      expiresTick: this.tickCount + 8,
+    });
 
     // Calculate damage based on unit type
     if (unitConfig.projectileDamage !== undefined) {

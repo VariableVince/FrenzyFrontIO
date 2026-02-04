@@ -215,6 +215,9 @@ export class UnitImpl implements Unit {
   }
 
   modifyHealth(delta: number, attacker?: Player): void {
+    if (!this.isActive()) {
+      return;
+    }
     this._health = withinInt(
       this._health + toInt(delta),
       0n,
@@ -251,7 +254,9 @@ export class UnitImpl implements Unit {
 
   delete(displayMessage?: boolean, destroyer?: Player): void {
     if (!this.isActive()) {
-      throw new Error(`cannot delete ${this} not active`);
+      // Deletion can be attempted multiple times via overlapping damage / capture paths.
+      // Treat delete as idempotent to avoid taking down the whole tick.
+      return;
     }
 
     // Record whether this unit was destroyed by an enemy (vs. arrived / retreated)
