@@ -104,6 +104,10 @@ export class FrenzyManager {
   // queries when units have no enemy FrenzyUnits in range.
   private structureTargetCache: Map<number, CachedStructureTarget> = new Map();
 
+  // Combat perf: units that repeatedly find no enemies can skip scans briefly.
+  // This is especially helpful on large maps where most units are not in combat.
+  private enemyScanCooldownByUnitId: Map<number, number> = new Map();
+
   // Scratch arrays to avoid per-query allocations in hot paths.
   // IMPORTANT: Do not reuse one scratch array across nested calls.
   // `applyDamage()` can run during combat loops; it must not clobber the combat scan array.
@@ -118,6 +122,11 @@ export class FrenzyManager {
   // Shield coverage cache (rebuilt each tick before combat damage is applied)
   private shieldCoverageByUnitId: Map<number, FrenzyUnit> = new Map();
   private shieldCoverageDistSqByUnitId: Map<number, number> = new Map();
+
+  // Territory capture perf: per-tile dedupe without per-tick Map allocations.
+  private captureCheckedStamp: Uint32Array | null = null;
+  private captureCheckedMask: Uint32Array | null = null;
+  private captureCheckedStampValue = 1;
 
   // Performance: Cache territory data and only rebuild periodically
   private territoryCache: Map<PlayerID, PlayerTerritorySnapshot> = new Map();
@@ -740,53 +749,283 @@ export class FrenzyManager {
     const maxRadius = Math.min(mapWidth, mapHeight) / 2;
     const mapType = this.game.config().gameConfig().gameMap;
 
-    const count = this.config.crystalClusterCount;
+    const worldCrystalMultiplier =
+      mapType === GameMapType.World ||
+      mapType === GameMapType.GiantWorldMap ||
+      mapType === GameMapType.Europe
+        ? 4
+        : 1;
+
+    const count = Math.max(
+      0,
+      Math.round(this.config.crystalClusterCount * worldCrystalMultiplier),
+    );
+
+    // For world-style maps, bias placement toward higher terrain magnitude.
+    // Magnitude is 0..31; we treat it as a height proxy.
+    const shouldBiasByHeight =
+      mapType === GameMapType.World ||
+      mapType === GameMapType.GiantWorldMap ||
+      mapType === GameMapType.Europe;
+    const MAX_PLACEMENT_TRIES = 1;
+
+    // World-style maps: ensure regional coverage while keeping a strong height bias.
+    // We do this by distributing clusters across a grid of regions, then choosing
+    // a locally-high-magnitude land tile within each region.
+    const regionBias = shouldBiasByHeight;
+
+    // Tuning knobs for world-style crystal distribution.
+    // Goal: keep strong height bias, but prevent massive high areas from
+    // monopolizing crystals by spreading clusters across more local regions.
+    const regionBiasTargetMultiplier = 8; // higher -> more regions -> more even global coverage
+    const regionBiasTargetMin = 30;
+    const regionBiasTargetMax = 60;
+
+    // Hard cap per region; lower values cap large high areas more aggressively.
+    const regionCrystalCapSlack = 0; // previous behavior was effectively +1 slack
+
+    // How finely the map is subdivided into regions for crystal distribution.
+    // More regions -> more even geographic coverage (each region gets some clusters).
+    const regionTargetCount = regionBias
+      ? Math.max(
+          regionBiasTargetMin,
+          Math.min(
+            regionBiasTargetMax,
+            Math.round(Math.sqrt(count) * regionBiasTargetMultiplier),
+          ),
+        )
+      : 0;
+    const regionAspect = mapHeight > 0 ? mapWidth / mapHeight : 1;
+    const regionGridX = regionBias
+      ? Math.max(
+          3,
+          Math.min(12, Math.round(Math.sqrt(regionTargetCount * regionAspect))),
+        )
+      : 1;
+    const regionGridY = regionBias
+      ? Math.max(3, Math.min(12, Math.ceil(regionTargetCount / regionGridX)))
+      : 1;
+    const regionCount = regionBias ? regionGridX * regionGridY : 0;
+    const regionPlacedCounts = regionBias
+      ? new Array<number>(regionCount).fill(0)
+      : [];
+
+    // Maximum crystal clusters allowed per region.
+    // This is the “density limiter” that prevents very large high areas (e.g. Himalayas)
+    // from monopolizing all crystals.
+    const regionCrystalCap = regionBias
+      ? Math.max(
+          1,
+          Math.ceil(count / Math.max(1, regionCount)) + regionCrystalCapSlack,
+        )
+      : 0;
+
+    // Sampling knobs for selecting a locally-high tile within the chosen region.
+    const regionLocalSamples = 60;
+    const regionPickTries = 12;
 
     for (let i = 0; i < count; i++) {
-      let x: number, y: number;
+      let x = 0;
+      let y = 0;
+      let tile: TileRef | undefined;
+      let placed = false;
+      let chosenMagnitude = 0;
 
-      if (mapType === GameMapType.SquareMap) {
-        // SquareMap: crystals only in center 10% zone (square distribution)
-        const crystalZoneSize = Math.min(mapWidth, mapHeight) * 0.1;
-        // Random position within the crystal zone square
-        x = centerX + (this.random.next() - 0.5) * 2 * crystalZoneSize;
-        y = centerY + (this.random.next() - 0.5) * 2 * crystalZoneSize;
+      // Find a valid land tile position.
+      // For world-style maps we want coverage across the whole map, but with a
+      // clear bias toward high terrain. To avoid huge high areas taking over,
+      // we sample within a region and cap how many clusters each region gets.
+      if (shouldBiasByHeight) {
+        let chosenRegion = -1;
+        for (let rp = 0; rp < regionPickTries; rp++) {
+          // Prefer the least-used regions to avoid empty areas.
+          let minCount = Infinity;
+          for (let r = 0; r < regionCount; r++) {
+            if (regionPlacedCounts[r] < minCount)
+              minCount = regionPlacedCounts[r];
+          }
+          const candidates: number[] = [];
+          for (let r = 0; r < regionCount; r++) {
+            if (
+              regionPlacedCounts[r] === minCount &&
+              regionPlacedCounts[r] < regionCrystalCap
+            ) {
+              candidates.push(r);
+            }
+          }
+          if (candidates.length === 0) {
+            // If all regions hit the cap (or many are water), relax the cap.
+            for (let r = 0; r < regionCount; r++) {
+              if (regionPlacedCounts[r] === minCount) candidates.push(r);
+            }
+          }
+          if (candidates.length === 0) {
+            break;
+          }
+          chosenRegion = candidates[this.random.nextInt(0, candidates.length)];
+
+          const rx = chosenRegion % regionGridX;
+          const ry = Math.floor(chosenRegion / regionGridX);
+          const regionX0 = Math.floor((rx * mapWidth) / regionGridX);
+          const regionX1 = Math.floor(((rx + 1) * mapWidth) / regionGridX);
+          const regionY0 = Math.floor((ry * mapHeight) / regionGridY);
+          const regionY1 = Math.floor(((ry + 1) * mapHeight) / regionGridY);
+
+          let bestTile: TileRef | undefined;
+          let bestX = 0;
+          let bestY = 0;
+          let bestScore = -1;
+          let bestMagnitude = 0;
+
+          for (let attempt = 0; attempt < regionLocalSamples; attempt++) {
+            x =
+              regionX0 + this.random.next() * Math.max(1, regionX1 - regionX0);
+            y =
+              regionY0 + this.random.next() * Math.max(1, regionY1 - regionY0);
+
+            const tileX = Math.floor(x);
+            const tileY = Math.floor(y);
+            if (!this.game.isValidCoord(tileX, tileY)) {
+              continue;
+            }
+            const candidateTile = this.game.ref(tileX, tileY);
+            if (!candidateTile || this.game.isWater(candidateTile)) {
+              continue;
+            }
+
+            const magnitude = this.game.magnitude(candidateTile);
+            // Strong height bias, but keep a touch of noise so each region
+            // doesn't always pick the single peak tile.
+            const score = magnitude + this.random.next();
+            if (score > bestScore) {
+              bestScore = score;
+              bestTile = candidateTile;
+              bestX = x;
+              bestY = y;
+              bestMagnitude = magnitude;
+            }
+          }
+
+          if (bestTile) {
+            tile = bestTile;
+            x = bestX;
+            y = bestY;
+            chosenMagnitude = bestMagnitude;
+            placed = true;
+            regionPlacedCounts[chosenRegion]++;
+            break;
+          }
+
+          // Region had no usable land samples; try another region.
+          chosenRegion = -1;
+        }
+
+        // Fallback: if we couldn't place by region (e.g. very watery maps), try global sampling.
+        if (!placed) {
+          let bestTile: TileRef | undefined;
+          let bestX = 0;
+          let bestY = 0;
+          let bestScore = -1;
+          let bestMagnitude = 0;
+
+          for (let attempt = 0; attempt < regionLocalSamples; attempt++) {
+            x = this.random.next() * mapWidth;
+            y = this.random.next() * mapHeight;
+
+            const tileX = Math.floor(x);
+            const tileY = Math.floor(y);
+            if (!this.game.isValidCoord(tileX, tileY)) {
+              continue;
+            }
+            const candidateTile = this.game.ref(tileX, tileY);
+            if (!candidateTile || this.game.isWater(candidateTile)) {
+              continue;
+            }
+
+            const magnitude = this.game.magnitude(candidateTile);
+            const score = magnitude + this.random.next();
+            if (score > bestScore) {
+              bestScore = score;
+              bestTile = candidateTile;
+              bestX = x;
+              bestY = y;
+              bestMagnitude = magnitude;
+            }
+          }
+
+          if (bestTile) {
+            tile = bestTile;
+            x = bestX;
+            y = bestY;
+            chosenMagnitude = bestMagnitude;
+            placed = true;
+          }
+        }
       } else {
-        // CircleMap and others: use polar distribution favoring center
-        // Use gaussian-like distribution favoring center
-        // Square root of random gives higher density toward center
-        const distFactor = Math.sqrt(this.random.next()) * 0.85; // 0.85 to keep some space from edges
-        const angle = this.random.next() * Math.PI * 2;
+        // Non-world maps: keep the existing center-biased distribution.
+        for (let attempt = 0; attempt < MAX_PLACEMENT_TRIES; attempt++) {
+          if (mapType === GameMapType.SquareMap) {
+            // SquareMap: crystals only in center 10% zone (square distribution)
+            const crystalZoneSize = Math.min(mapWidth, mapHeight) * 0.1;
+            // Random position within the crystal zone square
+            x = centerX + (this.random.next() - 0.5) * 2 * crystalZoneSize;
+            y = centerY + (this.random.next() - 0.5) * 2 * crystalZoneSize;
+          } else {
+            // CircleMap and others: use polar distribution favoring center
+            // Use gaussian-like distribution favoring center
+            // Square root of random gives higher density toward center
+            const distFactor = Math.sqrt(this.random.next()) * 0.85; // 0.85 to keep some space from edges
+            const angle = this.random.next() * Math.PI * 2;
 
-        x = centerX + Math.cos(angle) * distFactor * maxRadius;
-        y = centerY + Math.sin(angle) * distFactor * maxRadius;
+            x = centerX + Math.cos(angle) * distFactor * maxRadius;
+            y = centerY + Math.sin(angle) * distFactor * maxRadius;
+          }
+
+          // Only place on land
+          const tileX = Math.floor(x);
+          const tileY = Math.floor(y);
+          if (!this.game.isValidCoord(tileX, tileY)) {
+            continue;
+          }
+          tile = this.game.ref(tileX, tileY);
+          if (!tile || this.game.isWater(tile)) {
+            tile = undefined;
+            continue;
+          }
+
+          placed = true;
+          break;
+        }
       }
 
-      // Only place on land
-      const tileX = Math.floor(x);
-      const tileY = Math.floor(y);
-      if (!this.game.isValidCoord(tileX, tileY)) {
+      if (!tile || !placed) {
         continue;
       }
-      const tile = this.game.ref(tileX, tileY);
-      if (!tile || this.game.isWater(tile)) {
-        continue;
+
+      let crystalCount: number;
+      if (shouldBiasByHeight) {
+        const height01 = Math.max(0, Math.min(1, chosenMagnitude / 31));
+        // 1-5 crystals, more on higher terrain.
+        crystalCount = Math.min(
+          5,
+          Math.max(1, Math.floor(1 + height01 * 4 + this.random.next() * 1.5)),
+        );
+      } else {
+        // For SquareMap/CircleMap: keep the center-based cluster sizing.
+        const dx = Math.abs(x - centerX);
+        const dy = Math.abs(y - centerY);
+        const distFromCenter =
+          mapType === GameMapType.SquareMap
+            ? Math.max(dx, dy) / (Math.min(mapWidth, mapHeight) * 0.1)
+            : Math.sqrt(dx * dx + dy * dy) / maxRadius;
+
+        // Random cluster size (1-5 crystals), higher chance for more crystals near center
+        const centerBonus = Math.max(0, 1 - distFromCenter); // 0-1, higher near center
+        crystalCount = Math.min(
+          5,
+          Math.max(1, Math.floor(1 + centerBonus * 3 + this.random.next() * 2)),
+        );
       }
-
-      // For SquareMap: calculate distance from center for cluster size
-      const dx = Math.abs(x - centerX);
-      const dy = Math.abs(y - centerY);
-      const distFromCenter =
-        mapType === GameMapType.SquareMap
-          ? Math.max(dx, dy) / (Math.min(mapWidth, mapHeight) * 0.1)
-          : Math.sqrt(dx * dx + dy * dy) / maxRadius;
-
-      // Random cluster size (1-5 crystals), higher chance for more crystals near center
-      const centerBonus = Math.max(0, 1 - distFromCenter); // 0-1, higher near center
-      const crystalCount = Math.min(
-        5,
-        Math.max(1, Math.floor(1 + centerBonus * 3 + this.random.next() * 2)),
-      );
 
       // Random rotations for each crystal in the cluster (bottom anchored, tilt up to 30 degrees each way)
       const rotations: number[] = [];
@@ -1225,7 +1464,9 @@ export class FrenzyManager {
 
             unit.vx = vx;
             unit.vy = vy;
-            this.applySeparation(unit);
+            if (this.shouldApplySeparation(unit.id)) {
+              this.applySeparation(unit);
+            }
             vx = unit.vx;
             vy = unit.vy;
 
@@ -1326,6 +1567,8 @@ export class FrenzyManager {
     // Compute centroid of player's territory to bias radial expansion
     const cx = centroid.x;
     const cy = centroid.y;
+    const mapWidth = this.game.width();
+    const mapHeight = this.game.height();
 
     // Find the best enemy/neutral neighbor tile that aligns with the unit's radial direction
     let bestTile: number | null = null;
@@ -1335,16 +1578,253 @@ export class FrenzyManager {
     const uy = unit.y - cy;
     const uLen = Math.hypot(ux, uy) || 1;
 
-    // Performance: Sample border tiles for faster calculation
+    // Performance: Avoid allocations in hot path.
+    // - `territory.borderTiles` is already capped in `buildTerritorySnapshots()`.
+    // - If still large, sample deterministically without allocating a new array.
     const MAX_TILES_TO_CHECK = 50;
-    const tilesToCheck =
-      borderTiles.length > MAX_TILES_TO_CHECK
-        ? this.sampleArray(borderTiles, MAX_TILES_TO_CHECK)
-        : borderTiles;
+    const borderLen = borderTiles.length;
+    const needSample = borderLen > MAX_TILES_TO_CHECK;
+    const tilesToIterate = needSample ? MAX_TILES_TO_CHECK : borderLen;
+    const step = needSample ? borderLen / MAX_TILES_TO_CHECK : 1;
+    const offset = needSample ? unit.id % borderLen : 0;
 
-    for (const borderTile of tilesToCheck) {
-      const neighbors = this.game.neighbors(borderTile);
-      for (const neighbor of neighbors) {
+    for (let ti = 0; ti < tilesToIterate; ti++) {
+      const borderTile = needSample
+        ? borderTiles[Math.floor((ti * step + offset) % borderLen)]
+        : borderTiles[ti];
+
+      // Inline 4-neighbors to avoid `neighbors()` array allocations.
+      const bx = this.game.x(borderTile);
+      const by = this.game.y(borderTile);
+
+      // Up
+      if (by > 0) {
+        const neighbor = borderTile - mapWidth;
+        const neighborOwner = this.game.owner(neighbor);
+
+        // Skip if we own this neighbor
+        if (neighborOwner.id() === unit.playerId) {
+          continue;
+        }
+        // Skip water
+        if (this.game.isWater(neighbor)) {
+          continue;
+        }
+        // Skip allied territory - units should not gather at allied borders
+        if (
+          unitPlayer &&
+          neighborOwner.isPlayer() &&
+          unitPlayer.isAlliedWith(neighborOwner)
+        ) {
+          continue;
+        }
+
+        const nx = this.game.x(neighbor);
+        const ny = this.game.y(neighbor);
+
+        // alignment with radial direction (higher is better)
+        const vx = nx - cx;
+        const vy = ny - cy;
+        const vLen = Math.hypot(vx, vy) || 1;
+        const alignment = (vx * ux + vy * uy) / (vLen * uLen); // -1..1
+
+        const dist = Math.hypot(nx - unit.x, ny - unit.y);
+
+        let alignmentBoost = Math.max(
+          0.1,
+          1 + this.config.radialAlignmentWeight * alignment,
+        );
+
+        // If attacking, add bonus for tiles in direction of enemy HQ
+        if (enemyHQPos) {
+          const hqDirX = enemyHQPos.x - unit.x;
+          const hqDirY = enemyHQPos.y - unit.y;
+          const hqDirLen = Math.hypot(hqDirX, hqDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const hqAlignment =
+            (hqDirX * tileDirX + hqDirY * tileDirY) / (hqDirLen * tileDirLen);
+          // Boost score for tiles aligned with HQ direction
+          alignmentBoost *= Math.max(0.5, 1 + hqAlignment * 0.5);
+        }
+
+        // If attacking with a click position, add bonus for tiles in that direction
+        if (clickPos) {
+          const clickDirX = clickPos.x - unit.x;
+          const clickDirY = clickPos.y - unit.y;
+          const clickDirLen = Math.hypot(clickDirX, clickDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const clickAlignment =
+            (clickDirX * tileDirX + clickDirY * tileDirY) /
+            (clickDirLen * tileDirLen);
+          // Boost score for tiles aligned with click direction
+          alignmentBoost *= Math.max(0.5, 1 + clickAlignment * 0.5);
+        }
+
+        const score = dist / alignmentBoost;
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestTile = neighbor;
+        }
+      }
+
+      // Down
+      if (by < mapHeight - 1) {
+        const neighbor = borderTile + mapWidth;
+        const neighborOwner = this.game.owner(neighbor);
+
+        // Skip if we own this neighbor
+        if (neighborOwner.id() === unit.playerId) {
+          continue;
+        }
+        // Skip water
+        if (this.game.isWater(neighbor)) {
+          continue;
+        }
+        // Skip allied territory - units should not gather at allied borders
+        if (
+          unitPlayer &&
+          neighborOwner.isPlayer() &&
+          unitPlayer.isAlliedWith(neighborOwner)
+        ) {
+          continue;
+        }
+
+        const nx = this.game.x(neighbor);
+        const ny = this.game.y(neighbor);
+
+        // alignment with radial direction (higher is better)
+        const vx = nx - cx;
+        const vy = ny - cy;
+        const vLen = Math.hypot(vx, vy) || 1;
+        const alignment = (vx * ux + vy * uy) / (vLen * uLen); // -1..1
+
+        const dist = Math.hypot(nx - unit.x, ny - unit.y);
+
+        let alignmentBoost = Math.max(
+          0.1,
+          1 + this.config.radialAlignmentWeight * alignment,
+        );
+
+        // If attacking, add bonus for tiles in direction of enemy HQ
+        if (enemyHQPos) {
+          const hqDirX = enemyHQPos.x - unit.x;
+          const hqDirY = enemyHQPos.y - unit.y;
+          const hqDirLen = Math.hypot(hqDirX, hqDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const hqAlignment =
+            (hqDirX * tileDirX + hqDirY * tileDirY) / (hqDirLen * tileDirLen);
+          // Boost score for tiles aligned with HQ direction
+          alignmentBoost *= Math.max(0.5, 1 + hqAlignment * 0.5);
+        }
+
+        // If attacking with a click position, add bonus for tiles in that direction
+        if (clickPos) {
+          const clickDirX = clickPos.x - unit.x;
+          const clickDirY = clickPos.y - unit.y;
+          const clickDirLen = Math.hypot(clickDirX, clickDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const clickAlignment =
+            (clickDirX * tileDirX + clickDirY * tileDirY) /
+            (clickDirLen * tileDirLen);
+          // Boost score for tiles aligned with click direction
+          alignmentBoost *= Math.max(0.5, 1 + clickAlignment * 0.5);
+        }
+
+        const score = dist / alignmentBoost;
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestTile = neighbor;
+        }
+      }
+
+      // Left
+      if (bx > 0) {
+        const neighbor = borderTile - 1;
+        const neighborOwner = this.game.owner(neighbor);
+
+        // Skip if we own this neighbor
+        if (neighborOwner.id() === unit.playerId) {
+          continue;
+        }
+        // Skip water
+        if (this.game.isWater(neighbor)) {
+          continue;
+        }
+        // Skip allied territory - units should not gather at allied borders
+        if (
+          unitPlayer &&
+          neighborOwner.isPlayer() &&
+          unitPlayer.isAlliedWith(neighborOwner)
+        ) {
+          continue;
+        }
+
+        const nx = this.game.x(neighbor);
+        const ny = this.game.y(neighbor);
+
+        // alignment with radial direction (higher is better)
+        const vx = nx - cx;
+        const vy = ny - cy;
+        const vLen = Math.hypot(vx, vy) || 1;
+        const alignment = (vx * ux + vy * uy) / (vLen * uLen); // -1..1
+
+        const dist = Math.hypot(nx - unit.x, ny - unit.y);
+
+        let alignmentBoost = Math.max(
+          0.1,
+          1 + this.config.radialAlignmentWeight * alignment,
+        );
+
+        // If attacking, add bonus for tiles in direction of enemy HQ
+        if (enemyHQPos) {
+          const hqDirX = enemyHQPos.x - unit.x;
+          const hqDirY = enemyHQPos.y - unit.y;
+          const hqDirLen = Math.hypot(hqDirX, hqDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const hqAlignment =
+            (hqDirX * tileDirX + hqDirY * tileDirY) / (hqDirLen * tileDirLen);
+          // Boost score for tiles aligned with HQ direction
+          alignmentBoost *= Math.max(0.5, 1 + hqAlignment * 0.5);
+        }
+
+        // If attacking with a click position, add bonus for tiles in that direction
+        if (clickPos) {
+          const clickDirX = clickPos.x - unit.x;
+          const clickDirY = clickPos.y - unit.y;
+          const clickDirLen = Math.hypot(clickDirX, clickDirY) || 1;
+          const tileDirX = nx - unit.x;
+          const tileDirY = ny - unit.y;
+          const tileDirLen = Math.hypot(tileDirX, tileDirY) || 1;
+          const clickAlignment =
+            (clickDirX * tileDirX + clickDirY * tileDirY) /
+            (clickDirLen * tileDirLen);
+          // Boost score for tiles aligned with click direction
+          alignmentBoost *= Math.max(0.5, 1 + clickAlignment * 0.5);
+        }
+
+        const score = dist / alignmentBoost;
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestTile = neighbor;
+        }
+      }
+
+      // Right
+      if (bx < mapWidth - 1) {
+        const neighbor = borderTile + 1;
         const neighborOwner = this.game.owner(neighbor);
 
         // Skip if we own this neighbor
@@ -2125,7 +2605,9 @@ export class FrenzyManager {
     // Apply separation, but don't allow it to push into water.
     unit.vx = vx;
     unit.vy = vy;
-    this.applySeparation(unit);
+    if (this.shouldApplySeparation(unit.id)) {
+      this.applySeparation(unit);
+    }
     vx = unit.vx;
     vy = unit.vy;
 
@@ -3193,6 +3675,18 @@ export class FrenzyManager {
     return result;
   }
 
+  private shouldApplySeparation(unitId: number): boolean {
+    if (this.config.separationRadius <= 0) return false;
+
+    const unitCount = this.units.length;
+    // In very large games, separation becomes a dominant cost.
+    // Apply it to a subset of units per tick (deterministic staggering).
+    const stride = unitCount > 2500 ? 3 : unitCount > 1500 ? 2 : 1;
+    if (stride === 1) return true;
+    const phase = unitId + this.tickCount;
+    return stride === 2 ? (phase & 1) === 0 : phase % stride === 0;
+  }
+
   private applySeparation(unit: FrenzyUnit) {
     const separationRadius = this.config.separationRadius;
     const separationRadiusSq = separationRadius * separationRadius;
@@ -3373,84 +3867,205 @@ export class FrenzyManager {
             ) {
               nearest = cached;
               nearestDistSq = cachedDistSq;
+              this.enemyScanCooldownByUnitId.delete(unit.id);
             }
           }
         }
       }
 
       if (nearest === null) {
-        // Performance: Find nearest enemy without allocating intermediate arrays.
-        combatTargetScanCalls++;
-        const nearbyUnits = this.spatialGrid.getNearbyInto(
-          unitX,
-          unitY,
-          combatRange,
-          this.nearbyScratchCombatTargets,
-        );
+        const canCooldownScan =
+          isDpsUnit &&
+          !unit.hasAttackOrder &&
+          (unit.unitType === FrenzyUnitType.Soldier ||
+            unit.unitType === FrenzyUnitType.EliteSoldier);
 
-        const allianceCache = this.allianceScratchCombat;
-        allianceCache.clear();
+        if (canCooldownScan) {
+          const cooldownUntil = this.enemyScanCooldownByUnitId.get(unit.id);
+          if (cooldownUntil !== undefined && cooldownUntil > this.tickCount) {
+            // Skip scanning this tick.
+          } else {
+            // Performance: Find nearest enemy without allocating intermediate arrays.
+            combatTargetScanCalls++;
+            const nearbyUnits = this.spatialGrid.getNearbyInto(
+              unitX,
+              unitY,
+              combatRange,
+              this.nearbyScratchCombatTargets,
+            );
 
-        const nearbyLen = nearbyUnits.length;
-        // In very dense battles, scanning every candidate for every unit is too expensive.
-        // Cap the number of candidates checked, sampling deterministically across the list.
-        const maxChecks = nearbyLen > 64 ? 48 : nearbyLen;
-        if (nearbyLen <= maxChecks) {
-          combatTargetCandidatesChecked += nearbyLen;
-          for (let i = 0; i < nearbyLen; i++) {
-            const other = nearbyUnits[i];
-            if (other.playerId === unit.playerId) continue;
+            const allianceCache = this.allianceScratchCombat;
+            allianceCache.clear();
 
-            // Don't attack allies (memoized per other playerId)
-            const otherPlayerId = other.playerId;
-            let isAllied = allianceCache.get(otherPlayerId);
-            if (isAllied === undefined) {
-              const otherPlayer = this.safeGetPlayer(otherPlayerId);
-              isAllied = !!(
-                otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
-              );
-              allianceCache.set(otherPlayerId, isAllied);
+            const nearbyLen = nearbyUnits.length;
+            // In very dense battles, scanning every candidate for every unit is too expensive.
+            // Cap the number of candidates checked, sampling deterministically across the list.
+            const maxChecks = nearbyLen > 64 ? 48 : nearbyLen;
+            if (nearbyLen <= maxChecks) {
+              combatTargetCandidatesChecked += nearbyLen;
+              for (let i = 0; i < nearbyLen; i++) {
+                const other = nearbyUnits[i];
+                if (other.playerId === unit.playerId) continue;
+
+                // Cheap AABB + range prefilter before any alliance lookups.
+                const dx = other.x - unitX;
+                if (dx > combatRange || dx < -combatRange) continue;
+                const dy = other.y - unitY;
+                if (dy > combatRange || dy < -combatRange) continue;
+                const distSq = dx * dx + dy * dy;
+                if (distSq > combatRangeSq || distSq >= nearestDistSq) {
+                  continue;
+                }
+
+                // Don't attack allies (memoized per other playerId)
+                const otherPlayerId = other.playerId;
+                let isAllied = allianceCache.get(otherPlayerId);
+                if (isAllied === undefined) {
+                  const otherPlayer = this.safeGetPlayer(otherPlayerId);
+                  isAllied = !!(
+                    otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
+                  );
+                  allianceCache.set(otherPlayerId, isAllied);
+                }
+                if (isAllied) continue;
+
+                nearestDistSq = distSq;
+                nearest = other;
+              }
+            } else {
+              combatTargetCandidatesChecked += maxChecks;
+              const stride = Math.max(1, Math.floor(nearbyLen / maxChecks));
+              let idx = unit.id % stride;
+              for (let checks = 0; checks < maxChecks; checks++) {
+                const other = nearbyUnits[idx % nearbyLen];
+                idx += stride;
+
+                if (other.playerId === unit.playerId) continue;
+
+                // Cheap AABB + range prefilter before any alliance lookups.
+                const dx = other.x - unitX;
+                if (dx > combatRange || dx < -combatRange) continue;
+                const dy = other.y - unitY;
+                if (dy > combatRange || dy < -combatRange) continue;
+                const distSq = dx * dx + dy * dy;
+                if (distSq > combatRangeSq || distSq >= nearestDistSq) {
+                  continue;
+                }
+
+                // Don't attack allies (memoized per other playerId)
+                const otherPlayerId = other.playerId;
+                let isAllied = allianceCache.get(otherPlayerId);
+                if (isAllied === undefined) {
+                  const otherPlayer = this.safeGetPlayer(otherPlayerId);
+                  isAllied = !!(
+                    otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
+                  );
+                  allianceCache.set(otherPlayerId, isAllied);
+                }
+                if (isAllied) continue;
+
+                nearestDistSq = distSq;
+                nearest = other;
+              }
             }
-            if (isAllied) continue;
 
-            const dx = other.x - unitX;
-            const dy = other.y - unitY;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < nearestDistSq) {
-              nearestDistSq = distSq;
-              nearest = other;
+            if (nearest) {
+              this.enemyScanCooldownByUnitId.delete(unit.id);
+            } else {
+              // No enemies found: back off for a few ticks to avoid repeated empty scans.
+              // Keep it short to stay responsive.
+              this.enemyScanCooldownByUnitId.set(
+                unit.id,
+                this.tickCount + 4 + (unit.id & 1),
+              );
             }
           }
         } else {
-          combatTargetCandidatesChecked += maxChecks;
-          const stride = Math.max(1, Math.floor(nearbyLen / maxChecks));
-          let idx = unit.id % stride;
-          for (let checks = 0; checks < maxChecks; checks++) {
-            const other = nearbyUnits[idx % nearbyLen];
-            idx += stride;
+          // Performance: Find nearest enemy without allocating intermediate arrays.
+          combatTargetScanCalls++;
+          const nearbyUnits = this.spatialGrid.getNearbyInto(
+            unitX,
+            unitY,
+            combatRange,
+            this.nearbyScratchCombatTargets,
+          );
 
-            if (other.playerId === unit.playerId) continue;
+          const allianceCache = this.allianceScratchCombat;
+          allianceCache.clear();
 
-            // Don't attack allies (memoized per other playerId)
-            const otherPlayerId = other.playerId;
-            let isAllied = allianceCache.get(otherPlayerId);
-            if (isAllied === undefined) {
-              const otherPlayer = this.safeGetPlayer(otherPlayerId);
-              isAllied = !!(
-                otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
-              );
-              allianceCache.set(otherPlayerId, isAllied);
+          const nearbyLen = nearbyUnits.length;
+          // In very dense battles, scanning every candidate for every unit is too expensive.
+          // Cap the number of candidates checked, sampling deterministically across the list.
+          const maxChecks = nearbyLen > 64 ? 48 : nearbyLen;
+          if (nearbyLen <= maxChecks) {
+            combatTargetCandidatesChecked += nearbyLen;
+            for (let i = 0; i < nearbyLen; i++) {
+              const other = nearbyUnits[i];
+              if (other.playerId === unit.playerId) continue;
+
+              // Cheap AABB + range prefilter before any alliance lookups.
+              const dx = other.x - unitX;
+              if (dx > combatRange || dx < -combatRange) continue;
+              const dy = other.y - unitY;
+              if (dy > combatRange || dy < -combatRange) continue;
+              const distSq = dx * dx + dy * dy;
+              if (distSq > combatRangeSq || distSq >= nearestDistSq) {
+                continue;
+              }
+
+              // Don't attack allies (memoized per other playerId)
+              const otherPlayerId = other.playerId;
+              let isAllied = allianceCache.get(otherPlayerId);
+              if (isAllied === undefined) {
+                const otherPlayer = this.safeGetPlayer(otherPlayerId);
+                isAllied = !!(
+                  otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
+                );
+                allianceCache.set(otherPlayerId, isAllied);
+              }
+              if (isAllied) continue;
+
+              nearestDistSq = distSq;
+              nearest = other;
             }
-            if (isAllied) continue;
+          } else {
+            combatTargetCandidatesChecked += maxChecks;
+            const stride = Math.max(1, Math.floor(nearbyLen / maxChecks));
+            let idx = unit.id % stride;
+            for (let checks = 0; checks < maxChecks; checks++) {
+              const other = nearbyUnits[idx % nearbyLen];
+              idx += stride;
 
-            const dx = other.x - unitX;
-            const dy = other.y - unitY;
-            const distSq = dx * dx + dy * dy;
-            if (distSq < nearestDistSq) {
+              if (other.playerId === unit.playerId) continue;
+
+              // Cheap AABB + range prefilter before any alliance lookups.
+              const dx = other.x - unitX;
+              if (dx > combatRange || dx < -combatRange) continue;
+              const dy = other.y - unitY;
+              if (dy > combatRange || dy < -combatRange) continue;
+              const distSq = dx * dx + dy * dy;
+              if (distSq > combatRangeSq || distSq >= nearestDistSq) {
+                continue;
+              }
+
+              // Don't attack allies (memoized per other playerId)
+              const otherPlayerId = other.playerId;
+              let isAllied = allianceCache.get(otherPlayerId);
+              if (isAllied === undefined) {
+                const otherPlayer = this.safeGetPlayer(otherPlayerId);
+                isAllied = !!(
+                  otherPlayer && unitPlayer.isAlliedWith(otherPlayer)
+                );
+                allianceCache.set(otherPlayerId, isAllied);
+              }
+              if (isAllied) continue;
+
               nearestDistSq = distSq;
               nearest = other;
             }
           }
+
+          this.enemyScanCooldownByUnitId.delete(unit.id);
         }
 
         if (isDpsUnit) {
@@ -3522,6 +4137,21 @@ export class FrenzyManager {
 
     const unitLoopMs = performance.now() - unitLoopStart;
     const combatTotalMs = performance.now() - combatStart;
+
+    // Avoid unbounded growth when many units are destroyed over time.
+    if (
+      (this.tickCount & 63) === 0 &&
+      this.enemyScanCooldownByUnitId.size > this.units.length * 2
+    ) {
+      const pruned = new Map<number, number>();
+      for (const u of this.units) {
+        const until = this.enemyScanCooldownByUnitId.get(u.id);
+        if (until !== undefined && until > this.tickCount) {
+          pruned.set(u.id, until);
+        }
+      }
+      this.enemyScanCooldownByUnitId = pruned;
+    }
 
     // Export lightweight combat sub-metrics into the perf overlay.
     this.extraTickMetrics["_combat_shield_regen_ms"] = shieldRegenMs;
@@ -4787,8 +5417,28 @@ export class FrenzyManager {
     const mapHeight = this.game.height();
 
     // Performance: Track tiles we've already checked this tick to avoid duplicate work.
-    // Store a bitmask per tile instead of a (tile,player) key to reduce Set size.
-    const checkedTilesMask = new Map<number, number>();
+    // Use stamped typed arrays to avoid per-tick Map allocations.
+    const tileCount = mapWidth * mapHeight;
+    if (
+      !this.captureCheckedStamp ||
+      !this.captureCheckedMask ||
+      this.captureCheckedStamp.length !== tileCount
+    ) {
+      this.captureCheckedStamp = new Uint32Array(tileCount);
+      this.captureCheckedMask = new Uint32Array(tileCount);
+      this.captureCheckedStampValue = 1;
+    }
+
+    let stampValue = (this.captureCheckedStampValue + 1) >>> 0;
+    if (stampValue === 0) {
+      // Rare wrap-around: clear stamps.
+      this.captureCheckedStamp.fill(0);
+      stampValue = 1;
+    }
+    this.captureCheckedStampValue = stampValue;
+
+    const checkedStamp = this.captureCheckedStamp;
+    const checkedMask = this.captureCheckedMask;
 
     // Player index mapping for the per-tile bitmask.
     const playerIndexById = new Map<PlayerID, number>();
@@ -4849,11 +5499,16 @@ export class FrenzyManager {
           // Performance: Skip if already checked by this player this tick
           if (maskIndex !== undefined) {
             const bit = 1 << maskIndex;
-            const prevMask = checkedTilesMask.get(tile) ?? 0;
-            if ((prevMask & bit) !== 0) {
-              continue;
+            if (checkedStamp[tile] !== stampValue) {
+              checkedStamp[tile] = stampValue;
+              checkedMask[tile] = bit;
+            } else {
+              const prevMask = checkedMask[tile];
+              if ((prevMask & bit) !== 0) {
+                continue;
+              }
+              checkedMask[tile] = prevMask | bit;
             }
-            checkedTilesMask.set(tile, prevMask | bit);
           }
 
           if (this.game.isWater(tile)) {

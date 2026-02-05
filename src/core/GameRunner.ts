@@ -8,6 +8,7 @@ import {
   Attack,
   Cell,
   Game,
+  GameMapType,
   GameUpdates,
   NameViewData,
   Nation,
@@ -20,7 +21,7 @@ import {
   PlayerType,
 } from "./game/Game";
 import { createGame } from "./game/GameImpl";
-import { TileRef } from "./game/GameMap";
+import { GameMap, TileRef } from "./game/GameMap";
 import { GameMapLoader } from "./game/GameMapLoader";
 import {
   ErrorUpdate,
@@ -59,21 +60,37 @@ export async function createGameRunner(
       ),
   );
 
-  const nations = gameStart.config.disableNPCs
-    ? []
-    : gameMap.nations.map(
-        (n) =>
-          new Nation(
-            new Cell(n.coordinates[0], n.coordinates[1]),
-            new PlayerInfo(
-              n.name,
-              PlayerType.FakeHuman,
-              null,
-              random.nextID(),
-              n.strength,
-            ),
-          ),
-      );
+  const manifestNations = gameStart.config.disableNPCs ? [] : gameMap.nations;
+  const shouldEvenizeNationSpawns =
+    gameStart.config.gameMap === GameMapType.World ||
+    gameStart.config.gameMap === GameMapType.GiantWorldMap ||
+    gameStart.config.gameMap === GameMapType.Europe;
+
+  const evenizedNationSpawnTiles = shouldEvenizeNationSpawns
+    ? computeEvenSpawnTiles(
+        manifestNations.length,
+        gameMap.gameMap,
+        new PseudoRandom(simpleHash(`${gameStart.gameID}:nation-spawns`)),
+      )
+    : null;
+
+  const nations = manifestNations.map((n, index) => {
+    const spawnTile = evenizedNationSpawnTiles?.[index];
+    const spawnCell = spawnTile
+      ? new Cell(gameMap.gameMap.x(spawnTile), gameMap.gameMap.y(spawnTile))
+      : new Cell(n.coordinates[0], n.coordinates[1]);
+
+    return new Nation(
+      spawnCell,
+      new PlayerInfo(
+        n.name,
+        PlayerType.FakeHuman,
+        null,
+        random.nextID(),
+        n.strength,
+      ),
+    );
+  });
 
   const game: Game = createGame(
     humans,
@@ -91,6 +108,73 @@ export async function createGameRunner(
   );
   gr.init();
   return gr;
+}
+
+function computeEvenSpawnTiles(
+  count: number,
+  gm: GameMap,
+  random: PseudoRandom,
+): TileRef[] {
+  if (count <= 0) return [];
+
+  const chosen: TileRef[] = [];
+  const MAX_CANDIDATE_SAMPLES = 250;
+  const MAX_INITIAL_TRIES = 50_000;
+
+  // Pick an initial land tile.
+  for (let tries = 0; tries < MAX_INITIAL_TRIES; tries++) {
+    const tile = gm.ref(
+      random.nextInt(0, gm.width()),
+      random.nextInt(0, gm.height()),
+    );
+    if (gm.isLand(tile) && !gm.isBorder(tile)) {
+      chosen.push(tile);
+      break;
+    }
+  }
+
+  if (chosen.length === 0) {
+    return [];
+  }
+
+  while (chosen.length < count) {
+    let bestTile: TileRef | null = null;
+    let bestMinDist = -1;
+
+    for (let sample = 0; sample < MAX_CANDIDATE_SAMPLES; sample++) {
+      const candidate = gm.ref(
+        random.nextInt(0, gm.width()),
+        random.nextInt(0, gm.height()),
+      );
+      if (
+        !gm.isLand(candidate) ||
+        gm.isBorder(candidate) ||
+        gm.hasOwner(candidate)
+      ) {
+        continue;
+      }
+
+      let minDist = Infinity;
+      for (const existing of chosen) {
+        const d = gm.manhattanDist(existing, candidate);
+        if (d < minDist) minDist = d;
+        if (minDist <= bestMinDist) break;
+      }
+
+      if (minDist > bestMinDist) {
+        bestMinDist = minDist;
+        bestTile = candidate;
+      }
+    }
+
+    if (bestTile === null) {
+      break;
+    }
+
+    chosen.push(bestTile);
+  }
+
+  return chosen;
 }
 
 export class GameRunner {
