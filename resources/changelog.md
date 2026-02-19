@@ -1,3 +1,31 @@
+📦 **FrenzyFront Patch Notes - v0.10**
+
+⚔️ **Battle Optimizations**
+
+- Major combat performance improvements for Frenzy unit battles
+- Added/expanded combat caching (including shield coverage caching) to reduce repeated heavy calculations
+- Improved combat/movement update performance and stabilized hot-path scratch array usage
+- Added Frenzy performance breakdown overlay metrics to better track tick-time behavior
+
+🧭 **Pathfinding**
+
+- Added HPA pathfinding integration for Frenzy movement
+- Added pathfinding tick counters/metrics for tuning and debugging
+- Improved unit routing behavior and movement consistency under heavy load
+
+🗺️ **Maps & Rotation**
+
+- Public lobby rotation updated: removed Giant World Map
+- Public lobby rotation now uses Europe Classic (replacing Europe)
+- Europe Classic now uses the same world-style crystal distribution method as World map
+- World-style map tuning and spawn/crystal distribution improvements
+
+🔧 **Additional Fixes**
+
+- Fixed Frenzy nuke launch source selection: nukes now launch from the nearest eligible silo (with cooldown/tier checks)
+
+---
+
 📦 **FrenzyFront Patch Notes - v0.09**
 
 🎮 **Public Lobby Join Reliability**

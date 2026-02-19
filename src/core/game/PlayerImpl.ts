@@ -1012,16 +1012,40 @@ export class PlayerImpl implements Player {
       if (silos.length === 0) {
         return false;
       }
-      // Filter for tier 2+ if required (for hydrogen bombs)
-      const validSilos = requireTier2
-        ? silos.filter((s) => s.tier >= 2)
-        : silos;
-      if (validSilos.length === 0) {
-        return false;
+      // Match with regular unit silos to check cooldown availability.
+      const unitSiloByTile = new Map(
+        this.units(UnitType.MissileSilo).map((unitSilo) => [
+          unitSilo.tile(),
+          unitSilo,
+        ]),
+      );
+
+      let bestTile: TileRef | false = false;
+      let bestDistSquared = Infinity;
+
+      for (const silo of silos) {
+        if (requireTier2 && silo.tier < 2) {
+          continue;
+        }
+
+        const unitSilo = unitSiloByTile.get(silo.tile);
+        if (unitSilo?.isInCooldown()) {
+          continue;
+        }
+
+        const distSquared = this.mg.euclideanDistSquared(silo.tile, tile);
+        if (
+          distSquared < bestDistSquared ||
+          (distSquared === bestDistSquared &&
+            bestTile !== false &&
+            silo.tile < bestTile)
+        ) {
+          bestDistSquared = distSquared;
+          bestTile = silo.tile;
+        }
       }
-      // Return the tile of the nearest silo
-      // Since we don't have cooldown info in FrenzyManager, just return first valid silo
-      return validSilos[0].tile;
+
+      return bestTile;
     }
 
     // Non-Frenzy mode: use regular unit-based silos

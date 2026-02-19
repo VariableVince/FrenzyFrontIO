@@ -752,8 +752,9 @@ export class FrenzyManager {
     const worldCrystalMultiplier =
       mapType === GameMapType.World ||
       mapType === GameMapType.GiantWorldMap ||
-      mapType === GameMapType.Europe
-        ? 4
+      mapType === GameMapType.Europe ||
+      mapType === GameMapType.EuropeClassic
+        ? 5
         : 1;
 
     const count = Math.max(
@@ -766,7 +767,8 @@ export class FrenzyManager {
     const shouldBiasByHeight =
       mapType === GameMapType.World ||
       mapType === GameMapType.GiantWorldMap ||
-      mapType === GameMapType.Europe;
+      mapType === GameMapType.Europe ||
+      mapType === GameMapType.EuropeClassic;
     const MAX_PLACEMENT_TRIES = 1;
 
     // World-style maps: ensure regional coverage while keeping a strong height bias.
@@ -777,8 +779,8 @@ export class FrenzyManager {
     // Tuning knobs for world-style crystal distribution.
     // Goal: keep strong height bias, but prevent massive high areas from
     // monopolizing crystals by spreading clusters across more local regions.
-    const regionBiasTargetMultiplier = 8; // higher -> more regions -> more even global coverage
-    const regionBiasTargetMin = 30;
+    const regionBiasTargetMultiplier = 16; // higher -> more regions -> more even global coverage
+    const regionBiasTargetMin = 40;
     const regionBiasTargetMax = 60;
 
     // Hard cap per region; lower values cap large high areas more aggressively.
